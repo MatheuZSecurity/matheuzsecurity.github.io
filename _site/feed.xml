@@ -1,0 +1,96 @@
+
+
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>http://localhost:4000/</id>
+  <title>MatheuZ</title>
+  <subtitle>CTF Player Pentester Youtuber Linux/Shell Lover</subtitle>
+  <updated>2022-11-07T22:53:31+08:00</updated>
+  <author>
+    <name>Matheus</name>
+    <uri>http://localhost:4000/</uri>
+  </author>
+  <link rel="self" type="application/atom+xml" href="http://localhost:4000/feed.xml"/>
+  <link rel="alternate" type="text/html" hreflang="en"
+    href="http://localhost:4000/"/>
+  <generator uri="https://jekyllrb.com/" version="4.3.1">Jekyll</generator>
+  <rights> © 2022 Matheus </rights>
+  <icon>/assets/img/favicons/favicon.ico</icon>
+  <logo>/assets/img/favicons/favicon-96x96.png</logo>
+
+
+  
+  <entry>
+    <title>Controlando Uma Shell Usando Pwntty</title>
+    <link href="http://localhost:4000/posts/controlando-uma-shell-usando-pwntty/" rel="alternate" type="text/html" title="Controlando Uma Shell Usando Pwntty" />
+    <published>2022-11-07T00:00:00+08:00</published>
+  
+    <updated>2022-11-07T00:00:00+08:00</updated>
+  
+    <id>http://localhost:4000/posts/controlando-uma-shell-usando-pwntty/</id>
+    <content src="http://localhost:4000/posts/controlando-uma-shell-usando-pwntty/" />
+    <author>
+      <name>Matheus</name>
+    </author>
+
+  
+    
+  
+
+  
+    <summary>
+      
+
+
+
+
+
+      Controlando  Shells Usando Pwntty
+
+Salve galera, nesse post irei demostrar uma ótima e magnifica ferramenta criada pelo @exnorz, o objetivo dela é controlar outros TTY devices, resumidamente podemos controlar outras shells. Supondo que você esteja logado em um SSH, e tem outra pessoa na máquina, essa pessoa pode controlar a sua shell usando o Pwntty ou pode controlar manualmente também, bom ago...
+    </summary>
+  
+
+  </entry>
+
+  
+  <entry>
+    <title>Capturando Senha De Ssh Através Do Strace</title>
+    <link href="http://localhost:4000/posts/capturando-senha-de-ssh-atrav%C3%A9s-do-strace/" rel="alternate" type="text/html" title="Capturando Senha De Ssh Através Do Strace" />
+    <published>2022-10-27T00:00:00+08:00</published>
+  
+    <updated>2022-10-27T00:00:00+08:00</updated>
+  
+    <id>http://localhost:4000/posts/capturando-senha-de-ssh-atrav%C3%A9s-do-strace/</id>
+    <content src="http://localhost:4000/posts/capturando-senha-de-ssh-atrav%C3%A9s-do-strace/" />
+    <author>
+      <name>Matheus</name>
+    </author>
+
+  
+    
+  
+
+  
+    <summary>
+      
+
+
+
+
+
+      Bom primeiro precisamos entender o que é o strace.
+
+O que é o strace ?
+
+O strace é  uma ferramenta de “debugging” ou seja de depuração no linux que serve para depurar um processo em execução, o strace também fornece syscalls (chamada de sistema) que um programa em execução está fazendo e também os seus argumentos.
+
+
+  Agora que sabemos o que é o strace e o que ele faz, podemos ir para a prática...
+    </summary>
+  
+
+  </entry>
+
+</feed>
+
+

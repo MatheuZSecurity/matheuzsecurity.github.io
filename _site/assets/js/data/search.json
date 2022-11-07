@@ -1,0 +1,34 @@
+[
+  
+  {
+    "title": "Controlando Uma Shell Usando Pwntty",
+    "url": "/posts/controlando-uma-shell-usando-pwntty/",
+    "categories": "",
+    "tags": "",
+    "date": "2022-11-07 00:00:00 +0800",
+    
+
+
+
+
+
+    "snippet": "Controlando  Shells Usando PwnttySalve galera, nesse post irei demostrar uma ótima e magnifica ferramenta criada pelo @exnorz, o objetivo dela é controlar outros TTY devices, resumidamente podemos ..."
+  },
+  
+  {
+    "title": "Capturando Senha De Ssh Através Do Strace",
+    "url": "/posts/capturando-senha-de-ssh-atrav%C3%A9s-do-strace/",
+    "categories": "",
+    "tags": "",
+    "date": "2022-10-27 00:00:00 +0800",
+    
+
+
+
+
+
+    "snippet": "Bom primeiro precisamos entender o que é o strace.O que é o strace ?O strace é  uma ferramenta de “debugging” ou seja de depuração no linux que serve para depurar um processo em execução, o strace ..."
+  }
+  
+]
+
