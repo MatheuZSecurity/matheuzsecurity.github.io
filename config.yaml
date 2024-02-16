@@ -1,0 +1,92 @@
+baseURL: "https://matheuzsecurity.github.io/"
+title: 0xMatheuZ
+paginate: 5
+theme: PaperMod
+
+params:
+  env: production # to enable google analytics, opengraph, twitter-cards and schema.
+  title: 0xMatheuZ
+  description: "Red Teaming And Malware."
+  keywords: [Blog]
+  author: 0xMatheuZ
+  DateFormat: "January 2, 2006"
+  defaultTheme: dark # dark, light
+  disableThemeToggle: true
+
+  ShowReadingTime: true
+  ShowShareButtons: false
+  ShowPostNavLinks: true
+  ShowBreadCrumbs: true
+  ShowCodeCopyButtons: true
+  ShowWordCount: false
+  ShowRssButtonInSectionTermList: false
+  UseHugoToc: true
+  disableSpecial1stPost: false
+  disableScrollToTop: false
+  comments: false
+  hidemeta: false
+  hideSummary: true
+  showtoc: false
+  tocopen: false
+
+  label:
+    text: "MatheuZ"
+    icon: "https://i.imgur.com/xeSd64L.png"
+    iconHeight: 25
+
+  # profile-mode
+  profileMode:
+    enabled: true # needs to be explicitly set
+    title: MatheuZ
+    subtitle: "Penetration Tester and Cyber Threat Intelligence"
+    imageUrl: "https://i.imgur.com/xeSd64L.png"
+    imageWidth: 130
+    imageHeight: 130
+   # imageTitle: dp
+
+  socialIcons:
+    - name: twitter
+      url: "https://twitter.com/MatheuzSecurity"
+    - name: github
+      url: "https://github.com/MatheuZSecurity"
+    - name: hackthebox
+      url: "https://app.hackthebox.com/users/1711272"
+    - name: tryhackme
+      url: "https://tryhackme.com/p/MatheuZSec"
+    - name: Youtube
+      url:  "https://www.youtube.com/MatheuZSecurity"
+
+  cover:
+    hidden: true # hide everywhere but not in structured data
+    hiddenInList: true # hide on list pages and home
+    hiddenInSingle: true # hide on single page
+
+menu:
+  main:
+    - identifier: home
+      name: Home
+      url: /
+      weight: 1
+    - identifier: blogs
+      name: hacking
+      url: hacking
+      weight: 3
+    - identifier: tags
+      name: Tags
+      url: tags
+      weight: 5
+    - identifier: search
+      name: Search
+      url: search
+      weight: 6
+
+pygmentsUseClasses: true
+markup:
+  highlight:
+    noClasses: false
+
+outputs:
+    home:
+        - HTML
+        - RSS
+        - JSON # is necessary

@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Linux Threat Hunting Persistence | 0xMatheuZ</title>
+<meta name="keywords" content="Persistence">
+<meta name="description" content="Learn about persistence in Linux and how to hunt">
+<meta name="author" content="0xMatheuZ">
+<link rel="canonical" href="https://matheuzsecurity.github.io/hacking/linux-threat-hunting-persistence/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.b609c58d5c11bb90b1a54e04005d74ad1ddf22165eb79f5533967e57df9c3b50.css" integrity="sha256-tgnFjVwRu5CxpU4EAF10rR3fIhZet59VM5Z&#43;V9&#43;cO1A=" rel="preload stylesheet" as="style">
+<link rel="icon" href="https://matheuzsecurity.github.io/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://matheuzsecurity.github.io/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://matheuzsecurity.github.io/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://matheuzsecurity.github.io/apple-touch-icon.png">
+<link rel="mask-icon" href="https://matheuzsecurity.github.io/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript><meta property="og:title" content="Linux Threat Hunting Persistence" />
+<meta property="og:description" content="Learn about persistence in Linux and how to hunt" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://matheuzsecurity.github.io/hacking/linux-threat-hunting-persistence/" /><meta property="article:section" content="hacking" />
+
+<meta property="og:site_name" content="0xMatheuZ" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Linux Threat Hunting Persistence"/>
+<meta name="twitter:description" content="Learn about persistence in Linux and how to hunt"/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Hackings",
+      "item": "https://matheuzsecurity.github.io/hacking/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Linux Threat Hunting Persistence",
+      "item": "https://matheuzsecurity.github.io/hacking/linux-threat-hunting-persistence/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Linux Threat Hunting Persistence",
+  "name": "Linux Threat Hunting Persistence",
+  "description": "Learn about persistence in Linux and how to hunt",
+  "keywords": [
+    "Persistence"
+  ],
+  "articleBody": "Hello everyone, welcome to this post, where I will cover the topic “Linux Threat Hunting Persistence”.\nThe objective of this post is to learn how to hunt for persistence on Linux machines, without using paid tools/framework, just using the tools that are already available (open source) for anyone to download and use and also using Linux’s own resources to be able to do hunt for persistence.\nBelow is what we will cover in this post.\n SSH Keys Crontab Bashrc APT Privileged user \u0026 SUID bash Malicious Systemd Hunting LKM Rootkits LD_PRELOAD rootkit PAM Backdoor ACL init.d Motd Mount process for hide any pid. Webshells rc.local  But before we start, we need to understand what persistence is.\nWhat is persistence? Persistence in Linux, refers to the ability of malware, such as rootkits, backdoors and we can also abuse common Linux features for malicious uses to remain active on the system even after reboots. These threats seek to maintain unauthorized access and conceal their presence, making them persistent challenges for detection and removal.\nSo now we understand what persistence is, to be able to defend our systems we need to know where to look and how to remove it, so let’s go!\nHunting for Malicious SSH Keys It is correct to say that the simplest method of maintaining persistence is using ssh keys, so it is always good before analyzing an infected machine, for example, to see if there is an ssh key that you do not know, you can view it this with just one command line.\nfor home_dir in /home/*; do [ -d \"$home_dir/.ssh\" ] \u0026\u0026 echo \"HOME \\\"$(basename \"$home_dir\")\\\"\"; [ -d \"$home_dir/.ssh\" ] \u0026\u0026 cat \"$home_dir\"/.ssh/*; done ls -la -R /home/*/.ssh */.ssh/* With this, the attacker could simply add his public key to the authorized_keys of some home or get the private key, and return to the machine at any time, and whenever he wants without needing a password.\nHunting for crontab persistence. Persistence via crontab is also a very old persistence technique, but it is still used today, basically, crontab allows us to schedule commands, scripts and programs to be executed automatically at regular intervals of time, and with that we can simply schedule a cron to execute a malicious script or some command, below are some examples.\nIn this image we see a classic example of persistence using crontab, where the 5 asterisks represent that our task will be executed every 1 minute, under the root user and then we enter the path of our script.\nPaths for search cron persistence\ncat /etc/crontab ls -la /var/spool/* ls -la -R /var/cron* Hunting for bashrc persistence .bashrc is a script file used in Linux Bash to configure environment variables, aliases, and other terminal customizations. Thinking like an attacker, you could make a malicious alias so that when the victim runs a command, for example the ls command, it sends you a reverse shell, executes a script, among many others.\nYou can search using this command:\ncat /home/*/{.bashrc,.zshrc} ls -la /home/*/{.bashrc,.zshrc} Hunting APT command persistence In short, apt is a program package management system that has automatic resolution of dependencies between packages, easy package installation method, ease of operation, allows you to easily update your distribution, etc.\nBut until then there is nothing “malicious”, however, apt has a command called apt update, which is for updating packages, and it also has a directory in: /etc/apt/apt.conf.d.\nThe /etc/apt/apt.conf.d directory is used to manage apt specific configurations on the operating system.\nBut what if we can create a malicious configuration to be able to send a reverse shell to us every time someone uses the apt update command, yes, this is totally possible, below are some examples.\nYou can use this command to find and check them one by one.\nls -la -R /etc/apt/apt.conf.d Hunting for Privileged user \u0026 SUID bash In a real attack scenario, depending on the attacker can also put SUID permissions on binaries, for example bash to be able to use it with root permission, and also add a user so that he can use sudo su and be root without having to password by changing the file /etc/sudoers.\n  Scenario 1   Scenario 2   You can check using these commands below:\nfind / -perm /4000 2/dev/null #for search suid binaries/files ls -la $(whereis bash) ls -la /etc/sudoers.d cat /etc/sudoers cat /etc/groups #Here you can also check if a user is in the wrong group Hunting for malicious systemd service Systemd is a startup and service management system it simplifies system startup and service management.\nA malicious attacker abuses systemd to create a malicious service, for example, to send a reverse shell every 1 minute.\nPersistence by a service in systemd, it is widely used, it is always good to see what services you have on your machine, a tip for this type of situation is to use pspy64 which is basically a real-time process monitor, and when a service in systemd for example is executed, it appears in pspy too, and the same goes for crontab.\nHere are some directories you can check:\nls -la /etc/systemd/system ls -la /lib/systemd/system ls -la /run/systemd/system ls -la /usr/lib/systemd/system ls -la /home/*/.config/systemd/user/ To stop the malicious service, simply run the commands:\nsystemctl stop malicious.service systemctl disable malicious.service rm malicious.service Hunting for Loadable kernel module Rootkits LKM (Loadable kernel module) rootkits are certainly an absurd challenge to hunt, as it simply hides, becomes invisible, and once it is invisible it is almost impossible to remove it, in technical details, rootkits use a function called list_del which basically removes from lsmod (list modules) that is capable of listing the machine’s kernel modules, the big problem with this is that rmmod (remove module) is not capable of removing a module that is not in lsmod, so rootkits are very efficient at remaining persistent without anyone being able to detect why this is one of the main objectives of a rootkit, to remain persistent and invisible, but in this part of the post, I will teach you some techniques that can help you find rootkits and detect them, however, as stated above, removing them is a difficult task and depends on the type of rootkit, if it is one you can find on github like for example diamorphine, it has the function of becoming visible again, and then you can remove it.\nAs you can see here, it is invisible and even if it is still in the system, you will not be able to remove it.\nBut diamorphine was also designed to be visible, by default which is by using kill -63 0 and then you can remove it.\nHunting without tools I will use the diamorphine rootkit as an example to do hunting.\nThe most basic thing to do when a rootkit is not in lsmod is to check the kernel log files, such as:\ndmesg /var/log/kern.log /var/log/dmesg* It is very important to view the kernel logs because when an LKM is entered, it generates logs there as well.\nWe can also view: /sys/kernel/tracing/available_filter_functions which is basically a feature in Linux that lists the functions available to filter events during kernel tracing.\nWe can also view all available functions with their respective addresses /sys/kernel/tracing/available_filter_functions_addrs\nIt is also very important that we check the files and commands:\n/proc/modules /proc/kallsyms /lib/modules /proc/* lsmod #to view modules ps aufwx #to view all process in machine ss -tunlpd #to view connections lsof -i -P -n #to view process in execution and file open /proc/*/maps /proc/*/cwd /proc/*/environ Hunting with tools  Unhide  I’ll start using unhide which is a forensic tool to find processes and TCP/UDP ports hidden by rootkits, Linux kernel modules or by other techniques.\nAs we can see in the image above, we hid a PID, and using unhide, we were able to find it.\n Rkhunter (rootkit hunter)  Rkhunter is a good tool, however it is based on known signatures/strings, that is, if you modify the functions you can easily bypass its detection, you can see this video using the D3m0n1z3dShell tool for this.\nHowever, for known rootkits and if they are inserted by default without any modification, rkhunter can easily detect them, in the case of diamorphine and other rootkits, if it is invisible to lsmod, depending on it it cannot detect it, which is the case with diamorphine, if I make the module visible, it detects it, otherwise it goes unnoticed.\nNow with the rootkit hidden again:\nHere is the log that rkhunter generates, and basically for it to detect if it really is the diamorphine rootkit, it uses signature/strings which is clearly very easy to bypass detection.\nThis is enough to avoid detection.\nAgain, rkhunter is good for rootkits that have not been modified and signature/strings already exist, but still, don’t trust it 100%.\n chkrootkit  Chkrootkit is a rootkit detection tool on Unix-like systems. It scans the system for signs of malicious activity such as suspicious files, hidden processes, and modifications to system libraries.\nChkrootkit is good at detecting hidden processes and directory as well, but as mentioned on rkhunter, don’t trust chkrootkit 100% as it is still possible to avoid detection of an LKM rootkit.\n Tracee EBPF  Tracee is a runtime security and observability tool that helps you understand how your system and applications behave. Tracee uses eBPF, and it is a great forensics tool, in my opinion it is the best there is for detecting rootkits as well, as it also detects if a syscall has been hooked.\nOBS: To disable LKM insertion you can use sysctl for this:\n sudo sysctl -w kernel.modules_disabled=1  To return it to default, simply change the 1 to 0.\nHere are some talks and posts about tracee detecting LKM rootkits, it’s really worth watching!\nDetecting Linux Syscall Hooking Using Tracee\nBlackHat Arsenal 2022: Detecting Linux kernel rootkits with Aqua Tracee\neBPF Warfare - Detecting Kernel \u0026 eBPF Rootkits with Tracee\nHunting kernel rootkits with eBPF by Asaf Eitani \u0026 Itamar Maouda Kochavi\nBônus tools:\n Lynis is a security auditing tool Tiger is a security audit tool #sudo apt install tiger -y Volatily #advanced memory forensics  Hunting LD_PRELOAD Rootkits LD_PRELOAD rootkits are easier to hunt down and remove from the machine, because basically besides being Userland, most of them involve the use of shared object (*.so)\nIn this part, I will use a userland rootkit created by h0mbre\nSome LD_PRELOAD rootkits hide from /etc/ld.so.preload but it is possible to find it anyway.\nTo be able to confirm, it is always a good idea to check the binaries with ldd to see which shared objects it has.\nTo remove it, it’s very simple.\nAnd that’s it, it has already been removed from the machine.\nAs said, userland rootkits are much easier to detect and remove, below are some directories/files that are good to check.\n/lib/x86_64-linux-gnu /lib/* /usr/lib/x86_64-linux-gnu /usr/lib/* ls -la /etc/ld* cat /etc/ld.so.preload ldd /bin/ls ldd /bin/bash ldd /usr/bin/ssh ldd /usr/bin/netstat ldd /bin/* #check for shared object in binary, which you suspect ldd /usr/bin/* #check for shared object in binary, which you suspect /proc/*/maps Using volatily also helps a lot in this analysis process.\nHunting for PAM Backdoor PAM Backdoor is a well-known persistence technique, it works by manipulating the Pluggable Authentication Modules (PAM) authentication system. This allows unauthorized access to the system by granting a specific user privileged access regardless of correct credentials.\nI will use this repository that automates this persistence process.\nNow that the PAM Backdoor has been inserted, let’s search for it.\nOne thing we can do to detect something “abnormal” in it is to use strings, I downloaded a Normal Linux PAM on my machine and compiled it.\n Malicious pam_unix.so  Here we’ll see in the strings that the password we used is there, called “hunt3r” on line 376, so we can do the same thing, look on lines 375 to 378 or so and see if there’s anything there.\n Normal pam_unix.so  And now in the uninfected pam_unix.so, there is nothing interesting in these lines, so in an infected pam_unix.so, if you use the strings and analyze it, you will see the password that is used for unauthorized access\ncat /usr/include/type.h find / -name \"pam_unix.so\" 2/dev/null ls -la /lib/security ls -la /usr/lib/security ls -la /lib/x86_64-linux-gnu/security ls -la /etc/pam.d/* Here are two repository links on github that automate persistence, you can read the code and understand it, maybe look for other ways to hunt.\nmadlib\nLinux PAM Backdoor\nHunting for ACL Persistence Just like in Active Directory/Windows, in Linux there is also an ACL, and this can be used to maintain persistence as well.\nIn a scenario where an attacker has compromised one of your Linux machines and knows that at any time he may lose access to the machine or a specific directory/file, he can abuse the ACL (access control list) by using the setfacl command to change Control access to a file or directory for any user you want, with whatever permissions you want.\nNow the user kali can access /root even without being root, because we changed the ACL of the /root directory for the user kali be able to have read, write and execute permissions.\nTo be able to do a hunt, it’s very simple, just use the command getfacl which basically displays the access control lists (ACLs) associated with files and directories and then use setfacl -b DIR/FILE for remove ACL.\nWe can also create a simple bash script to run and whatever it finds in ACL it will print on the screen.\n#!/bin/bash users=$(awk -F':' '$1!=\"root\" {print $1}' /etc/passwd) check_acl_for_user() { local user=\"$1\" echo \"Checking ACLs for user: $user\" acl_output=$(getfacl -R /* | grep \"^# file: \\|user:$user$\") if [[ -n \"$acl_output\" ]]; then echo \"$acl_output\" fi } for user in $users; do check_acl_for_user \"$user\" done Hunting init.d persistence init.d are the scripts that are executed at machine startup, that is, as soon as the machine is turned on, the scripts that are on it are executed, and this is like gold for an attacker, as he can simply add a reverse shell payload, or execute any script he wants, as soon as the machine starts/restarts.\nNow after reboot:\nTo remove it is quite simple.\nFor hunting just check these two directories:\nls -la /etc/init.d/* ls -la /etc/rc*.d/ Hunting MOTD Persistence MOTD (Message of the Day) is a message displayed to users when they log into a system, usually through SSH or the console. It is a way of providing important information, such as maintenance notices, usage policies, system news or any other relevant information to users.\nThis persistence technique basically consists of creating a malicious MOTD that when someone join into the machine using ssh for example, our Malicious MOTD will be executed, below is an example of how it works.\nBasically what we did was go to /etc/update-motd.d and create a new MOTD containing the path of a reverse shell script, so that as soon as someone sshs in, the reverse shell will be executed and Regardless of which user you enter, the shell will always be root, as ssh runs as root.\nTo be able to hunt you can check these directories looking for an Abnormal MOTD.\nls -la /etc/update-motd.d/* /usr/lib/update-notifier/update-motd-updates-available cat /etc/motd find / -name \"*motd*\" 2/dev/null Hunting for hidden process mounted This technique of using mount to mount a process in another directory is quite old, but it’s worth knowing how it works and knowing how to undo it.\nTo be able to hunt, it’s very simple, just use the mount command to see what is mounted.\nmount mount|grep proc umount /proc/PID umount -l /proc/PID Hunting for webshells Of course, using webshells for persistence is an old technique. When an attacker gains access to a machine, even without elevated privileges, they can deploy a webshell. A webshell allows the attacker to access the machine, even without direct access to the server via browser/web and from there, the attacker can execute commands and even execute a reverse shell to gain access to the server without depending on the webshell.\nHere we have an example of a simple webshell in PHP.\nWe can detect it using this oneline and with tools too.\ngrep -rlE 'fsockopen|pfsockopen|exec|shell|system|eval|rot13|base64|base32|passthru|\\$_GET|\\$_POST\\$_REQUEST|cmd|socket' /var/www/html/*.php | xargs -I {} echo \"Suspicious file: {}\" We can also look at the apache logs, it also shows what the file was.\nWe can also use tools like BackDoorMan, NeoPI, Shell-Detector and WebShell-AIHunter that help in detecting malicious webshells.\nHunting rc.local persistence rc.local is a startup script in Linux used to execute custom commands or scripts during the system boot process, however it has been replaced by more modern methods such as systemd service units.\nAn attacker could add a reverse shell to /etc/rc.local and every time your machine is started, the content on it will be executed with root privileges, thus providing very good and effective persistence.\nAfter the reboot, the content inside rc.local which was the reverse shell was executed successfully and we can see its process.\nWe can also see when it was run using systemctl status rc-local.\nTo be able to hunt, just check these files and directories:\n/etc/rc.local /lib/systemd/system/rc-local.service.d cat /run/systemd/generator/multi-user.target.wants/rc-local.service systemctl status rc-local So this was the post, I hope you liked it, if you have any questions or if you didn’t understand any part, DM me on Twitter: @MatheuzSecurity\nSo that’s it, until next time!\n",
+  "wordCount" : "2880",
+  "inLanguage": "en",
+  "datePublished": "0001-01-01T00:00:00Z",
+  "dateModified": "0001-01-01T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "0xMatheuZ"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://matheuzsecurity.github.io/hacking/linux-threat-hunting-persistence/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "0xMatheuZ",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://matheuzsecurity.github.io/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class=" dark" id="top">
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://matheuzsecurity.github.io/" accesskey="h" title="MatheuZ (Alt + H)">
+                <img src="https://i.imgur.com/xeSd64L.png" alt="" aria-label="logo"
+                    height="25">MatheuZ</a>
+            <div class="logo-switches">
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://matheuzsecurity.github.io/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://matheuzsecurity.github.io/hacking" title="hacking">
+                    <span>hacking</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://matheuzsecurity.github.io/tags" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://matheuzsecurity.github.io/search" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="https://matheuzsecurity.github.io/">Home</a>&nbsp;»&nbsp;<a href="https://matheuzsecurity.github.io/hacking/">Hackings</a></div>
+    <h1 class="post-title entry-hint-parent">
+      Linux Threat Hunting Persistence
+    </h1>
+    <div class="post-description">
+      Learn about persistence in Linux and how to hunt
+    </div>
+    <div class="post-meta">14 min&nbsp;·&nbsp;0xMatheuZ
+
+</div>
+  </header> 
+  <div class="post-content"><p><img loading="lazy" src="https://i.imgur.com/lM0kWBM.jpeg" alt="imgur"  />
+</p>
+<p>Hello everyone, welcome to this post, where I will cover the topic “Linux Threat Hunting Persistence”.</p>
+<p>The objective of this post is to learn how to hunt for persistence on Linux machines, without using paid tools/framework, just using the tools that are already available (open source) for anyone to download and use and also using Linux&rsquo;s own resources to be able to do hunt for persistence.</p>
+<p>Below is what we will cover in this post.</p>
+<ul>
+<li>SSH Keys</li>
+<li>Crontab</li>
+<li>Bashrc</li>
+<li>APT</li>
+<li>Privileged user &amp; SUID bash</li>
+<li>Malicious Systemd</li>
+<li>Hunting LKM Rootkits</li>
+<li>LD_PRELOAD rootkit</li>
+<li>PAM Backdoor</li>
+<li>ACL</li>
+<li>init.d</li>
+<li>Motd</li>
+<li>Mount process for hide any pid.</li>
+<li>Webshells</li>
+<li>rc.local</li>
+</ul>
+<p>But before we start, we need to understand what <code>persistence</code> is.</p>
+<h2 id="what-is-persistence">What is <code>persistence</code>?<a hidden class="anchor" aria-hidden="true" href="#what-is-persistence">#</a></h2>
+<p>Persistence in Linux, refers to the ability of malware, such as rootkits, backdoors and we can also abuse common Linux features for malicious uses to remain active on the system even after reboots. These threats seek to maintain unauthorized access and conceal their presence, making them persistent challenges for detection and removal.</p>
+<p>So now we understand what persistence is, to be able to defend our systems we need to know where to look and how to remove it, so let&rsquo;s go!</p>
+<h3 id="hunting-for-malicious-ssh-keys">Hunting for Malicious SSH Keys<a hidden class="anchor" aria-hidden="true" href="#hunting-for-malicious-ssh-keys">#</a></h3>
+<p>It is correct to say that the simplest method of maintaining persistence is using ssh keys, so it is always good before analyzing an infected machine, for example, to see if there is an ssh key that you do not know, you can view it this with just one command line.</p>
+<pre tabindex="0"><code>for home_dir in /home/*; do [ -d &quot;$home_dir/.ssh&quot; ] &amp;&amp; echo &quot;HOME \&quot;$(basename &quot;$home_dir&quot;)\&quot;&quot;; [ -d &quot;$home_dir/.ssh&quot; ] &amp;&amp; cat &quot;$home_dir&quot;/.ssh/*; done
+
+ls -la -R /home/*/.ssh
+
+*/.ssh/*
+</code></pre><p>With this, the attacker could simply add his public key to the <code>authorized_keys</code> of some home or get the private key, and return to the machine at any time, and whenever he wants without needing a password.</p>
+<h3 id="hunting-for-crontab-persistence">Hunting for crontab persistence.<a hidden class="anchor" aria-hidden="true" href="#hunting-for-crontab-persistence">#</a></h3>
+<p>Persistence via crontab is also a very old persistence technique, but it is still used today, basically, crontab allows us to schedule commands, scripts and programs to be executed automatically at regular intervals of time, and with that we can simply schedule a cron to execute a malicious script or some command, below are some examples.</p>
+<p><img loading="lazy" src="https://i.imgur.com/KPun9Fx.png" alt="crontab"  />
+</p>
+<p>In this image we see a classic example of persistence using <code>crontab</code>, where the 5 asterisks represent that our task will be executed every 1 minute, under the root user and then we enter the path of our script.</p>
+<p>Paths for search cron persistence</p>
+<pre tabindex="0"><code>cat /etc/crontab
+
+ls -la /var/spool/*
+
+ls -la -R /var/cron*
+</code></pre><h3 id="hunting-for-bashrc-persistence">Hunting for bashrc persistence<a hidden class="anchor" aria-hidden="true" href="#hunting-for-bashrc-persistence">#</a></h3>
+<p><code>.bashrc</code> is a script file used in Linux Bash to configure environment variables, aliases, and other terminal customizations. Thinking like an attacker, you could make a malicious alias so that when the victim runs a command, for example the <code>ls</code> command, it sends you a reverse shell, executes a script, among many others.</p>
+<p><img loading="lazy" src="https://i.imgur.com/eKxzqBm.png" alt="img"  />
+</p>
+<p>You can search using this command:</p>
+<pre tabindex="0"><code>cat /home/*/{.bashrc,.zshrc}
+
+ls -la /home/*/{.bashrc,.zshrc}
+</code></pre><h3 id="hunting-apt-command-persistence">Hunting APT command persistence<a hidden class="anchor" aria-hidden="true" href="#hunting-apt-command-persistence">#</a></h3>
+<p>In short, <code>apt</code> is a program package management system that has automatic resolution of dependencies between packages, easy package installation method, ease of operation, allows you to easily update your distribution, etc.</p>
+<p>But until then there is nothing &ldquo;malicious&rdquo;, however, apt has a command called apt update, which is for updating packages, and it also has a directory in: <code>/etc/apt/apt.conf.d</code>.</p>
+<p>The <code>/etc/apt/apt.conf.d</code> directory is used to manage apt specific configurations on the operating system.</p>
+<p>But what if we can create a malicious configuration to be able to send a reverse shell to us every time someone uses the <code>apt update</code> command, yes, this is totally possible, below are some examples.</p>
+<p><img loading="lazy" src="https://i.imgur.com/pvtfRW0.png" alt="apt"  />
+</p>
+<p>You can use this command to find and check them one by one.</p>
+<pre tabindex="0"><code>ls -la -R /etc/apt/apt.conf.d
+</code></pre><h3 id="hunting-for-privileged-user--suid-bash">Hunting for Privileged user &amp; SUID bash<a hidden class="anchor" aria-hidden="true" href="#hunting-for-privileged-user--suid-bash">#</a></h3>
+<p>In a real attack scenario, depending on the attacker can also put SUID permissions on binaries, for example bash to be able to use it with root permission, and also add a user so that he can use <code>sudo su</code> and be root without having to password by changing the file <code>/etc/sudoers</code>.</p>
+<ul>
+<li>
+<p>Scenario 1
+<img loading="lazy" src="https://i.imgur.com/OlLEP2n.png" alt="1"  />
+
+<img loading="lazy" src="https://i.imgur.com/Hj4KIaU.png" alt="2"  />
+</p>
+</li>
+<li>
+<p>Scenario 2
+<img loading="lazy" src="https://i.imgur.com/NEmSxEk.png" alt="1"  />
+</p>
+</li>
+</ul>
+<p>You can check using these commands below:</p>
+<pre tabindex="0"><code>find / -perm /4000 2&gt;/dev/null #for search suid binaries/files
+ls -la $(whereis bash)
+ls -la /etc/sudoers.d
+cat /etc/sudoers
+cat /etc/groups #Here you can also check if a user is in the wrong group
+</code></pre><h3 id="hunting-for-malicious-systemd-service">Hunting for malicious systemd service<a hidden class="anchor" aria-hidden="true" href="#hunting-for-malicious-systemd-service">#</a></h3>
+<p>Systemd is a startup and service management system it simplifies system startup and service management.</p>
+<p>A malicious attacker abuses systemd to create a malicious service, for example, to send a reverse shell every 1 minute.</p>
+<p><img loading="lazy" src="https://i.imgur.com/SWTA7Hu.png" alt="systemd"  />
+</p>
+<p>Persistence by a service in systemd, it is widely used, it is always good to see what services you have on your machine, a tip for this type of situation is to use <code>pspy64</code> which is basically a real-time process monitor, and when a service in systemd for example is executed, it appears in pspy too, and the same goes for crontab.</p>
+<p>Here are some directories you can check:</p>
+<pre tabindex="0"><code>ls -la /etc/systemd/system
+ls -la /lib/systemd/system
+ls -la /run/systemd/system
+ls -la /usr/lib/systemd/system
+ls -la /home/*/.config/systemd/user/
+</code></pre><p>To stop the malicious service, simply run the commands:</p>
+<pre tabindex="0"><code>systemctl stop malicious.service
+systemctl disable malicious.service
+rm malicious.service
+</code></pre><h3 id="hunting-for-loadable-kernel-module-rootkits">Hunting for Loadable kernel module Rootkits<a hidden class="anchor" aria-hidden="true" href="#hunting-for-loadable-kernel-module-rootkits">#</a></h3>
+<p>LKM (Loadable kernel module) rootkits are certainly an absurd challenge to hunt, as it simply hides, becomes invisible, and once it is invisible it is almost impossible to remove it, in technical details, rootkits use a function called <code>list_del</code> which basically removes from <code>lsmod</code> (list modules) that is capable of listing the machine&rsquo;s kernel modules, the big problem with this is that <code>rmmod</code> (remove module) is not capable of removing a module that is not in <code>lsmod</code>, so rootkits are very efficient at remaining persistent without anyone being able to detect why this is one of the main objectives of a rootkit, to remain persistent and invisible, but in this part of the post, I will teach you some techniques that can help you find rootkits and detect them, however, as stated above, removing them is a difficult task and depends on the type of rootkit, if it is one you can find on github like for example diamorphine, it has the function of becoming visible again, and then you can remove it.</p>
+<p><img loading="lazy" src="https://i.imgur.com/afkblhM.png" alt="dia"  />
+</p>
+<p>As you can see here, it is invisible and even if it is still in the system, you will not be able to remove it.</p>
+<p>But diamorphine was also designed to be visible, by default which is by using <code>kill -63 0</code> and then you can remove it.</p>
+<p><img loading="lazy" src="https://i.imgur.com/ylUih8q.png" alt="remove"  />
+</p>
+<h5 id="hunting-without-tools">Hunting without tools<a hidden class="anchor" aria-hidden="true" href="#hunting-without-tools">#</a></h5>
+<p>I will use the <a href="https://github.com/m0nad/Diamorphine">diamorphine rootkit</a> as an example to do hunting.</p>
+<p>The most basic thing to do when a rootkit is not in lsmod is to check the kernel log files, such as:</p>
+<pre tabindex="0"><code>dmesg
+/var/log/kern.log
+/var/log/dmesg*
+</code></pre><p>It is very important to view the kernel logs because when an LKM is entered, it generates logs there as well.</p>
+<p>We can also view: <code>/sys/kernel/tracing/available_filter_functions</code> which is basically a feature in Linux that lists the functions available to filter events during kernel tracing.</p>
+<p><img loading="lazy" src="https://i.imgur.com/rhK2IjZ.png" alt="dia2"  />
+</p>
+<p>We can also view all available functions with their respective addresses <code>/sys/kernel/tracing/available_filter_functions_addrs</code></p>
+<p><img loading="lazy" src="https://i.imgur.com/6PIRBdv.png" alt="ava"  />
+</p>
+<p>It is also very important that we check the files and commands:</p>
+<pre tabindex="0"><code>/proc/modules
+/proc/kallsyms
+/lib/modules
+/proc/*
+lsmod #to view modules
+ps aufwx #to view all process in machine
+ss -tunlpd #to view connections
+lsof -i -P -n #to view process in execution and file open
+/proc/*/maps
+/proc/*/cwd
+/proc/*/environ
+</code></pre><h5 id="hunting-with-tools">Hunting with tools<a hidden class="anchor" aria-hidden="true" href="#hunting-with-tools">#</a></h5>
+<ul>
+<li>Unhide</li>
+</ul>
+<p>I&rsquo;ll start using <code>unhide</code> which is a forensic tool to find processes and TCP/UDP ports hidden by rootkits, Linux kernel modules or by other techniques.</p>
+<p><img loading="lazy" src="https://i.imgur.com/COv9mHh.png" alt="unhide"  />
+</p>
+<p>As we can see in the image above, we hid a PID, and using unhide, we were able to find it.</p>
+<ul>
+<li>Rkhunter (rootkit hunter)</li>
+</ul>
+<p>Rkhunter is a good tool, however it is based on known signatures/strings, that is, if you modify the functions you can easily bypass its detection, you can see this video using the <a href="https://github.com/MatheuZSecurity/D3m0n1z3dShell">D3m0n1z3dShell</a> tool for this.</p>
+<p>However, for known rootkits and if they are inserted by default without any modification, rkhunter can easily detect them, in the case of diamorphine and other rootkits, if it is invisible to lsmod, depending on it it cannot detect it, which is the case with diamorphine, if I make the module visible, it detects it, otherwise it goes unnoticed.</p>
+<p><img loading="lazy" src="https://i.imgur.com/p9n2XX8.png" alt="visible"  />
+</p>
+<p>Now with the rootkit hidden again:</p>
+<p><img loading="lazy" src="https://i.imgur.com/p6Y3PVn.png" alt="hidden"  />
+</p>
+<p><img loading="lazy" src="https://i.imgur.com/2gAHuVT.png" alt="logs"  />
+</p>
+<p>Here is the log that rkhunter generates, and basically for it to detect if it really is the diamorphine rootkit, it uses signature/strings which is clearly very easy to bypass detection.</p>
+<p><img loading="lazy" src="https://i.imgur.com/crpBfPK.png" alt="lkm3"  />
+</p>
+<p>This is enough to avoid detection.</p>
+<p>Again, rkhunter is good for rootkits that have not been modified and signature/strings already exist, but still, don&rsquo;t trust it 100%.</p>
+<ul>
+<li>chkrootkit</li>
+</ul>
+<p>Chkrootkit is a rootkit detection tool on Unix-like systems. It scans the system for signs of malicious activity such as suspicious files, hidden processes, and modifications to system libraries.</p>
+<p><img loading="lazy" src="https://i.imgur.com/F60oEX4.png" alt="chk"  />
+</p>
+<p>Chkrootkit is good at detecting hidden processes and directory as well, but as mentioned on rkhunter, don&rsquo;t trust chkrootkit 100% as it is still possible to avoid detection of an LKM rootkit.</p>
+<ul>
+<li>Tracee EBPF</li>
+</ul>
+<p>Tracee is a runtime security and observability tool that helps you understand how your system and applications behave. Tracee uses eBPF, and it is a great forensics tool, in my opinion it is the best there is for detecting rootkits as well, as it also detects if a syscall has been hooked.</p>
+<p><img loading="lazy" src="https://i.imgur.com/v7PqZvt.png" alt="tracee"  />
+</p>
+<p>OBS: To disable LKM insertion you can use sysctl for this:</p>
+<ul>
+<li>sudo sysctl -w kernel.modules_disabled=1</li>
+</ul>
+<p>To return it to default, simply change the 1 to 0.</p>
+<p>Here are some talks and posts about tracee detecting LKM rootkits, it&rsquo;s really worth watching!</p>
+<p><a href="https://blog.aquasec.com/linux-syscall-hooking-using-tracee">Detecting Linux Syscall Hooking Using Tracee</a></p>
+<p><a href="https://www.youtube.com/watch?v=EATX8g3sh-0">BlackHat Arsenal 2022: Detecting Linux kernel rootkits with Aqua Tracee</a></p>
+<p><a href="https://www.youtube.com/watch?v=0MjVan5lQd0">eBPF Warfare - Detecting Kernel &amp; eBPF Rootkits with Tracee</a></p>
+<p><a href="https://youtu.be/Z41WJtFsuGc?si=IJbmmPnm0vSQXsXE">Hunting kernel rootkits with eBPF by Asaf Eitani &amp; Itamar Maouda Kochavi</a></p>
+<p>Bônus tools:</p>
+<ul>
+<li>Lynis is a security auditing tool</li>
+<li>Tiger is a security audit tool #sudo apt install tiger -y</li>
+<li>Volatily #advanced memory forensics</li>
+</ul>
+<h3 id="hunting-ld_preload-rootkits">Hunting LD_PRELOAD Rootkits<a hidden class="anchor" aria-hidden="true" href="#hunting-ld_preload-rootkits">#</a></h3>
+<p><code>LD_PRELOAD rootkits</code> are easier to hunt down and remove from the machine, because basically besides being Userland, most of them involve the use of shared object (*.so)</p>
+<p>In this part, I will use a userland rootkit created by <a href="https://h0mbre.github.io/Learn-C-By-Creating-A-Rootkit/">h0mbre</a></p>
+<p><img loading="lazy" src="https://i.imgur.com/eSv1JPm.png" alt="ld"  />
+</p>
+<p>Some LD_PRELOAD rootkits hide from <code>/etc/ld.so.preload</code> but it is possible to find it anyway.</p>
+<p><img loading="lazy" src="https://i.imgur.com/484aIJp.png" alt="ldd"  />
+</p>
+<p>To be able to confirm, it is always a good idea to check the binaries with <code>ldd</code> to see which shared objects it has.</p>
+<p>To remove it, it&rsquo;s very simple.</p>
+<p><img loading="lazy" src="https://i.imgur.com/kvExgDp.png" alt="rm"  />
+</p>
+<p>And that&rsquo;s it, it has already been removed from the machine.</p>
+<p>As said, userland rootkits are much easier to detect and remove, below are some directories/files that are good to check.</p>
+<pre tabindex="0"><code>/lib/x86_64-linux-gnu
+/lib/*
+/usr/lib/x86_64-linux-gnu
+/usr/lib/*
+ls -la /etc/ld*
+cat /etc/ld.so.preload
+ldd /bin/ls
+ldd /bin/bash
+ldd /usr/bin/ssh
+ldd /usr/bin/netstat
+ldd /bin/* #check for shared object in binary, which you suspect
+ldd /usr/bin/* #check for shared object in binary, which you suspect
+/proc/*/maps
+</code></pre><p>Using <a href="https://github.com/volatilityfoundation/volatility3">volatily</a> also helps a lot in this analysis process.</p>
+<h3 id="hunting-for-pam-backdoor">Hunting for PAM Backdoor<a hidden class="anchor" aria-hidden="true" href="#hunting-for-pam-backdoor">#</a></h3>
+<p><code>PAM Backdoor</code> is a well-known persistence technique, it works by manipulating the Pluggable Authentication Modules (PAM) authentication system. This allows unauthorized access to the system by granting a specific user privileged access regardless of correct credentials.</p>
+<p>I will use this <a href="https://github.com/zephrax/linux-pam-backdoor">repository</a> that automates this persistence process.</p>
+<p><img loading="lazy" src="https://i.imgur.com/smFy61G.png" alt="ins"  />
+
+<img loading="lazy" src="https://i.imgur.com/p8kmSvE.png" alt="load"  />
+
+<img loading="lazy" src="https://i.imgur.com/i7TblTJ.png" alt="back"  />
+</p>
+<p>Now that the PAM Backdoor has been inserted, let&rsquo;s search for it.</p>
+<p><img loading="lazy" src="https://i.imgur.com/BA97UiU.png" alt="pam"  />
+</p>
+<p>One thing we can do to detect something &ldquo;abnormal&rdquo; in it is to use strings, I downloaded a Normal Linux PAM on my machine and compiled it.</p>
+<ul>
+<li>Malicious pam_unix.so</li>
+</ul>
+<p><img loading="lazy" src="https://i.imgur.com/EnZ8fvg.png" alt="mal"  />
+</p>
+<p>Here we&rsquo;ll see in the strings that the password we used is there, called &ldquo;hunt3r&rdquo; on line 376, so we can do the same thing, look on lines 375 to 378 or so and see if there&rsquo;s anything there.</p>
+<ul>
+<li>Normal pam_unix.so</li>
+</ul>
+<p><img loading="lazy" src="https://i.imgur.com/x6agObX.png" alt="normaal"  />
+</p>
+<p>And now in the uninfected <code>pam_unix.so</code>, there is nothing interesting in these lines, so in an infected <code>pam_unix.so</code>, if you use the strings and analyze it, you will see the password that is used for unauthorized access</p>
+<pre tabindex="0"><code>cat /usr/include/type.h
+find / -name &quot;pam_unix.so&quot; 2&gt;/dev/null
+ls -la /lib/security
+ls -la /usr/lib/security
+ls -la /lib/x86_64-linux-gnu/security
+ls -la /etc/pam.d/*
+</code></pre><p>Here are two repository links on github that automate persistence, you can read the code and understand it, maybe look for other ways to hunt.</p>
+<p><a href="https://github.com/rek7/madlib">madlib</a></p>
+<p><a href="https://github.com/zephrax/linux-pam-backdoor">Linux PAM Backdoor</a></p>
+<h3 id="hunting-for-acl-persistence">Hunting for ACL Persistence<a hidden class="anchor" aria-hidden="true" href="#hunting-for-acl-persistence">#</a></h3>
+<p>Just like in Active Directory/Windows, in Linux there is also an ACL, and this can be used to maintain persistence as well.</p>
+<p>In a scenario where an attacker has compromised one of your Linux machines and knows that at any time he may lose access to the machine or a specific directory/file, he can abuse the ACL (access control list) by using the setfacl command to change Control access to a file or directory for any user you want, with whatever permissions you want.</p>
+<p><img loading="lazy" src="https://i.imgur.com/ypOM0RP.png" alt="kali"  />
+</p>
+<p>Now the user <code>kali</code> can access <code>/root</code> even without being root, because we changed the ACL of the <code>/root</code> directory for the user <code>kali</code> be able to have read, write and execute permissions.</p>
+<p><img loading="lazy" src="https://i.imgur.com/4oHkE7D.png" alt="shadow"  />
+</p>
+<p>To be able to do a hunt, it&rsquo;s very simple, just use the command <code>getfacl</code> which basically displays the access control lists (ACLs) associated with files and directories and then use <code>setfacl -b DIR/FILE</code> for remove ACL.</p>
+<p><img loading="lazy" src="https://i.imgur.com/ghUSXq6.png" alt="del"  />
+</p>
+<p>We can also create a simple bash script to run and whatever it finds in ACL it will print on the screen.</p>
+<pre tabindex="0"><code>#!/bin/bash
+
+users=$(awk -F':' '$1!=&quot;root&quot; {print $1}' /etc/passwd)
+
+check_acl_for_user() {
+    local user=&quot;$1&quot;
+    echo &quot;Checking ACLs for user: $user&quot;
+    acl_output=$(getfacl -R /* | grep &quot;^# file: \|user:$user$&quot;)
+    if [[ -n &quot;$acl_output&quot; ]]; then
+        echo &quot;$acl_output&quot;
+    fi
+}
+
+for user in $users; do
+    check_acl_for_user &quot;$user&quot;
+done
+</code></pre><h3 id="hunting-initd-persistence">Hunting init.d persistence<a hidden class="anchor" aria-hidden="true" href="#hunting-initd-persistence">#</a></h3>
+<p><code>init.d</code> are the scripts that are executed at machine startup, that is, as soon as the machine is turned on, the scripts that are on it are executed, and this is like gold for an attacker, as he can simply add a reverse shell payload, or execute any script he wants, as soon as the machine starts/restarts.</p>
+<p><img loading="lazy" src="https://i.imgur.com/McVUxVA.png" alt="init"  />
+</p>
+<p>Now after reboot:</p>
+<p><img loading="lazy" src="https://i.imgur.com/e7JrBIf.png" alt="after"  />
+</p>
+<p>To remove it is quite simple.</p>
+<p><img loading="lazy" src="https://i.imgur.com/5RItfqa.png" alt="remove"  />
+</p>
+<p>For hunting just check these two directories:</p>
+<pre tabindex="0"><code>ls -la /etc/init.d/*
+ls -la /etc/rc*.d/
+</code></pre><h4 id="hunting-motd-persistence">Hunting MOTD Persistence<a hidden class="anchor" aria-hidden="true" href="#hunting-motd-persistence">#</a></h4>
+<p><code>MOTD</code> (Message of the Day) is a message displayed to users when they log into a system, usually through SSH or the console. It is a way of providing important information, such as maintenance notices, usage policies, system news or any other relevant information to users.</p>
+<p>This persistence technique basically consists of creating a malicious MOTD that when someone join into the machine using ssh for example, our Malicious MOTD will be executed, below is an example of how it works.</p>
+<p><img loading="lazy" src="https://i.imgur.com/ecbtB9O.png" alt="motd"  />
+</p>
+<p>Basically what we did was go to <code>/etc/update-motd.d</code> and create a new MOTD containing the path of a reverse shell script, so that as soon as someone sshs in, the reverse shell will be executed and Regardless of which user you enter, the shell will always be root, as ssh runs as root.</p>
+<p>To be able to hunt you can check these directories looking for an Abnormal MOTD.</p>
+<pre tabindex="0"><code>ls -la /etc/update-motd.d/*
+/usr/lib/update-notifier/update-motd-updates-available
+cat /etc/motd
+find / -name &quot;*motd*&quot; 2&gt;/dev/null
+</code></pre><h3 id="hunting-for-hidden-process-mounted">Hunting for hidden process mounted<a hidden class="anchor" aria-hidden="true" href="#hunting-for-hidden-process-mounted">#</a></h3>
+<p>This technique of using <code>mount</code> to mount a process in another directory is quite old, but it&rsquo;s worth knowing how it works and knowing how to undo it.</p>
+<p><img loading="lazy" src="https://i.imgur.com/xhkyb0Z.png" alt="mount"  />
+</p>
+<p>To be able to hunt, it&rsquo;s very simple, just use the mount command to see what is mounted.</p>
+<pre tabindex="0"><code>mount
+mount|grep proc
+umount /proc/PID
+umount -l /proc/PID
+</code></pre><h3 id="hunting-for-webshells">Hunting for webshells<a hidden class="anchor" aria-hidden="true" href="#hunting-for-webshells">#</a></h3>
+<p>Of course, using webshells for persistence is an old technique. When an attacker gains access to a machine, even without elevated privileges, they can deploy a webshell. A webshell allows the attacker to access the machine, even without direct access to the server via browser/web and from there, the attacker can execute commands and even execute a reverse shell to gain access to the server without depending on the webshell.</p>
+<p><img loading="lazy" src="https://i.imgur.com/TzDs0Z2.png" alt="webphp"  />
+</p>
+<p>Here we have an example of a simple webshell in PHP.</p>
+<p><img loading="lazy" src="https://i.imgur.com/tkR4fs0.png" alt="detect"  />
+</p>
+<p>We can detect it using this oneline and with tools too.</p>
+<pre tabindex="0"><code>grep -rlE 'fsockopen|pfsockopen|exec|shell|system|eval|rot13|base64|base32|passthru|\$_GET|\$_POST\$_REQUEST|cmd|socket' /var/www/html/*.php | xargs -I {} echo &quot;Suspicious file: {}&quot;
+</code></pre><p><img loading="lazy" src="https://i.imgur.com/m153OB2.png" alt="log"  />
+</p>
+<p>We can also look at the apache logs, it also shows what the file was.</p>
+<p>We can also use tools like <a href="https://github.com/cys3c/BackdoorMan">BackDoorMan</a>, <a href="https://github.com/CiscoCXSecurity/NeoPI">NeoPI</a>, <a href="https://github.com/emposha/Shell-Detector">Shell-Detector</a> and <a href="https://github.com/Coldwave96/WebShell-AIHunter">WebShell-AIHunter</a> that help in detecting malicious webshells.</p>
+<h3 id="hunting-rclocal-persistence">Hunting rc.local persistence<a hidden class="anchor" aria-hidden="true" href="#hunting-rclocal-persistence">#</a></h3>
+<p><code>rc.local</code> is a startup script in Linux used to execute custom commands or scripts during the system boot process, however it has been replaced by more modern methods such as systemd service units.</p>
+<p>An attacker could add a reverse shell to <code>/etc/rc.local</code> and every time your machine is started, the content on it will be executed with root privileges, thus providing very good and effective persistence.</p>
+<p><img loading="lazy" src="https://i.imgur.com/tSZueg0.png" alt="local"  />
+</p>
+<p>After the reboot, the content inside <code>rc.local</code> which was the reverse shell was executed successfully and we can see its process.</p>
+<p><img loading="lazy" src="https://i.imgur.com/Qhdvepb.png" alt="rc"  />
+</p>
+<p><img loading="lazy" src="https://i.imgur.com/TFXBPTo.png" alt="rcproc"  />
+</p>
+<p>We can also see when it was run using <code>systemctl status rc-local</code>.</p>
+<p><img loading="lazy" src="https://i.imgur.com/TLCkrTr.png" alt="systemctlrc"  />
+</p>
+<p>To be able to hunt, just check these files and directories:</p>
+<pre tabindex="0"><code>/etc/rc.local
+/lib/systemd/system/rc-local.service.d
+cat /run/systemd/generator/multi-user.target.wants/rc-local.service
+systemctl status rc-local
+</code></pre><p>So this was the post, I hope you liked it, if you have any questions or if you didn&rsquo;t understand any part, DM me on Twitter: <a href="https://twitter.com/MatheuzSecurity">@MatheuzSecurity</a></p>
+<p>So that&rsquo;s it, until next time!</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://matheuzsecurity.github.io/tags/persistence/">Persistence</a></li>
+    </ul>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2024 <a href="https://matheuzsecurity.github.io/">0xMatheuZ</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

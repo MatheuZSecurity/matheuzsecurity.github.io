@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://matheuzsecurity.github.io/</loc>
+  </url><url>
+    <loc>https://matheuzsecurity.github.io/categories/</loc>
+  </url><url>
+    <loc>https://matheuzsecurity.github.io/hacking/</loc>
+  </url><url>
+    <loc>https://matheuzsecurity.github.io/categories/hunting/</loc>
+  </url><url>
+    <loc>https://matheuzsecurity.github.io/hacking/linux-threat-hunting-persistence/</loc>
+  </url><url>
+    <loc>https://matheuzsecurity.github.io/tags/persistence/</loc>
+  </url><url>
+    <loc>https://matheuzsecurity.github.io/search/</loc>
+  </url><url>
+    <loc>https://matheuzsecurity.github.io/tags/</loc>
+  </url>
+</urlset>
