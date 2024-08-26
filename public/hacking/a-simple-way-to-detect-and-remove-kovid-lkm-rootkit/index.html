@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>A simple way to detect and remove LKM rootkit KoviD | 0xMatheuZ</title>
+<meta name="keywords" content="Rootkit">
+<meta name="description" content="Learn a simple way on how to detect and remove Kovid rootkit.">
+<meta name="author" content="0xMatheuZ">
+<link rel="canonical" href="http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.b609c58d5c11bb90b1a54e04005d74ad1ddf22165eb79f5533967e57df9c3b50.css" integrity="sha256-tgnFjVwRu5CxpU4EAF10rR3fIhZet59VM5Z&#43;V9&#43;cO1A=" rel="preload stylesheet" as="style">
+<link rel="icon" href="http://localhost:1313/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript>
+  
+
+<meta property="og:title" content="A simple way to detect and remove LKM rootkit KoviD" />
+<meta property="og:description" content="Learn a simple way on how to detect and remove Kovid rootkit." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/" /><meta property="article:section" content="hacking" />
+
+<meta property="og:site_name" content="0xMatheuZ" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="A simple way to detect and remove LKM rootkit KoviD"/>
+<meta name="twitter:description" content="Learn a simple way on how to detect and remove Kovid rootkit."/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Hackings",
+      "item": "http://localhost:1313/hacking/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "A simple way to detect and remove LKM rootkit KoviD",
+      "item": "http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "A simple way to detect and remove LKM rootkit KoviD",
+  "name": "A simple way to detect and remove LKM rootkit KoviD",
+  "description": "Learn a simple way on how to detect and remove Kovid rootkit.",
+  "keywords": [
+    "Rootkit"
+  ],
+  "articleBody": " Hello everyone, welcome to this post where I will cover the easiest way on how to detect and remove LKM KoviD rootkit.\nBut first of all, we need to understand how the KoviD works.\nWhat is KoviD? KoviD is a Linux kernel rootkit, containing several features that make it difficult to detect and remove, in my opinion KoviD is the best open source LKM rootkit today, you can see more about it on github.\nNow that we know what KoviD is, we can analyze its code and see how it works, for example, which hooking method it uses.\nFtrace hooking Looking at KoviD sys.c, we can see that it uses a very famous method for hooking syscalls that works very well on newer kernels, which is ftrace (function tracer).\nKeep this information, it will be very useful later in this post.\nSetup KoviD and Loading. According to the kovid readme, before compiling, we need to edit the Makefile to choose a unique file name for “/proc/name”.\nAfter compiling using make, we can insert it using insmod kovid.ko.\nAfter inserting it, we can see that /proc/mtz had not been enabled and also the module was not hidden after its insertion, so first it is necessary to enable /proc/mtz using kill -SIGCONT 31337 and after that, hide the LKM from lsmod using echo -h \u003e/proc/mtz.\nI also hid the file containing the name mtz, making it invisible in /proc/.\nWell, after enabling /proc/mtz, we can look in dmesg that a random magic word was generated, and this magic word is used to make KoviD visible again.\nIn kovid.c we can see this magic word function being called to make the module visible again.\nDetecting KoviD Well, luckily for us, there is a filesystem that is not very well known, which is tracing, normally on more up-to-date systems, it is already mounted by default, if tracefs is not mounted, just mount it using mount -t tracefs nodev /sys/kernel/tracing, and you can find its documentation at kernel.org.\nAnd in it we can simply view all the LKM functions that are loaded on the machine.\nA very interesting curiosity is that when Kovid is invisible, the trace only shows the addresses of each Kovid function (which in my head still doesn’t make much sense, since the /sys/kernel/tracing/available_filter_functions_addrs file was only added in kernel 6.5x, in it we can view the addresses of each function of each loaded lkm too and I am using kernel 5.15.0-119-generic for testing).\nNow, if we make kovid visible again, the name of its functions will appear.\nThis is a very simple way to detect KoviD, and it doesn’t require much effort.\nHowever, there is still a way to hide any function/LKM from the tracefs file system, so don’t be fooled by that and don’t think that if you didn’t find anything there that you are safe. Maybe I’ll talk about this in a future post.\nYou can also use nitara2 to detect KoviD.\nMaking KoviD hooks useless This part is very interesting and you will learn a really cool trick (if you didn’t already know).\nRemember when I mentioned at the beginning of the post that KoviD uses ftrace as a hooking method? So, many people may not know that there is a way to disable ftrace with just one command.\necho 0 \u003e /proc/sys/kernel/ftrace_enabled or sysctl kernel.ftrace_enabled=0 Okay, but what’s so great about that? Well, let’s go!\nBy temporarily disabling ftrace, all kovid hooks stop working, as it uses ftrace for hooking, but this still does not make kovid visible, but it makes it useless.\nKoviD hides the file containing the name mtz, so /proc/mtz is hidden, and in it is the magic word to make LKM visible again.\nWell now with ftrace disabled we can see that the hidden /proc/mtz has become visible as no kovid hook works as it uses ftrace as syscalls hook.\nSo, after disabling ftrace, just go to /proc/mtz that was visible, get the magic word, and make LKM visible again, being able to remove it.\nAnd this is the easiest way to detect/remove KoviD.\nNotes 1- Of course, this is not 100% effective, as it has a way of hiding from the tracefs filesystem, but against KoviD so far, this works perfectly.\n2- And it is also obvious that in a real scenario, if someone is using KoviD, the name in /proc/name will not be something common like mtz, they would probably use a name that is less “imperceptible”.\n3- You can make any LKM rootkit that uses ftrace as hooking completely useless, and when you make it useless, you can use that to your advantage and analyze the compromised environment, looking for hidden PIDs, directories/files, etc.\nFinal consideration I hope you enjoyed this post and learned something, if you have any questions, please DM me on Twitter.\n",
+  "wordCount" : "805",
+  "inLanguage": "en",
+  "datePublished": "0001-01-01T00:00:00Z",
+  "dateModified": "0001-01-01T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "0xMatheuZ"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "0xMatheuZ",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "http://localhost:1313/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class=" dark" id="top">
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="http://localhost:1313/" accesskey="h" title="MatheuZ (Alt + H)">
+                <img src="https://i.imgur.com/xeSd64L.png" alt="" aria-label="logo"
+                    height="25">MatheuZ</a>
+            <div class="logo-switches">
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="http://localhost:1313/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/hacking" title="hacking">
+                    <span>hacking</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/tags" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/search" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="http://localhost:1313/">Home</a>&nbsp;»&nbsp;<a href="http://localhost:1313/hacking/">Hackings</a></div>
+    <h1 class="post-title entry-hint-parent">
+      A simple way to detect and remove LKM rootkit KoviD
+    </h1>
+    <div class="post-description">
+      Learn a simple way on how to detect and remove Kovid rootkit.
+    </div>
+    <div class="post-meta">4 min&nbsp;·&nbsp;0xMatheuZ
+
+</div>
+  </header> 
+  <div class="post-content"><p><img loading="lazy" src="https://i.imgur.com/Xd3Y153.jpeg" alt="imgur"  />
+</p>
+<p>Hello everyone, welcome to this post where I will cover the easiest way on how to detect and remove LKM KoviD rootkit.</p>
+<p>But first of all, we need to understand how the KoviD works.</p>
+<h2 id="what-is-kovid">What is KoviD?<a hidden class="anchor" aria-hidden="true" href="#what-is-kovid">#</a></h2>
+<p>KoviD is a Linux kernel rootkit, containing several features that make it difficult to detect and remove, in my opinion KoviD is the best open source LKM rootkit today, you can see more about it on <a href="https://github.com/carloslack/KoviD">github</a>.</p>
+<p>Now that we know what KoviD is, we can analyze its code and see how it works, for example, which hooking method it uses.</p>
+<h3 id="ftrace-hooking">Ftrace hooking<a hidden class="anchor" aria-hidden="true" href="#ftrace-hooking">#</a></h3>
+<p><img loading="lazy" src="https://i.imgur.com/Lanlg4L.png" alt="imgur"  />
+</p>
+<p>Looking at KoviD <a href="https://github.com/carloslack/KoviD/blob/master/src/sys.c">sys.c</a>, we can see that it uses a very famous method for hooking syscalls that works very well on newer kernels, which is ftrace (function tracer).</p>
+<p>Keep this information, it will be very useful later in this post.</p>
+<h3 id="setup-kovid-and-loading">Setup KoviD and Loading.<a hidden class="anchor" aria-hidden="true" href="#setup-kovid-and-loading">#</a></h3>
+<p>According to the kovid readme, before compiling, we need to edit the Makefile to choose a unique file name for &ldquo;/proc/name&rdquo;.</p>
+<p><img loading="lazy" src="https://i.imgur.com/OR0n9Zd.png" alt="imgur"  />
+</p>
+<p>After compiling using <code>make</code>, we can insert it using <code>insmod kovid.ko</code>.</p>
+<p><img loading="lazy" src="https://i.imgur.com/pZeUSA3.png" alt="imgur"  />
+</p>
+<p>After inserting it, we can see that /proc/mtz had not been enabled and also the module was not hidden after its insertion, so first it is necessary to enable /proc/mtz using <code>kill -SIGCONT 31337</code> and after that, hide the LKM from lsmod using <code>echo -h &gt;/proc/mtz</code>.</p>
+<p>I also hid the file containing the name mtz, making it invisible in /proc/.</p>
+<p>Well, after enabling /proc/mtz, we can look in dmesg that a random magic word was generated, and this magic word is used to make KoviD visible again.</p>
+<p><img loading="lazy" src="https://i.imgur.com/HCcI1tH.png" alt="imgur"  />
+</p>
+<p>In <a href="https://github.com/carloslack/KoviD/blob/master/src/kovid.c#L337">kovid.c</a> we can see this magic word function being called to make the module visible again.</p>
+<p><img loading="lazy" src="https://i.imgur.com/azg1fh1.png" alt="imgur"  />
+</p>
+<h3 id="detecting-kovid">Detecting KoviD<a hidden class="anchor" aria-hidden="true" href="#detecting-kovid">#</a></h3>
+<p>Well, luckily for us, there is a filesystem that is not very well known, which is tracing, normally on more up-to-date systems, it is already mounted by default, if tracefs is not mounted, just mount it using <code>mount -t tracefs nodev /sys/kernel/tracing</code>, and you can find its documentation at <a href="https://www.kernel.org/doc/html/v6.5/trace/ftrace.html">kernel.org</a>.</p>
+<p>And in it we can simply view all the LKM functions that are loaded on the machine.</p>
+<p><img loading="lazy" src="https://i.imgur.com/iX13ILl.png" alt="imgur"  />
+</p>
+<p>A very interesting curiosity is that when Kovid is invisible, the trace only shows the addresses of each Kovid function (which in my head still doesn&rsquo;t make much sense, since the /sys/kernel/tracing/available_filter_functions_addrs file was only added in kernel 6.5x, in it we can view the addresses of each function of each loaded lkm too and I am using kernel 5.15.0-119-generic for testing).</p>
+<p>Now, if we make kovid visible again, the name of its functions will appear.</p>
+<p><img loading="lazy" src="https://i.imgur.com/dsMqi2i.png" alt="imgur"  />
+</p>
+<p>This is a very simple way to detect KoviD, and it doesn&rsquo;t require much effort.</p>
+<p>However, there is still a way to hide any function/LKM from the tracefs file system, so don&rsquo;t be fooled by that and don&rsquo;t think that if you didn&rsquo;t find anything there that you are safe. Maybe I&rsquo;ll talk about this in a future post.</p>
+<p>You can also use <a href="https://github.com/ksen-lin/nitara2">nitara2</a> to detect KoviD.</p>
+<p><img loading="lazy" src="https://i.imgur.com/7uWuNz6.png" alt="imgur"  />
+</p>
+<h3 id="making-kovid-hooks-useless">Making KoviD hooks useless<a hidden class="anchor" aria-hidden="true" href="#making-kovid-hooks-useless">#</a></h3>
+<p>This part is very interesting and you will learn a really cool trick (if you didn&rsquo;t already know).</p>
+<p>Remember when I mentioned at the beginning of the post that KoviD uses ftrace as a hooking method? So, many people may not know that there is a way to disable ftrace with just one command.</p>
+<pre tabindex="0"><code>echo 0 &gt; /proc/sys/kernel/ftrace_enabled
+or
+sysctl kernel.ftrace_enabled=0
+</code></pre><p>Okay, but what&rsquo;s so great about that? Well, let&rsquo;s go!</p>
+<p>By temporarily disabling ftrace, all kovid hooks stop working, as it uses ftrace for hooking, but this still does not make kovid visible, but it makes it useless.</p>
+<p>KoviD hides the file containing the name mtz, so /proc/mtz is hidden, and in it is the magic word to make LKM visible again.</p>
+<p><img loading="lazy" src="https://i.imgur.com/CywD6Ow.png" alt="imgur"  />
+</p>
+<p>Well now with ftrace disabled we can see that the hidden /proc/mtz has become visible as no kovid hook works as it uses ftrace as syscalls hook.</p>
+<p><img loading="lazy" src="https://i.imgur.com/3YyukDi.png" alt="imgur"  />
+</p>
+<p>So, after disabling ftrace, just go to /proc/mtz that was visible, get the magic word, and make LKM visible again, being able to remove it.</p>
+<p>And this is the easiest way to detect/remove KoviD.</p>
+<h2 id="notes">Notes<a hidden class="anchor" aria-hidden="true" href="#notes">#</a></h2>
+<p>1- Of course, this is not 100% effective, as it has a way of hiding from the tracefs filesystem, but against KoviD so far, this works perfectly.</p>
+<p>2- And it is also obvious that in a real scenario, if someone is using KoviD, the name in /proc/name will not be something common like mtz, they would probably use a name that is less &ldquo;imperceptible&rdquo;.</p>
+<p>3- You can make any LKM rootkit that uses ftrace as hooking completely useless, and when you make it useless, you can use that to your advantage and analyze the compromised environment, looking for hidden PIDs, directories/files, etc.</p>
+<h2 id="final-consideration">Final consideration<a hidden class="anchor" aria-hidden="true" href="#final-consideration">#</a></h2>
+<p>I hope you enjoyed this post and learned something, if you have any questions, please DM me on <a href="https://x.com/MatheuzSecurity">Twitter</a>.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="http://localhost:1313/tags/rootkit/">Rootkit</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="next" href="http://localhost:1313/hacking/linux-threat-hunting-persistence/">
+    <span class="title">Next »</span>
+    <br>
+    <span>Linux Threat Hunting Persistence</span>
+  </a>
+</nav>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2024 <a href="http://localhost:1313/">0xMatheuZ</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>
