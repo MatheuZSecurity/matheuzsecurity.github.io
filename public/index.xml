@@ -15,6 +15,13 @@
       <description>Learn a simple way on how to detect and remove Kovid rootkit.</description>
     </item>
     <item>
+      <title>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</title>
+      <link>http://localhost:1313/hacking/ldpreload-rootkit/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/hacking/ldpreload-rootkit/</guid>
+      <description>Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc.</description>
+    </item>
+    <item>
       <title>Linux Threat Hunting Persistence</title>
       <link>http://localhost:1313/hacking/linux-threat-hunting-persistence/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
