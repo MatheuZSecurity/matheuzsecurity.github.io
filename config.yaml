@@ -6,7 +6,7 @@ theme: PaperMod
 params:
   env: production # to enable google analytics, opengraph, twitter-cards and schema.
   title: 0xMatheuZ
-  description: "Red Teaming And Malware."
+  description: "Red Teaming And Threat Hunting."
   keywords: [Blog]
   author: 0xMatheuZ
   DateFormat: "January 2, 2006"
