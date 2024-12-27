@@ -15,6 +15,13 @@
       <description>Learn a simple way on how to detect and remove Kovid rootkit.</description>
     </item>
     <item>
+      <title>Detecting virtually all rootkits based on ftrace hooking.</title>
+      <link>http://localhost:1313/hacking/ftrace-rootkit/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/hacking/ftrace-rootkit/</guid>
+      <description>Learn how to detect rootkit based on ftrace hooking.</description>
+    </item>
+    <item>
       <title>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</title>
       <link>http://localhost:1313/hacking/ldpreload-rootkit/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
