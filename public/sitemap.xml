@@ -3,14 +3,23 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>http://localhost:1313/</loc>
+    <lastmod>2025-04-12T15:33:52-04:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/hacking/gcc/</loc>
+    <lastmod>2025-04-12T15:33:52-04:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/hacking/</loc>
+    <lastmod>2025-04-12T15:33:52-04:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/</loc>
   </url><url>
     <loc>http://localhost:1313/categories/</loc>
   </url><url>
+    <loc>http://localhost:1313/hacking/ftrace-rootkit/</loc>
+  </url><url>
     <loc>http://localhost:1313/categories/evasion/</loc>
   </url><url>
-    <loc>http://localhost:1313/hacking/</loc>
+    <loc>http://localhost:1313/categories/forensics/</loc>
   </url><url>
     <loc>http://localhost:1313/hacking/ldpreload-rootkit/</loc>
   </url><url>

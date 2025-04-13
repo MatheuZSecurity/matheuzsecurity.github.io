@@ -1,6 +1,7 @@
 baseURL: "https://matheuzsecurity.github.io/"
 title: 0xMatheuZ
-paginate: 5
+pagination:
+  pagerSize: 5
 theme: PaperMod
 
 params:

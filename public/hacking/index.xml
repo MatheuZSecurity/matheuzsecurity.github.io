@@ -8,11 +8,25 @@
     <language>en</language>
     <atom:link href="http://localhost:1313/hacking/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>A simple way to detect and remove LKM rootkit KoviD</title>
+      <title>A simple way to detect and remove LKM rootkit KoviD (Outdated)</title>
       <link>http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/</guid>
       <description>Learn a simple way on how to detect and remove Kovid rootkit.</description>
+    </item>
+    <item>
+      <title>Detecting rootkits based on ftrace hooking.</title>
+      <link>http://localhost:1313/hacking/ftrace-rootkit/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/hacking/ftrace-rootkit/</guid>
+      <description>Learn how to detect rootkit based on ftrace hooking.</description>
+    </item>
+    <item>
+      <title>ElfDoor-gcc</title>
+      <link>http://localhost:1313/hacking/gcc/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/hacking/gcc/</guid>
+      <description>Hijacking GCC via LD_PRELOAD.</description>
     </item>
     <item>
       <title>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</title>

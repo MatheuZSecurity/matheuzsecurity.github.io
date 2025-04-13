@@ -27,10 +27,7 @@
         }
 
     </style>
-</noscript>
-  
-
-<meta property="og:title" content="How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc" />
+</noscript><meta property="og:title" content="How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc" />
 <meta property="og:description" content="Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="http://localhost:1313/hacking/ldpreload-rootkit/" /><meta property="article:section" content="hacking" />
@@ -358,11 +355,11 @@ struct dirent *readdir(DIR *dirp)
 </code></pre><ul>
 <li>fopen: This function checks if the file is <code>/etc/ld.so.preload</code>, if so, prevents it from opening by returning <code>NULL</code> and setting the error to <code>ENOENT (No such file or directory)</code>, otherwise, it calls the function fopen original to open other files normally.</li>
 </ul>
-<h2 id="heading"><a hidden class="anchor" aria-hidden="true" href="#heading">#</a></h2>
+<h2></h2>
 <ul>
 <li>read: Before reading, the function checks whether the file associated with the fd (file descriptor) is <code>/etc/ld.so.preload</code> (using readlink to obtain the actual path of the file), if so, a error on the read, returning -1 and setting the error to <code>ENOENT</code>, otherwise it calls the original read function to read other files normally.</li>
 </ul>
-<h2 id="heading-1"><a hidden class="anchor" aria-hidden="true" href="#heading-1">#</a></h2>
+<h2></h2>
 <ul>
 <li>readdir: This function reads directory entries and checks if the name of any entry is <code>ld.so.preload</code>, if it finds that name, it ignores the entry and continues the search, otherwise it returns the entry normally, that is, it becomes invisible if you try to read <code>ls -lah /etc/ |grep ld.so.preload</code>.</li>
 </ul>
@@ -393,10 +390,10 @@ struct dirent *readdir(DIR *dirp)
       <li><a href="http://localhost:1313/tags/rootkit/">Rootkit</a></li>
     </ul>
 <nav class="paginav">
-  <a class="prev" href="http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/">
+  <a class="prev" href="http://localhost:1313/hacking/ftrace-rootkit/">
     <span class="title">« Prev</span>
     <br>
-    <span>A simple way to detect and remove LKM rootkit KoviD</span>
+    <span>Detecting rootkits based on ftrace hooking.</span>
   </a>
   <a class="next" href="http://localhost:1313/hacking/linux-threat-hunting-persistence/">
     <span class="title">Next »</span>
@@ -410,7 +407,7 @@ struct dirent *readdir(DIR *dirp)
     </main>
     
 <footer class="footer">
-    <span>&copy; 2024 <a href="http://localhost:1313/">0xMatheuZ</a></span>
+    <span>&copy; 2025 <a href="http://localhost:1313/">0xMatheuZ</a></span>
     <span>
         Powered by
         <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
