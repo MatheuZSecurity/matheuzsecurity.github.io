@@ -2,38 +2,47 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://matheuzsecurity.github.io/</loc>
+    <loc>http://localhost:1313/</loc>
     <lastmod>2025-05-14T19:42:06-04:00</lastmod>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/hacking/</loc>
+    <loc>http://localhost:1313/hacking/bypass-userland-hooks/</loc>
     <lastmod>2025-05-14T19:42:06-04:00</lastmod>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/</loc>
+    <loc>http://localhost:1313/categories/</loc>
+    <lastmod>2025-05-14T19:42:06-04:00</lastmod>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/categories/</loc>
+    <loc>http://localhost:1313/hacking/</loc>
+    <lastmod>2025-05-14T19:42:06-04:00</lastmod>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/hacking/ftrace-rootkit/</loc>
+    <loc>http://localhost:1313/categories/malware-bypass/</loc>
+    <lastmod>2025-05-14T19:42:06-04:00</lastmod>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/hacking/gcc/</loc>
+    <loc>http://localhost:1313/tags/rootkit/</loc>
+    <lastmod>2025-05-14T19:42:06-04:00</lastmod>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/categories/evasion/</loc>
+    <loc>http://localhost:1313/tags/</loc>
+    <lastmod>2025-05-14T19:42:06-04:00</lastmod>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/categories/forensics/</loc>
+    <loc>http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/</loc>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/hacking/ldpreload-rootkit/</loc>
+    <loc>http://localhost:1313/hacking/ftrace-rootkit/</loc>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/categories/hunting/</loc>
+    <loc>http://localhost:1313/hacking/gcc/</loc>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/hacking/linux-threat-hunting-persistence/</loc>
+    <loc>http://localhost:1313/categories/evasion/</loc>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/categories/malware/</loc>
+    <loc>http://localhost:1313/categories/forensics/</loc>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/tags/persistence/</loc>
+    <loc>http://localhost:1313/hacking/ldpreload-rootkit/</loc>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/tags/rootkit/</loc>
+    <loc>http://localhost:1313/categories/hunting/</loc>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/search/</loc>
+    <loc>http://localhost:1313/hacking/linux-threat-hunting-persistence/</loc>
   </url><url>
-    <loc>https://matheuzsecurity.github.io/tags/</loc>
+    <loc>http://localhost:1313/categories/malware/</loc>
+  </url><url>
+    <loc>http://localhost:1313/tags/persistence/</loc>
+  </url><url>
+    <loc>http://localhost:1313/search/</loc>
   </url>
 </urlset>

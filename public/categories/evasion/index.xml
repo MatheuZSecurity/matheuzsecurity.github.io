@@ -2,16 +2,16 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Evasion on 0xMatheuZ</title>
-    <link>https://matheuzsecurity.github.io/categories/evasion/</link>
+    <link>http://localhost:1313/categories/evasion/</link>
     <description>Recent content in Evasion on 0xMatheuZ</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
-    <atom:link href="https://matheuzsecurity.github.io/categories/evasion/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://localhost:1313/categories/evasion/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</title>
-      <link>https://matheuzsecurity.github.io/hacking/ldpreload-rootkit/</link>
+      <link>http://localhost:1313/hacking/ldpreload-rootkit/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>https://matheuzsecurity.github.io/hacking/ldpreload-rootkit/</guid>
+      <guid>http://localhost:1313/hacking/ldpreload-rootkit/</guid>
       <description>Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc.</description>
     </item>
   </channel>
