@@ -13,11 +13,7 @@
       <link>http://localhost:1313/hacking/bypass-userland-hooks/</link>
       <pubDate>Wed, 14 May 2025 19:42:06 -0400</pubDate>
       <guid>http://localhost:1313/hacking/bypass-userland-hooks/</guid>
-      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
-&lt;p&gt;In this post, I&amp;rsquo;m going to get into a really cool topic, which is how to bypass the hooks used by LD_PRELOAD rootkits, a technique that is effective against most, if not all, of them.&lt;/p&gt;
-&lt;h2 id=&#34;ld_preload&#34;&gt;LD_PRELOAD&lt;/h2&gt;
-&lt;p&gt;&lt;code&gt;LD_PRELOAD&lt;/code&gt; is an environment variable used by dynamic linkers on Unix-like systems (such as /lib64/ld-linux-x86-64.so.2 on x86_64 Linux) to force specific shared libraries to be loaded before any others during program execution.&lt;/p&gt;
-&lt;p&gt;This technique allows you to &amp;ldquo;hook&amp;rdquo; functions from standard libraries, such as libc, without modifying the program binary, and is therefore widely used both for debugging and for offensive techniques such as user space rootkits.&lt;/p&gt;</description>
+      <description>Learn how to bypass LD_PRELOAD rootkits.</description>
     </item>
     <item>
       <title>A simple way to detect and remove LKM rootkit KoviD (Outdated)</title>

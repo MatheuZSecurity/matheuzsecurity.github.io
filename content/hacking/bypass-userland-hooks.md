@@ -2,6 +2,10 @@
 title: "Bypassing LD_PRELOAD Rootkits Is Easy"
 date: 2025-05-14T19:42:06-04:00
 draft: true
+description: Learn how to bypass LD_PRELOAD rootkits.
+categories: [Malware Bypass]
+tags: [Rootkit]
+author: 0xMatheuZ
 ---
 
 ## Introduction
