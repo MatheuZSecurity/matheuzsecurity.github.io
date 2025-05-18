@@ -2,45 +2,37 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Categories on 0xMatheuZ</title>
-    <link>http://localhost:1313/categories/</link>
+    <link>https://matheuzsecurity.github.io/categories/</link>
     <description>Recent content in Categories on 0xMatheuZ</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
-    <lastBuildDate>Wed, 14 May 2025 19:42:06 -0400</lastBuildDate>
-    <atom:link href="http://localhost:1313/categories/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Malware Bypass</title>
-      <link>http://localhost:1313/categories/malware-bypass/</link>
-      <pubDate>Wed, 14 May 2025 19:42:06 -0400</pubDate>
-      <guid>http://localhost:1313/categories/malware-bypass/</guid>
-      <description></description>
-    </item>
+    <atom:link href="https://matheuzsecurity.github.io/categories/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Evasion</title>
-      <link>http://localhost:1313/categories/evasion/</link>
+      <link>https://matheuzsecurity.github.io/categories/evasion/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/categories/evasion/</guid>
+      <guid>https://matheuzsecurity.github.io/categories/evasion/</guid>
       <description></description>
     </item>
     <item>
       <title>Forensics</title>
-      <link>http://localhost:1313/categories/forensics/</link>
+      <link>https://matheuzsecurity.github.io/categories/forensics/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/categories/forensics/</guid>
+      <guid>https://matheuzsecurity.github.io/categories/forensics/</guid>
       <description></description>
     </item>
     <item>
       <title>Hunting</title>
-      <link>http://localhost:1313/categories/hunting/</link>
+      <link>https://matheuzsecurity.github.io/categories/hunting/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/categories/hunting/</guid>
+      <guid>https://matheuzsecurity.github.io/categories/hunting/</guid>
       <description></description>
     </item>
     <item>
       <title>Malware</title>
-      <link>http://localhost:1313/categories/malware/</link>
+      <link>https://matheuzsecurity.github.io/categories/malware/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/categories/malware/</guid>
+      <guid>https://matheuzsecurity.github.io/categories/malware/</guid>
       <description></description>
     </item>
   </channel>
