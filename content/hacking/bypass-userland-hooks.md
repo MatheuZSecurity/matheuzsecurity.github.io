@@ -7,6 +7,8 @@ tags: [Rootkit]
 author: 0xMatheuZ
 ---
 
+![imgur](https://i.imgur.com/JhWCyVT.png)
+
 ## Introduction
 
 In this post, I'm going to get into a really cool topic, which is how to bypass the hooks used by LD_PRELOAD rootkits, a technique that is effective against most, if not all, of them.
