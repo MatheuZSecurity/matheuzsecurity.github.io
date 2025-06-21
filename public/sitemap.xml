@@ -37,6 +37,8 @@
   </url><url>
     <loc>http://localhost:1313/categories/hunting/</loc>
   </url><url>
+    <loc>http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/</loc>
+  </url><url>
     <loc>http://localhost:1313/hacking/linux-threat-hunting-persistence/</loc>
   </url><url>
     <loc>http://localhost:1313/categories/malware/</loc>
