@@ -23,6 +23,13 @@
       <description>Learn a simple way on how to detect and remove Kovid rootkit.</description>
     </item>
     <item>
+      <title>breaking ld_preload rootkit hooks</title>
+      <link>http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/</guid>
+      <description>I miss you</description>
+    </item>
+    <item>
       <title>Detecting rootkits based on ftrace hooking.</title>
       <link>http://localhost:1313/hacking/ftrace-rootkit/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
@@ -42,13 +49,6 @@
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>http://localhost:1313/hacking/ldpreload-rootkit/</guid>
       <description>Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc.</description>
-    </item>
-    <item>
-      <title>I miss you</title>
-      <link>http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/</guid>
-      <description>Using io_uring to bypass linux rootkits hooks</description>
     </item>
   </channel>
 </rss>

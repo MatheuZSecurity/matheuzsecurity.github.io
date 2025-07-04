@@ -25,6 +25,8 @@
   </url><url>
     <loc>http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/</loc>
   </url><url>
+    <loc>http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/</loc>
+  </url><url>
     <loc>http://localhost:1313/hacking/ftrace-rootkit/</loc>
   </url><url>
     <loc>http://localhost:1313/hacking/gcc/</loc>
@@ -37,13 +39,17 @@
   </url><url>
     <loc>http://localhost:1313/categories/hunting/</loc>
   </url><url>
-    <loc>http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/</loc>
-  </url><url>
     <loc>http://localhost:1313/hacking/linux-threat-hunting-persistence/</loc>
   </url><url>
     <loc>http://localhost:1313/categories/malware/</loc>
   </url><url>
     <loc>http://localhost:1313/tags/persistence/</loc>
+  </url><url>
+    <loc>http://localhost:1313/categories/red-team/</loc>
+  </url><url>
+    <loc>http://localhost:1313/tags/red-team/</loc>
+  </url><url>
+    <loc>http://localhost:1313/hacking/evading-linux-edrs-with-io-uring/</loc>
   </url><url>
     <loc>http://localhost:1313/search/</loc>
   </url>
