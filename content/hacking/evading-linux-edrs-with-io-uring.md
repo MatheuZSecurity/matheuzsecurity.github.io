@@ -6,9 +6,7 @@ tags: [Red Team]
 author: 0xMatheuZ
 ---
 
-Full source code of the project
-
-https://github.com/MatheuZSecurity/RingReaper
+Full source: https://github.com/MatheuZSecurity/RingReaper
 
 ## Table of Contents
 
