@@ -6,8 +6,9 @@ tags: [Red Team]
 author: 0xMatheuZ
 ---
 
-[![Dororo](https://animesher.com/orig/2/212/2126/21262/animesher.com_dororo-gif-dororo-2019-2126294.gif)](https://animesher.com/orig/2/212/2126/21262/animesher.com_dororo-gif-dororo-2019-2126294.gif)
+Full source code of the project
 
+https://github.com/MatheuZSecurity/RingReaper
 
 ## Table of Contents
 
