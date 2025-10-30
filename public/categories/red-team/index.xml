@@ -14,5 +14,12 @@
       <guid>http://localhost:1313/hacking/evading-linux-edrs-with-io-uring/</guid>
       <description>Learn how to bypass modern defenses with io_uring</description>
     </item>
+    <item>
+      <title>Red Team Tactics: Evading Elastic Security</title>
+      <link>http://localhost:1313/hacking/bypassing-elastic/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/hacking/bypassing-elastic/</guid>
+      <description>Learn how we can evade Elastic with Kernel Rootkit Obfuscation</description>
+    </item>
   </channel>
 </rss>

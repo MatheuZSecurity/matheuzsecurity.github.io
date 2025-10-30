@@ -33,6 +33,8 @@
   </url><url>
     <loc>http://localhost:1313/categories/evasion/</loc>
   </url><url>
+    <loc>http://localhost:1313/tags/evasion/</loc>
+  </url><url>
     <loc>http://localhost:1313/categories/forensics/</loc>
   </url><url>
     <loc>http://localhost:1313/hacking/ldpreload-rootkit/</loc>
@@ -50,6 +52,8 @@
     <loc>http://localhost:1313/tags/red-team/</loc>
   </url><url>
     <loc>http://localhost:1313/hacking/evading-linux-edrs-with-io-uring/</loc>
+  </url><url>
+    <loc>http://localhost:1313/hacking/bypassing-elastic/</loc>
   </url><url>
     <loc>http://localhost:1313/search/</loc>
   </url>
