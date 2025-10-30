@@ -12,6 +12,8 @@ images:
 
 Stealthy Kernel Rootkit: https://github.com/MatheuZSecurity/Singularity
 
+Rootkit Researchers: https://discord.gg/66N5ZQppU7
+
 # Introduction
 
 Security solutions continue to intensify. Modern EDRs like Elastic Security, integrated with Elastic Defend, employ multiple detection layers including YARA signatures and behavioral analysis to identify Linux kernel rootkits, triggering 26+ alerts on a single malicious module.
