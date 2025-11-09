@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Reversing on 0xMatheuZ</title>
+    <link>http://localhost:1313/categories/reversing/</link>
+    <description>Recent content in Reversing on 0xMatheuZ</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en</language>
+    <atom:link href="http://localhost:1313/categories/reversing/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Ioctl Secrets Writeup</title>
+      <link>http://localhost:1313/hacking/ioctl-secrets/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/hacking/ioctl-secrets/</guid>
+      <description>Solving the easy challenge of rootkit researchers about ioctl</description>
+    </item>
+  </channel>
+</rss>

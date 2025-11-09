@@ -58,6 +58,13 @@
       <description>Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc.</description>
     </item>
     <item>
+      <title>Ioctl Secrets Writeup</title>
+      <link>http://localhost:1313/hacking/ioctl-secrets/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/hacking/ioctl-secrets/</guid>
+      <description>Solving an easy reversing challenge from rootkit researchers.</description>
+    </item>
+    <item>
       <title>Linux Threat Hunting Persistence</title>
       <link>http://localhost:1313/hacking/linux-threat-hunting-persistence/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
