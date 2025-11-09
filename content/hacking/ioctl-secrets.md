@@ -278,7 +278,7 @@ This challenge was an excellent introduction to Reversing and you can learn:
 
 ## Our Community
 
-Join the **RootKitSecrets** community:  
+Join the **Rootkit Researchers** community:  
 [Discord Server](https://discord.gg/66N5ZOpqU7)
 
 *Challenge created by Matheuz - Have fun guys!!*
