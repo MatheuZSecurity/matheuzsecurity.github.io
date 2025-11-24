@@ -12,7 +12,7 @@
       <link>http://localhost:1313/hacking/ioctl-secrets/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>http://localhost:1313/hacking/ioctl-secrets/</guid>
-      <description>Solving the easy challenge of rootkit researchers about ioctl</description>
+      <description>Solving an easy reversing challenge from rootkit researchers.</description>
     </item>
   </channel>
 </rss>

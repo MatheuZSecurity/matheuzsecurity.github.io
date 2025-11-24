@@ -12,7 +12,7 @@
       <link>http://localhost:1313/hacking/bypassing-elastic/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>http://localhost:1313/hacking/bypassing-elastic/</guid>
-      <description>Bypassing YARA rules and behavioral detection through string obfuscation, module fragmentation, XOR encoding, and ICMP reverse shell staging</description>
+      <description>Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging</description>
     </item>
     <item>
       <title>Red Team Tactics: Evading EDR on Linux with io_uring</title>
