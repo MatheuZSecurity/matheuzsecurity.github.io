@@ -23,10 +23,24 @@
       <description></description>
     </item>
     <item>
+      <title>EBPF</title>
+      <link>http://localhost:1313/tags/ebpf/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/tags/ebpf/</guid>
+      <description></description>
+    </item>
+    <item>
       <title>Evasion</title>
       <link>http://localhost:1313/tags/evasion/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>http://localhost:1313/tags/evasion/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Kernel Security</title>
+      <link>http://localhost:1313/tags/kernel-security/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/tags/kernel-security/</guid>
       <description></description>
     </item>
     <item>

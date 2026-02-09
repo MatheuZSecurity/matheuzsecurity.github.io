@@ -25,11 +25,15 @@
   </url><url>
     <loc>http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/</loc>
   </url><url>
+    <loc>http://localhost:1313/hacking/ebpf-security-tools-hacking/</loc>
+  </url><url>
     <loc>http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/</loc>
   </url><url>
     <loc>http://localhost:1313/tags/ctf/</loc>
   </url><url>
     <loc>http://localhost:1313/hacking/ftrace-rootkit/</loc>
+  </url><url>
+    <loc>http://localhost:1313/tags/ebpf/</loc>
   </url><url>
     <loc>http://localhost:1313/hacking/gcc/</loc>
   </url><url>
@@ -46,6 +50,8 @@
     <loc>http://localhost:1313/categories/hunting/</loc>
   </url><url>
     <loc>http://localhost:1313/hacking/ioctl-secrets/</loc>
+  </url><url>
+    <loc>http://localhost:1313/tags/kernel-security/</loc>
   </url><url>
     <loc>http://localhost:1313/hacking/linux-threat-hunting-persistence/</loc>
   </url><url>
