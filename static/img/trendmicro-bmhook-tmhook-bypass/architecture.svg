@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="860" viewBox="0 0 1600 860" role="img" aria-labelledby="title desc">
+  <title id="title">Observed Trend Micro monitoring and recovery path</title>
+  <desc id="desc">Observed flow from local filesystem and process events through tmhook, bmhook, ds_am, rmmod, and module reload.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0f18"/>
+      <stop offset="1" stop-color="#151927"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#8aa4bf"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="860" fill="url(#bg)"/>
+
+  <text x="80" y="78" fill="#f8fafc" font-family="Arial, sans-serif" font-size="38" font-weight="700">Observed Monitoring and Recovery Path</text>
+  <text x="80" y="114" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="20" font-weight="500">Runtime evidence showed normal event flow first, then a product-initiated recovery cycle that unloaded and reloaded bmhook/tmhook.</text>
+
+  <text x="80" y="180" fill="#67e8f9" font-family="Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="1.5">NORMAL EVENT FLOW</text>
+  <line x1="80" y1="200" x2="1520" y2="200" stroke="#164e63" stroke-width="2"/>
+
+  <rect x="90" y="250" width="275" height="145" rx="8" fill="#0f172a" stroke="#67e8f9" stroke-width="2"/>
+  <circle cx="126" cy="286" r="16" fill="#67e8f9"/>
+  <text x="121" y="292" fill="#0a0f18" font-family="Arial, sans-serif" font-size="17" font-weight="700">1</text>
+  <text x="155" y="294" fill="#f8fafc" font-family="Arial, sans-serif" font-size="28" font-weight="700">Local user</text>
+  <text x="125" y="338" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">filesystem events</text>
+  <text x="125" y="367" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">process events</text>
+
+  <rect x="460" y="250" width="275" height="145" rx="8" fill="#12162a" stroke="#a78bfa" stroke-width="2"/>
+  <circle cx="496" cy="286" r="16" fill="#a78bfa"/>
+  <text x="491" y="292" fill="#0a0f18" font-family="Arial, sans-serif" font-size="17" font-weight="700">2</text>
+  <text x="525" y="294" fill="#f8fafc" font-family="Arial, sans-serif" font-size="28" font-weight="700">tmhook</text>
+  <text x="495" y="338" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">livepatch syscall</text>
+  <text x="495" y="367" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">hook substrate</text>
+
+  <rect x="830" y="250" width="275" height="145" rx="8" fill="#0d1b18" stroke="#34d399" stroke-width="2"/>
+  <circle cx="866" cy="286" r="16" fill="#34d399"/>
+  <text x="861" y="292" fill="#0a0f18" font-family="Arial, sans-serif" font-size="17" font-weight="700">3</text>
+  <text x="895" y="294" fill="#f8fafc" font-family="Arial, sans-serif" font-size="28" font-weight="700">bmhook</text>
+  <text x="865" y="338" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">behavior monitoring</text>
+  <text x="865" y="367" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">event queue / scan</text>
+
+  <rect x="1200" y="250" width="275" height="145" rx="8" fill="#211708" stroke="#f59e0b" stroke-width="2"/>
+  <circle cx="1236" cy="286" r="16" fill="#f59e0b"/>
+  <text x="1231" y="292" fill="#0a0f18" font-family="Arial, sans-serif" font-size="17" font-weight="700">4</text>
+  <text x="1265" y="294" fill="#f8fafc" font-family="Arial, sans-serif" font-size="28" font-weight="700">ds_am</text>
+  <text x="1235" y="338" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">agent process</text>
+  <text x="1235" y="367" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">recovery logic</text>
+
+  <text x="392" y="335" fill="#94a3b8" font-family="Arial, sans-serif" font-size="44" font-weight="700">→</text>
+  <text x="762" y="335" fill="#94a3b8" font-family="Arial, sans-serif" font-size="44" font-weight="700">→</text>
+  <text x="1132" y="335" fill="#94a3b8" font-family="Arial, sans-serif" font-size="44" font-weight="700">→</text>
+
+  <text x="80" y="502" fill="#fb7185" font-family="Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="1.5">RECOVERY CYCLE OBSERVED UNDER EVENT STORM</text>
+  <text x="1010" y="502" fill="#fecdd3" font-family="Arial, sans-serif" font-size="18" font-weight="600">ds_am.init → rmmod bmhook/tmhook</text>
+  <line x1="80" y1="522" x2="1520" y2="522" stroke="#7f1d1d" stroke-width="2"/>
+
+  <rect x="220" y="585" width="320" height="150" rx="8" fill="#261118" stroke="#fb7185" stroke-width="2"/>
+  <circle cx="258" cy="622" r="16" fill="#fb7185"/>
+  <text x="253" y="628" fill="#0a0f18" font-family="Arial, sans-serif" font-size="17" font-weight="700">5</text>
+  <text x="290" y="630" fill="#f8fafc" font-family="Arial, sans-serif" font-size="28" font-weight="700">rmmod</text>
+  <text x="255" y="674" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">bmhook removed</text>
+  <text x="255" y="703" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">tmhook removed</text>
+
+  <rect x="640" y="585" width="320" height="150" rx="8" fill="#102017" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="678" cy="622" r="16" fill="#22c55e"/>
+  <text x="673" y="628" fill="#0a0f18" font-family="Arial, sans-serif" font-size="17" font-weight="700">6</text>
+  <text x="710" y="630" fill="#f8fafc" font-family="Arial, sans-serif" font-size="28" font-weight="700">reload</text>
+  <text x="675" y="674" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">tmhook loaded</text>
+  <text x="675" y="703" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">livepatch transition</text>
+
+  <rect x="1060" y="585" width="320" height="150" rx="8" fill="#0f172a" stroke="#67e8f9" stroke-width="2"/>
+  <circle cx="1098" cy="622" r="16" fill="#67e8f9"/>
+  <text x="1093" y="628" fill="#0a0f18" font-family="Arial, sans-serif" font-size="17" font-weight="700">7</text>
+  <text x="1130" y="630" fill="#f8fafc" font-family="Arial, sans-serif" font-size="28" font-weight="700">gap</text>
+  <text x="1095" y="674" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">temporary window</text>
+  <text x="1095" y="703" fill="#d9e2ec" font-family="Arial, sans-serif" font-size="19" font-weight="500">repeatable trigger</text>
+
+  <text x="560" y="675" fill="#94a3b8" font-family="Arial, sans-serif" font-size="44" font-weight="700">→</text>
+  <text x="980" y="675" fill="#94a3b8" font-family="Arial, sans-serif" font-size="44" font-weight="700">→</text>
+</svg>

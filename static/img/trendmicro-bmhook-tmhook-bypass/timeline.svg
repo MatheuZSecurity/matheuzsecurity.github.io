@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="620" viewBox="0 0 1400 620" role="img" aria-labelledby="title desc">
+  <title id="title">tmhook unload and reload timeline</title>
+  <desc id="desc">Timeline showing repeated tmhook livepatch unpatch, unload, reload, and patch completion intervals.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10151f"/>
+      <stop offset="1" stop-color="#1b2537"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="620" fill="url(#bg)"/>
+  <text x="70" y="78" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700">Observed tmhook reload cycles</text>
+  <text x="70" y="114" fill="#cbd5e1" font-family="Inter, Arial, sans-serif" font-size="18">The recovery path was not a single event. The module repeatedly entered livepatch unpatch and reload transitions.</text>
+
+  <line x1="120" y1="300" x2="1280" y2="300" stroke="#64748b" stroke-width="3"/>
+
+  <g font-family="Inter, Arial, sans-serif">
+    <g>
+      <circle cx="190" cy="300" r="12" fill="#f59e0b"/>
+      <text x="145" y="250" fill="#fef3c7" font-size="16">1243.387</text>
+      <text x="135" y="275" fill="#cbd5e1" font-size="14">unpatch start</text>
+    </g>
+    <g>
+      <circle cx="360" cy="300" r="12" fill="#f43f5e"/>
+      <text x="320" y="345" fill="#ffe4e6" font-size="16">1261.635</text>
+      <text x="315" y="370" fill="#cbd5e1" font-size="14">unloaded</text>
+    </g>
+    <g>
+      <circle cx="470" cy="300" r="12" fill="#22c55e"/>
+      <text x="430" y="250" fill="#dcfce7" font-size="16">1262.983</text>
+      <text x="430" y="275" fill="#cbd5e1" font-size="14">loaded</text>
+    </g>
+    <g>
+      <circle cx="630" cy="300" r="12" fill="#f59e0b"/>
+      <text x="590" y="345" fill="#fef3c7" font-size="16">1277.973</text>
+      <text x="575" y="370" fill="#cbd5e1" font-size="14">unpatch start</text>
+    </g>
+    <g>
+      <circle cx="795" cy="300" r="12" fill="#f43f5e"/>
+      <text x="755" y="250" fill="#ffe4e6" font-size="16">1296.188</text>
+      <text x="752" y="275" fill="#cbd5e1" font-size="14">unloaded</text>
+    </g>
+    <g>
+      <circle cx="910" cy="300" r="12" fill="#22c55e"/>
+      <text x="870" y="345" fill="#dcfce7" font-size="16">1297.344</text>
+      <text x="870" y="370" fill="#cbd5e1" font-size="14">loaded</text>
+    </g>
+    <g>
+      <circle cx="1110" cy="300" r="12" fill="#a78bfa"/>
+      <text x="1060" y="250" fill="#ede9fe" font-size="16">1313.686</text>
+      <text x="1040" y="275" fill="#cbd5e1" font-size="14">patching complete</text>
+    </g>
+  </g>
+
+  <g fill="#0f172a" stroke="#38bdf8" stroke-width="2" font-family="Inter, Arial, sans-serif">
+    <rect x="120" y="450" width="1160" height="80" rx="10"/>
+    <text x="155" y="486" fill="#e0f2fe" font-size="18" font-weight="700">Key observation</text>
+    <text x="155" y="515" fill="#cbd5e1" font-size="16">The unload window is temporary, but the trigger is repeatable. Repeated recovery cycles create repeated monitoring gaps.</text>
+  </g>
+</svg>

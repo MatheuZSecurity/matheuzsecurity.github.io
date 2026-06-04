@@ -7,12 +7,14 @@ theme: PaperMod
 params:
   env: production # to enable google analytics, opengraph, twitter-cards and schema.
   title: 0xMatheuZ
-  description: "Red Teaming And Threat Hunting."
+  description: "Red Team / Offensive Security Research / Pentest."
   keywords: [Blog]
   author: 0xMatheuZ
   DateFormat: "January 2, 2006"
   defaultTheme: dark # dark, light
   disableThemeToggle: true
+  mainSections:
+    - hacking
 
   ShowReadingTime: true
   ShowShareButtons: false
@@ -32,15 +34,15 @@ params:
 
   label:
     text: "MatheuZ"
-    icon: "https://i.imgur.com/xeSd64L.png"
-    iconHeight: 25
+    icon: "img/0xm-badge.png"
+    iconHeight: 28
 
   # profile-mode
   profileMode:
     enabled: true # needs to be explicitly set
     title: MatheuZ
-    subtitle: "Penetration Tester and Cyber Threat Intelligence"
-    imageUrl: "https://i.imgur.com/xeSd64L.png"
+    subtitle: "Red Team Operator, Offensive Security Researcher, and Pentester"
+    imageUrl: "img/operator-avatar.png"
     imageWidth: 130
     imageHeight: 130
    # imageTitle: dp
@@ -61,6 +63,10 @@ params:
     hidden: true # hide everywhere but not in structured data
     hiddenInList: true # hide on list pages and home
     hiddenInSingle: true # hide on single page
+
+  assets:
+    theme_color: "#06070b"
+    msapplication_TileColor: "#06070b"
 
 menu:
   main:

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="700" viewBox="0 0 1400 700" role="img" aria-labelledby="title desc">
+  <title id="title">Evidence screenshot placeholder</title>
+  <desc id="desc">Placeholder frame for screenshots of dmesg, bpftrace, and blocked versus bypassed download evidence.</desc>
+  <rect width="1400" height="700" fill="#111827"/>
+  <rect x="70" y="70" width="1260" height="560" rx="12" fill="#0b1120" stroke="#334155" stroke-width="3"/>
+  <text x="110" y="135" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="700">Screenshot placeholder</text>
+  <text x="110" y="182" fill="#cbd5e1" font-family="Inter, Arial, sans-serif" font-size="19">Replace this image with one of the following:</text>
+  <g font-family="Inter, Arial, sans-serif" font-size="19" fill="#e5e7eb">
+    <text x="140" y="245">1. bpftrace showing ds_am.init executing rmmod bmhook and rmmod tmhook</text>
+    <text x="140" y="295">2. dmesg showing tmhook livepatch unpatching, unloaded, loaded, patching complete</text>
+    <text x="140" y="345">3. Normal blocked download compared with successful download during the reload window</text>
+    <text x="140" y="395">4. PoC output showing bmhook=0 or tmhook=0 and window_seen=1</text>
+  </g>
+  <rect x="110" y="465" width="1180" height="80" rx="8" fill="#172554" stroke="#38bdf8" stroke-width="2"/>
+  <text x="140" y="512" fill="#dbeafe" font-family="Inter, Arial, sans-serif" font-size="18">Tip: keep screenshots timestamped so the unload window can be correlated across bpftrace, dmesg, and agent logs.</text>
+</svg>
