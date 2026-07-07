@@ -2,16 +2,17 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>CTF on 0xMatheuZ</title>
-    <link>http://localhost:1313/tags/ctf/</link>
+    <link>https://matheuzsecurity.github.io/tags/ctf/</link>
     <description>Recent content in CTF on 0xMatheuZ</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
-    <atom:link href="http://localhost:1313/tags/ctf/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sun, 09 Nov 2025 12:25:18 -0500</lastBuildDate>
+    <atom:link href="https://matheuzsecurity.github.io/tags/ctf/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Ioctl Secrets Writeup</title>
-      <link>http://localhost:1313/hacking/ioctl-secrets/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/hacking/ioctl-secrets/</guid>
+      <link>https://matheuzsecurity.github.io/hacking/ioctl-secrets/</link>
+      <pubDate>Sun, 09 Nov 2025 12:25:18 -0500</pubDate>
+      <guid>https://matheuzsecurity.github.io/hacking/ioctl-secrets/</guid>
       <description>Solving an easy reversing challenge from rootkit researchers.</description>
     </item>
   </channel>

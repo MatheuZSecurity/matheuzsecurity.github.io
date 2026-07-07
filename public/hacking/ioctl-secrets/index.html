@@ -10,14 +10,14 @@
 <meta name="description" content="Solving an easy reversing challenge from rootkit researchers.">
 <meta name="author" content="0xMatheuZ">
 <link rel="canonical" href="http://localhost:1313/hacking/ioctl-secrets/">
-<link crossorigin="anonymous" href="/assets/css/stylesheet.b609c58d5c11bb90b1a54e04005d74ad1ddf22165eb79f5533967e57df9c3b50.css" integrity="sha256-tgnFjVwRu5CxpU4EAF10rR3fIhZet59VM5Z&#43;V9&#43;cO1A=" rel="preload stylesheet" as="style">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.611f494600a4afa7b7b325284339ae62e7d3910f41f3722c0f53143c5cd6e8e7.css" integrity="sha256-YR9JRgCkr6e3syUoQzmuYufTkQ9B83IsD1MUPFzW6Oc=" rel="preload stylesheet" as="style">
 <link rel="icon" href="http://localhost:1313/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
 <link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
 <link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
-<meta name="theme-color" content="#2e2e33">
-<meta name="msapplication-TileColor" content="#2e2e33">
+<meta name="theme-color" content="#06070b">
+<meta name="msapplication-TileColor" content="#06070b">
 <link rel="alternate" hreflang="en" href="http://localhost:1313/hacking/ioctl-secrets/">
 <noscript>
     <style>
@@ -27,12 +27,15 @@
         }
 
     </style>
-</noscript><meta property="og:title" content="Ioctl Secrets Writeup" />
+</noscript><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Press+Start+2P&display=swap" rel="stylesheet">
+<meta property="og:title" content="Ioctl Secrets Writeup" />
 <meta property="og:description" content="Solving an easy reversing challenge from rootkit researchers." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="http://localhost:1313/hacking/ioctl-secrets/" /><meta property="og:image" content="https://i.imgur.com/ZTjHU7a.jpeg" /><meta property="article:section" content="hacking" />
-
-<meta property="og:site_name" content="0xMatheuZ" />
+<meta property="article:published_time" content="2025-11-09T12:25:18-05:00" />
+<meta property="article:modified_time" content="2025-11-09T12:25:18-05:00" /><meta property="og:site_name" content="0xMatheuZ" />
 
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:image" content="https://i.imgur.com/ZTjHU7a.jpeg"/>
@@ -49,7 +52,7 @@
     {
       "@type": "ListItem",
       "position":  1 ,
-      "name": "Hackings",
+      "name": "Hacking",
       "item": "http://localhost:1313/hacking/"
     }, 
     {
@@ -74,8 +77,8 @@
   "articleBody": " Challenge Description In this challenge, we’re given access to a Linux virtual machine (VM) running Ubuntu. The objective is to exploit a custom kernel module to retrieve a hidden flag. The challenge involves reverse engineering, kernel internals, and crafting a proper exploit.\nWhat we have:\nA hidden kernel module loaded at boot Character device at /dev/ioctl_dev Setup script (device.sh) that loads the module and shreds source files SSH access enabled (username: root, password: ioctl) Important Note: Many participants had difficulties copy-pasting code directly into the VM console. As stated in the challenge description, SSH is enabled for easier interaction! This was a common pain point, so let’s start by addressing it.\nGetting Started - VM Access \u0026 SSH When you boot the VM, you’ll see the login screen. The credentials are straightforward:\nUsername: root Password: ioctl Setting Up SSH Access After logging in, the first thing you should do is check the VM’s IP address to enable SSH access. This makes the challenge much more comfortable as you can:\nCopy and paste code easily Use multiple terminal windows Access from your preferred terminal emulator Run ip a to get the network configuration:\nAs we can see, the VM has IP 192.168.200.165. Now we can SSH from our host machine:\nssh root@192.168.200.165 Initial Reconnaissance Now that we’re comfortably connected via SSH, let’s explore what we have on the system.\nChecking for the Device The challenge mentions a device at /dev/ioctl_dev. Let’s verify it exists:\nroot@hunter:~# ls -lah /dev/ioctl_dev crw------- 1 root root 237, 0 Nov 9 16:15 /dev/ioctl_dev Perfect! The device exists with:\nType: Character device (c) Permissions: root only Major number: 237 Minor number: 0 Reverse Engineering the Kernel Module Time to analyze the kernel object (device.ko)! I’ll be using binary ninja for this, but Ghidra or IDA work just as well.\nLoading device.ko into binary ninja After loading device.ko into binary ninja and letting it analyze, we can see several interesting functions in the symbol:\nKey functions identified:\nioctl_handler - The main function we need to understand init_module - Module initialization hide - Module hiding functionality cleanup_module - Module cleanup Analyzing ioctl_handler() This is where the magic happens! Let’s examine the decompiled code:\nint64_t ioctl_handler() { int64_t rdx_2; int32_t rsi_3; rdx_2 = __fentry__(); void* gsbase; int64_t rax = *(uint64_t*)((char*)gsbase + 0x28); int32_t var_7c; int32_t var_78; if (rsi_3 == 0xc0487213 \u0026\u0026 !_copy_from_user(\u0026var_7c, rdx_2, 0x48) \u0026\u0026 var_7c == 0x1337dead \u0026\u0026 var_78 == 0xcafebabe) { int64_t var_74; __builtin_strncpy(\u0026var_74, \"ROOTKIT{fake_flag_for_you}\", 0x1b); _copy_to_user(rdx_2, \u0026var_7c, 0x48); } if (rax == *(uint64_t*)((char*)gsbase + 0x28)) return __x86_return_thunk(); __stack_chk_fail(); } findings:\nioctl Command Check: rsi_3 == 0xc0487213\nThis is the ioctl request number we need to use Buffer Size: _copy_from_user(\u0026var_7c, rdx_2, 0x48)\nExpects exactly 0x48 bytes (72 bytes) Magic Value #1: var_7c == 0x1337dead\nFirst 4 bytes must be 0x1337DEAD Magic Value #2: var_78 == 0xcafebabe\nNext 4 bytes must be 0xCAFEBABE Understanding the init_module() Let’s also check how the device gets created:\nint64_t init_module() { __fentry__(); uint32_t rax = __register_chrdev(0, 0, 0x100, \"ioctl_dev\", \u0026fops); major = rax; if (rax \u003e= 0) { uint64_t rax_1 = __class_create(\u0026__this_module, \"ioctl_class\", \u0026__key.2); ioctl_class = rax_1; if (rax_1 \u003c= -0x1000) { uint64_t rax_3 = device_create(rax_1, 0, (uint64_t)(major \u003c\u003c 0x14), 0, \"ioctl_dev\"); __key.2 = rax_3; if (rax_3 \u003c= -0x1000) { hide(); _printk(0x400326); } } } return __x86_return_thunk(); } The device_create() call creates our /dev/ioctl_dev device with:\nDevice class: ioctl_class Device name: ioctl_dev Major number: dynamically allocated (237 in our case) After successful creation, it calls hide() to make the module invisible to lsmod.\nWriting the Exploit Now that we understand the requirements, let’s write our exploit code!\nThe Exploit Create a 72-byte buffer Write 0x1337DEAD at offset 0 Write 0xCAFEBABE at offset 4 Open /dev/ioctl_dev Call ioctl with command 0xc0487213 Read the flag from the returned buffer exploit.c #include #include #include #include #include #include #include int main() { int fd; char buf[0x48]; uint32_t val1 = 0x1337DEAD; uint32_t val2 = 0xCAFEBABE; memset(buf, 0, sizeof(buf)); *(uint32_t*)buf = val1; *(uint32_t*)(buf + 4) = val2; fd = open(\"/dev/ioctl_dev\", O_RDWR); if (fd \u003c 0) { perror(\"open\"); return 1; } if (ioctl(fd, 0xc0487213, buf) \u003c 0) { perror(\"ioctl\"); close(fd); return 1; } printf(\"Flag: %s\\n\", buf); close(fd); return 0; } Compiling and Running Since we’re connected via SSH, we can easily copy the code and compile it:\nroot@hunter:~# gcc exploit.c -o exploit root@hunter:~# ./exploit Flag: ROOTKIT{ioctl_secret_unlocked@1337} Success! We’ve captured the flag!\nWhy It Works The exploit works because the kernel module uses the same buffer for both receiving input and sending output. We create a 72-byte buffer (buf[0x48]), write the magic values 0x1337DEAD and 0xCAFEBABE at the beginning using pointer casting ((uint32_t)buf), then open the device and call ioctl() with command 0xc0487213.\nThe kernel validates our magic values with _copy_from_user(), and if they match, uses _copy_to_user() with the same pointer to overwrite our buffer with the flag.\nKey Lessons Learned 1. Check dmesg for Kernel Activity Kernel messages provided crucial information about module loading and potential issues.\n2. Understand ioctl Communication The ioctl interface is a powerful way for userspace to communicate with kernel drivers. Understanding the command numbers and data structures is essential.\n3. Reversing Skills Being comfortable with tools like Ghidra, IDA, or Binary Ninja is crucial for kernel module analysis.\nConclusion This challenge was an excellent introduction to Reversing and you can learn:\nLinux kernel modules Reverse engineering Crafting ioctl requests Recognizing rootkit techniques Our Community Join the Rootkit Researchers community:\nDiscord Server\nChallenge created by Matheuz - Have fun guys!!\nThanks for reading! If you enjoyed this writeup, consider sharing it with others who might find it useful. Happy hacking!\n",
   "wordCount" : "931",
   "inLanguage": "en",
-  "datePublished": "0001-01-01T00:00:00Z",
-  "dateModified": "0001-01-01T00:00:00Z",
+  "datePublished": "2025-11-09T12:25:18-05:00",
+  "dateModified": "2025-11-09T12:25:18-05:00",
   "author":{
     "@type": "Person",
     "name": "0xMatheuZ"
@@ -101,9 +104,8 @@
 <header class="header">
     <nav class="nav">
         <div class="logo">
-            <a href="http://localhost:1313/" accesskey="h" title="MatheuZ (Alt + H)">
-                <img src="https://i.imgur.com/xeSd64L.png" alt="" aria-label="logo"
-                    height="25">MatheuZ</a>
+            <a href="/" accesskey="h" title="MatheuZ (Alt + H)">
+                <img src="/img/0xm-badge.png" alt="" aria-label="logo" height="28">MatheuZ</a>
             <div class="logo-switches">
                 <ul class="lang-switch"><li>|</li>
                 </ul>
@@ -111,22 +113,22 @@
         </div>
         <ul id="menu">
             <li>
-                <a href="http://localhost:1313/" title="Home">
+                <a href="/" title="Home">
                     <span>Home</span>
                 </a>
             </li>
             <li>
-                <a href="http://localhost:1313/hacking" title="hacking">
+                <a href="/hacking" title="hacking">
                     <span>hacking</span>
                 </a>
             </li>
             <li>
-                <a href="http://localhost:1313/tags" title="Tags">
+                <a href="/tags" title="Tags">
                     <span>Tags</span>
                 </a>
             </li>
             <li>
-                <a href="http://localhost:1313/search" title="Search (Alt &#43; /)" accesskey=/>
+                <a href="/search" title="Search (Alt &#43; /)" accesskey=/>
                     <span>Search</span>
                 </a>
             </li>
@@ -137,14 +139,24 @@
 
 <article class="post-single">
   <header class="post-header">
-    <div class="breadcrumbs"><a href="http://localhost:1313/">Home</a>&nbsp;»&nbsp;<a href="http://localhost:1313/hacking/">Hackings</a></div>
+    <div class="breadcrumbs"><a href="/">Home</a>&nbsp;»&nbsp;<a href="/hacking/">Hacking</a></div>
+    <div class="post-context">
+      <span>Red Team</span>
+      <span>Offensive Security Research</span>
+      <span>Pentest</span>
+      <span>hacking</span>
+    </div>
     <h1 class="post-title entry-hint-parent">
       Ioctl Secrets Writeup
     </h1>
     <div class="post-description">
       Solving an easy reversing challenge from rootkit researchers.
     </div>
-    <div class="post-meta">5 min&nbsp;·&nbsp;0xMatheuZ
+    <div class="post-badges">
+      <span>Reversing</span>
+      <span>#CTF</span>
+    </div>
+    <div class="post-meta"><span title='2025-11-09 12:25:18 -0500 -0500'>November 9, 2025</span>&nbsp;·&nbsp;5 min&nbsp;·&nbsp;0xMatheuZ
 
 </div>
   </header> 
@@ -315,7 +327,7 @@
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;sys/ioctl.h&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdint.h&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp">
-</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">fd</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="kt">char</span> <span class="n">buf</span><span class="p">[</span><span class="mh">0x48</span><span class="p">];</span>
@@ -384,18 +396,18 @@
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="http://localhost:1313/tags/ctf/">CTF</a></li>
+      <li><a href="/tags/ctf/">CTF</a></li>
     </ul>
 <nav class="paginav">
-  <a class="prev" href="http://localhost:1313/hacking/ldpreload-rootkit/">
+  <a class="prev" href="/hacking/ebpf-security-tools-hacking/">
     <span class="title">« Prev</span>
     <br>
-    <span>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</span>
+    <span>Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</span>
   </a>
-  <a class="next" href="http://localhost:1313/hacking/linux-threat-hunting-persistence/">
+  <a class="next" href="/hacking/bypassing-elastic/">
     <span class="title">Next »</span>
     <br>
-    <span>Linux Threat Hunting Persistence</span>
+    <span>Evading Elastic Security: Linux Rootkit Detection Bypass</span>
   </a>
 </nav>
 
@@ -404,7 +416,7 @@
     </main>
     
 <footer class="footer">
-    <span>&copy; 2026 <a href="http://localhost:1313/">0xMatheuZ</a></span>
+    <span>&copy; 2026 <a href="/">0xMatheuZ</a></span>
     <span>
         Powered by
         <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &

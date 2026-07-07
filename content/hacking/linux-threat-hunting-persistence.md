@@ -1,5 +1,6 @@
 ---
 title: Linux Threat Hunting Persistence 
+date: 2024-02-16T00:00:29-03:00
 image: https://i.imgur.com/xeSd64L.png
 description: Learn about persistence in Linux and how to hunt
 categories: [Hunting]

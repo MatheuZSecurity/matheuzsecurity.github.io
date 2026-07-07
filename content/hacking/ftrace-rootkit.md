@@ -1,5 +1,6 @@
 ---
 title: Detecting rootkits based on ftrace hooking.
+date: 2024-12-26T21:46:23-03:00
 image: https://i.imgur.com/xeSd64L.png
 description: Learn how to detect rootkit based on ftrace hooking.
 categories: [Forensics]

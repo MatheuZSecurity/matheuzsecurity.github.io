@@ -1,5 +1,6 @@
 ---
 title: "Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools"
+date: 2026-02-09T15:25:08+00:00
 description: Deep technical analysis of bypassing eBPF-based security solutions through kernel-level hooks targeting BPF iterators, ringbuffers, and perf events
 categories: [Red Team]
 tags: [eBPF, Kernel Security, Evasion]

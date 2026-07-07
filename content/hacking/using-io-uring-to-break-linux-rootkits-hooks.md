@@ -1,5 +1,6 @@
 ---
 title: breaking ld_preload rootkit hooks
+date: 2025-06-21T16:33:03-04:00
 image: https://i.imgur.com/xeSd64L.png
 description: I miss you
 categories: [Malware]

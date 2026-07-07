@@ -10,14 +10,14 @@
 <meta name="description" content="Learn a simple way on how to detect and remove Kovid rootkit.">
 <meta name="author" content="0xMatheuZ">
 <link rel="canonical" href="http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/">
-<link crossorigin="anonymous" href="/assets/css/stylesheet.b609c58d5c11bb90b1a54e04005d74ad1ddf22165eb79f5533967e57df9c3b50.css" integrity="sha256-tgnFjVwRu5CxpU4EAF10rR3fIhZet59VM5Z&#43;V9&#43;cO1A=" rel="preload stylesheet" as="style">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.611f494600a4afa7b7b325284339ae62e7d3910f41f3722c0f53143c5cd6e8e7.css" integrity="sha256-YR9JRgCkr6e3syUoQzmuYufTkQ9B83IsD1MUPFzW6Oc=" rel="preload stylesheet" as="style">
 <link rel="icon" href="http://localhost:1313/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
 <link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
 <link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
-<meta name="theme-color" content="#2e2e33">
-<meta name="msapplication-TileColor" content="#2e2e33">
+<meta name="theme-color" content="#06070b">
+<meta name="msapplication-TileColor" content="#06070b">
 <link rel="alternate" hreflang="en" href="http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/">
 <noscript>
     <style>
@@ -27,12 +27,15 @@
         }
 
     </style>
-</noscript><meta property="og:title" content="A simple way to detect and remove LKM rootkit KoviD (Outdated)" />
+</noscript><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Press+Start+2P&display=swap" rel="stylesheet">
+<meta property="og:title" content="A simple way to detect and remove LKM rootkit KoviD (Outdated)" />
 <meta property="og:description" content="Learn a simple way on how to detect and remove Kovid rootkit." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/" /><meta property="article:section" content="hacking" />
-
-<meta property="og:site_name" content="0xMatheuZ" />
+<meta property="article:published_time" content="2024-08-26T10:29:01-04:00" />
+<meta property="article:modified_time" content="2024-08-26T10:29:01-04:00" /><meta property="og:site_name" content="0xMatheuZ" />
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="A simple way to detect and remove LKM rootkit KoviD (Outdated)"/>
@@ -47,7 +50,7 @@
     {
       "@type": "ListItem",
       "position":  1 ,
-      "name": "Hackings",
+      "name": "Hacking",
       "item": "http://localhost:1313/hacking/"
     }, 
     {
@@ -72,8 +75,8 @@
   "articleBody": " Hello everyone, welcome to this post where I will cover the easiest way on how to detect and remove LKM KoviD rootkit.\nBut first of all, we need to understand how the KoviD works.\nWhat is KoviD? KoviD is a Linux kernel rootkit, containing several features that make it difficult to detect and remove, in my opinion KoviD is the best open source LKM rootkit today, you can see more about it on github.\nNow that we know what KoviD is, we can analyze its code and see how it works, for example, which hooking method it uses.\nFtrace hooking Looking at KoviD sys.c, we can see that it uses a very famous method for hooking syscalls that works very well on newer kernels, which is ftrace (function tracer).\nKeep this information, it will be very useful later in this post.\nSetup KoviD and Loading. According to the kovid readme, before compiling, we need to edit the Makefile to choose a unique file name for “/proc/name”.\nAfter compiling using make, we can insert it using insmod kovid.ko.\nAfter inserting it, we can see that /proc/mtz had not been enabled and also the module was not hidden after its insertion, so first it is necessary to enable /proc/mtz using kill -SIGCONT 31337 and after that, hide the LKM from lsmod using echo -h \u003e/proc/mtz.\nI also hid the file containing the name mtz, making it invisible in /proc/.\nWell, after enabling /proc/mtz, we can look in dmesg that a random magic word was generated, and this magic word is used to make KoviD visible again.\nIn kovid.c we can see this magic word function being called to make the module visible again.\nDetecting KoviD Well, luckily for us, there is a filesystem that is not very well known, which is tracing, normally on more up-to-date systems, it is already mounted by default, if tracefs is not mounted, just mount it using mount -t tracefs nodev /sys/kernel/tracing, and you can find its documentation at kernel.org.\nAnd in it we can simply view all the LKM functions that are loaded on the machine.\nA very interesting curiosity is that when Kovid is invisible, the trace only shows the addresses of each Kovid function (which in my head still doesn’t make much sense, since the /sys/kernel/tracing/available_filter_functions_addrs file was only added in kernel 6.5x, in it we can view the addresses of each function of each loaded lkm too and I am using kernel 5.15.0-119-generic for testing).\nNow, if we make kovid visible again, the name of its functions will appear.\nThis is a very simple way to detect KoviD, and it doesn’t require much effort.\nHowever, there is still a way to hide any function/LKM from the tracefs file system, so don’t be fooled by that and don’t think that if you didn’t find anything there that you are safe. Maybe I’ll talk about this in a future post.\nYou can also use nitara2 to detect KoviD.\nMaking KoviD hooks useless This part is very interesting and you will learn a really cool trick (if you didn’t already know).\nRemember when I mentioned at the beginning of the post that KoviD uses ftrace as a hooking method? So, many people may not know that there is a way to disable ftrace with just one command.\necho 0 \u003e /proc/sys/kernel/ftrace_enabled or sysctl kernel.ftrace_enabled=0 Okay, but what’s so great about that? Well, let’s go!\nBy temporarily disabling ftrace, all kovid hooks stop working, as it uses ftrace for hooking, but this still does not make kovid visible, but it makes it useless.\nKoviD hides the file containing the name mtz, so /proc/mtz is hidden, and in it is the magic word to make LKM visible again.\nWell now with ftrace disabled we can see that the hidden /proc/mtz has become visible as no kovid hook works as it uses ftrace as syscalls hook.\nSo, after disabling ftrace, just go to /proc/mtz that was visible, get the magic word, and make LKM visible again, being able to remove it.\nAnd this is the easiest way to detect/remove KoviD.\nNotes 1- Of course, this is not 100% effective, as it has a way of hiding from the tracefs filesystem, but against KoviD so far, this works perfectly.\n2- And it is also obvious that in a real scenario, if someone is using KoviD, the name in /proc/name will not be something common like mtz, they would probably use a name that is less “imperceptible”.\n3- You can make any LKM rootkit that uses ftrace as hooking completely useless, and when you make it useless, you can use that to your advantage and analyze the compromised environment, looking for hidden PIDs, directories/files, etc.\nFinal consideration I hope you enjoyed this post and learned something, if you have any questions, please DM me on Twitter.\n",
   "wordCount" : "805",
   "inLanguage": "en",
-  "datePublished": "0001-01-01T00:00:00Z",
-  "dateModified": "0001-01-01T00:00:00Z",
+  "datePublished": "2024-08-26T10:29:01-04:00",
+  "dateModified": "2024-08-26T10:29:01-04:00",
   "author":{
     "@type": "Person",
     "name": "0xMatheuZ"
@@ -99,9 +102,8 @@
 <header class="header">
     <nav class="nav">
         <div class="logo">
-            <a href="http://localhost:1313/" accesskey="h" title="MatheuZ (Alt + H)">
-                <img src="https://i.imgur.com/xeSd64L.png" alt="" aria-label="logo"
-                    height="25">MatheuZ</a>
+            <a href="/" accesskey="h" title="MatheuZ (Alt + H)">
+                <img src="/img/0xm-badge.png" alt="" aria-label="logo" height="28">MatheuZ</a>
             <div class="logo-switches">
                 <ul class="lang-switch"><li>|</li>
                 </ul>
@@ -109,22 +111,22 @@
         </div>
         <ul id="menu">
             <li>
-                <a href="http://localhost:1313/" title="Home">
+                <a href="/" title="Home">
                     <span>Home</span>
                 </a>
             </li>
             <li>
-                <a href="http://localhost:1313/hacking" title="hacking">
+                <a href="/hacking" title="hacking">
                     <span>hacking</span>
                 </a>
             </li>
             <li>
-                <a href="http://localhost:1313/tags" title="Tags">
+                <a href="/tags" title="Tags">
                     <span>Tags</span>
                 </a>
             </li>
             <li>
-                <a href="http://localhost:1313/search" title="Search (Alt &#43; /)" accesskey=/>
+                <a href="/search" title="Search (Alt &#43; /)" accesskey=/>
                     <span>Search</span>
                 </a>
             </li>
@@ -135,14 +137,24 @@
 
 <article class="post-single">
   <header class="post-header">
-    <div class="breadcrumbs"><a href="http://localhost:1313/">Home</a>&nbsp;»&nbsp;<a href="http://localhost:1313/hacking/">Hackings</a></div>
+    <div class="breadcrumbs"><a href="/">Home</a>&nbsp;»&nbsp;<a href="/hacking/">Hacking</a></div>
+    <div class="post-context">
+      <span>Red Team</span>
+      <span>Offensive Security Research</span>
+      <span>Pentest</span>
+      <span>hacking</span>
+    </div>
     <h1 class="post-title entry-hint-parent">
       A simple way to detect and remove LKM rootkit KoviD (Outdated)
     </h1>
     <div class="post-description">
       Learn a simple way on how to detect and remove Kovid rootkit.
     </div>
-    <div class="post-meta">4 min&nbsp;·&nbsp;0xMatheuZ
+    <div class="post-badges">
+      <span>Hunting</span>
+      <span>#Rootkit</span>
+    </div>
+    <div class="post-meta"><span title='2024-08-26 10:29:01 -0400 -0400'>August 26, 2024</span>&nbsp;·&nbsp;4 min&nbsp;·&nbsp;0xMatheuZ
 
 </div>
   </header> 
@@ -215,18 +227,18 @@ sysctl kernel.ftrace_enabled=0
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="http://localhost:1313/tags/rootkit/">Rootkit</a></li>
+      <li><a href="/tags/rootkit/">Rootkit</a></li>
     </ul>
 <nav class="paginav">
-  <a class="prev" href="http://localhost:1313/hacking/bypass-userland-hooks/">
+  <a class="prev" href="/hacking/ldpreload-rootkit/">
     <span class="title">« Prev</span>
     <br>
-    <span>Bypassing LD_PRELOAD Rootkits Is Easy</span>
+    <span>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</span>
   </a>
-  <a class="next" href="http://localhost:1313/hacking/ebpf-security-tools-hacking/">
+  <a class="next" href="/hacking/linux-threat-hunting-persistence/">
     <span class="title">Next »</span>
     <br>
-    <span>Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</span>
+    <span>Linux Threat Hunting Persistence</span>
   </a>
 </nav>
 
@@ -235,7 +247,7 @@ sysctl kernel.ftrace_enabled=0
     </main>
     
 <footer class="footer">
-    <span>&copy; 2026 <a href="http://localhost:1313/">0xMatheuZ</a></span>
+    <span>&copy; 2026 <a href="/">0xMatheuZ</a></span>
     <span>
         Powered by
         <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &

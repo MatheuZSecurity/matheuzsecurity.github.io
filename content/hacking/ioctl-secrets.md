@@ -1,5 +1,6 @@
 ---
 title: "Ioctl Secrets Writeup"
+date: 2025-11-09T12:25:18-05:00
 description: Solving an easy reversing challenge from rootkit researchers.
 categories: [Reversing]
 tags: [CTF]

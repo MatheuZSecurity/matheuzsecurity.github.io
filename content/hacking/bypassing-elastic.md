@@ -1,5 +1,6 @@
 ---
 title: "Evading Elastic Security: Linux Rootkit Detection Bypass"
+date: 2025-10-30T14:15:09-04:00
 description: Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging
 categories: [Red Team]
 tags: [Evasion]

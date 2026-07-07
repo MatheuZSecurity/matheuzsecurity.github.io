@@ -1,5 +1,6 @@
 ---
 title: How detect a LD_PRELOAD rootkit and hide from ldd & /proc
+date: 2024-11-26T20:06:42-08:00
 image: "https://i.imgur.com/1BZFYCu.png"
 description: Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc.
 categories: [Evasion]

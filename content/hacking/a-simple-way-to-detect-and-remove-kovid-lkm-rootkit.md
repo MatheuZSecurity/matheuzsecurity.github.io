@@ -1,5 +1,6 @@
 ---
 title: A simple way to detect and remove LKM rootkit KoviD (Outdated)
+date: 2024-08-26T10:29:01-04:00
 image: https://i.imgur.com/xeSd64L.png
 description: Learn a simple way on how to detect and remove Kovid rootkit.
 categories: [Hunting]

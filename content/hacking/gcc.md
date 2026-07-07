@@ -1,5 +1,6 @@
 ---
 title: ElfDoor-gcc
+date: 2025-04-13T13:14:56-04:00
 image: https://i.imgur.com/xeSd64L.png
 description: Hijacking GCC via LD_PRELOAD.
 categories: [Malware]
