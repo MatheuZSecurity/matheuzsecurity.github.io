@@ -10,151 +10,56 @@
 {{- if .IsHome }}
 {{- $profile := site.Params.profileMode }}
 {{- $title := site.Params.title | default site.Title }}
-{{- $github := "" }}
-{{- range site.Params.socialIcons }}
-  {{- if eq (lower .name) "github" }}
-    {{- $github = .url }}
-  {{- end }}
-{{- end }}
-{{- $tagTaxonomy := first 6 site.Taxonomies.tags.ByCount }}
-{{- $featured := index $paginator.Pages 0 }}
 
-<section class="cyber-hero">
-  <div class="cyber-hero-copy">
-    <div class="cyber-window-bar">
-      <span></span><span></span><span></span>
+<section class="intro">
+  {{- with $profile.imageUrl }}
+  <img class="intro-avatar" src="{{ . | relURL }}" alt="{{ $profile.title | default $title }}" draggable="false">
+  {{- end }}
+  <div>
+    <h1 class="intro-name">{{ $profile.title | default $title }}</h1>
+    <p class="intro-role">{{ $profile.subtitle | default site.Params.description }}</p>
+    <p class="intro-bio">Linux-focused offensive security research: evasion, rootkits, telemetry bypass, and post-exploitation write-ups.</p>
+    <div class="intro-links">
+      {{- partial "social_icons.html" (dict "align" "left") -}}
+      <a class="intro-discord" href="https://discord.gg/66N5ZQppU7" rel="noopener noreferrer" target="_blank">Discord</a>
     </div>
-    <p class="cyber-kicker">0xMatheuZ / red team notes / offensive security research / pentest</p>
-    <h1>{{ $title }}</h1>
-    <p class="cyber-lead">{{ $profile.subtitle | default site.Params.description }}</p>
-    <p class="cyber-summary">Linux-focused offensive security research, evasion notes, pentest experiments, and post-exploitation write-ups.</p>
-    <a class="cyber-discord-callout" href="https://discord.gg/66N5ZQppU7" rel="noopener noreferrer" target="_blank">
-      <span>Discord</span>
-      <strong>Join Rootkit Researchers</strong>
+  </div>
+</section>
+
+<h2 class="section-title">Writing</h2>
+<ul class="post-list">
+  {{- range $paginator.Pages }}
+  <li class="post-item">
+    <a href="{{ .RelPermalink }}">
+      <div class="post-item-date">{{ .Date | time.Format "2006-01-02" }}{{ if $.Site.Params.ShowReadingTime }} · {{ .ReadingTime }} min{{ end }}</div>
+      <span class="post-item-title">{{ .Title }}</span>
     </a>
-    <div class="cyber-actions">
-      <a class="cyber-button" href="{{ "hacking/" | relLangURL }}">Read write-ups</a>
-      <a class="cyber-button cyber-button-secondary" href="{{ "search/" | relLangURL }}">Search research</a>
-      {{- with $github }}
-      <a class="cyber-button cyber-button-ghost" href="{{ . }}" rel="noopener noreferrer" target="_blank">GitHub</a>
-      {{- end }}
-    </div>
-  </div>
-
-  <aside class="cyber-hero-panel">
-    <div class="cyber-panel-frame">
-      <div class="cyber-panel-topline">
-        <span>About</span>
-        <span>{{ len $pages }} posts</span>
-      </div>
-      <div class="cyber-avatar-wrap">
-        {{- with $profile.imageUrl }}
-        <img class="cyber-avatar" draggable="false" src="{{ . | relURL }}" alt="{{ $profile.imageTitle | default "profile image" }}">
-        {{- end }}
-      </div>
-      <dl class="cyber-stats">
-        <div>
-          <dt>Role</dt>
-          <dd>Red Team / Offensive Security</dd>
-        </div>
-        <div>
-          <dt>Primary topics</dt>
-          <dd>Rootkits, telemetry bypass, Linux internals</dd>
-        </div>
-        <div>
-          <dt>Output</dt>
-          <dd>Hands-on write-ups and reproducible research</dd>
-        </div>
-      </dl>
-      <div class="cyber-social">
-        {{- partial "social_icons.html" (dict "align" "left") -}}
-      </div>
-    </div>
-  </aside>
-</section>
-
-<section class="cyber-feed">
-  <header class="section-header">
-    <div>
-      <p class="section-eyebrow">Recent posts</p>
-      <h2>Research notes</h2>
-    </div>
-    <p class="section-copy">Technical write-ups on red team operations, offensive security research, Linux internals, persistence, and detection-aware offense.</p>
-  </header>
-
-  <div class="cyber-divider" aria-hidden="true">
-    <span></span>
-    <span></span>
-    <span></span>
-  </div>
-
-  <div class="cyber-post-grid">
-    {{- range $index, $page := $paginator.Pages }}
-    <article class="post-entry cyber-post-card{{ if eq $index 0 }} is-featured{{ end }}">
-      <div class="cyber-post-meta">
-        <span>{{ printf "%02d" (add $index 1) }}</span>
-        <span>{{ $page.Date | time.Format "2006-01-02" }}</span>
-        {{- with $page.Params.tags }}
-        <span>{{ index . 0 }}</span>
-        {{- end }}
-      </div>
-      <div class="cyber-post-rule"></div>
-      <header class="entry-header">
-        <h2 class="entry-hint-parent">{{ $page.Title }}</h2>
-      </header>
-      <div class="entry-content">
-        <p>{{ $page.Summary | plainify | htmlUnescape }}{{ if $page.Truncated }}...{{ end }}</p>
-      </div>
-      {{- with first 3 $page.Params.tags }}
-      <footer class="cyber-inline-tags">
-        {{- range . }}
-        <span>#{{ . }}</span>
-        {{- end }}
-      </footer>
-      {{- end }}
-      <a class="entry-link" aria-label="post link to {{ $page.Title | plainify }}" href="{{ $page.RelPermalink }}"></a>
-    </article>
+    {{- if not .Params.hideSummary }}
+    <p class="post-item-summary">{{ .Summary | plainify | htmlUnescape }}</p>
     {{- end }}
-  </div>
-
-  {{- if gt $paginator.TotalPages 1 }}
-  <footer class="page-footer">
-    <nav class="pagination">
-      {{- if $paginator.HasPrev }}
-      <a class="prev" href="{{ $paginator.Prev.URL | relURL }}">« {{ i18n "prev_page" }}</a>
-      {{- end }}
-      {{- if $paginator.HasNext }}
-      <a class="next" href="{{ $paginator.Next.URL | relURL }}">{{ i18n "next_page" }} »</a>
-      {{- end }}
-    </nav>
-  </footer>
+    {{- with first 4 .Params.tags }}
+    <div class="post-item-tags">
+      {{- range . }}<span>{{ . }}</span>{{ end }}
+    </div>
+    {{- end }}
+  </li>
   {{- end }}
-</section>
+</ul>
+
+{{- if gt $paginator.TotalPages 1 }}
+<nav class="pagination">
+  {{- if $paginator.HasPrev }}<a class="prev" href="{{ $paginator.Prev.URL | relURL }}">← {{ i18n "prev_page" }}</a>{{ end }}
+  {{- if $paginator.HasNext }}<a class="next" href="{{ $paginator.Next.URL | relURL }}">{{ i18n "next_page" }} →</a>{{ end }}
+</nav>
+{{- end }}
 
 {{- else }}
 
-{{- if not .IsHome | and .Title }}
+{{- if and (not .IsHome) .Title }}
 <header class="page-header">
   {{- partial "breadcrumbs.html" . }}
-  <h1>
-    {{ .Title }}
-    {{- if and (or (eq .Kind `term`) (eq .Kind `section`)) (.Param "ShowRssButtonInSectionTermList") }}
-    {{- with .OutputFormats.Get "rss" }}
-    <a href="{{ .RelPermalink }}" title="RSS" aria-label="RSS">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" height="23">
-        <path d="M4 11a9 9 0 0 1 9 9" />
-        <path d="M4 4a16 16 0 0 1 16 16" />
-        <circle cx="5" cy="19" r="1" />
-      </svg>
-    </a>
-    {{- end }}
-    {{- end }}
-  </h1>
-  {{- if .Description }}
-  <div class="post-description">
-    {{ .Description | markdownify }}
-  </div>
-  {{- end }}
+  <h1>{{ .Title }}</h1>
+  {{- if .Description }}<div class="post-description">{{ .Description | markdownify }}</div>{{ end }}
 </header>
 {{- end }}
 
@@ -166,62 +71,33 @@
 </div>
 {{- end }}
 
-{{- $term := .Data.Term }}
-{{- range $index, $page := $paginator.Pages }}
-{{- $class := "post-entry" }}
-{{- if $term }}
-{{- $class = "post-entry tag-entry" }}
-{{- end }}
-<article class="{{ $class }}">
-  {{- $isHidden := (.Param "cover.hiddenInList") | default (.Param "cover.hidden") | default false }}
-  {{- partial "cover.html" (dict "cxt" . "IsSingle" false "isHidden" $isHidden) }}
-  <header class="entry-header">
-    <h2 class="entry-hint-parent">
-      {{- .Title }}
-      {{- if .Draft }}
-      <span class="entry-hint" title="Draft">
-        <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" fill="currentColor">
-          <path d="M160-410v-60h300v60H160Zm0-165v-60h470v60H160Zm0-165v-60h470v60H160Zm360 580v-123l221-220q9-9 20-13t22-4q12 0 23 4.5t20 13.5l37 37q9 9 13 20t4 22q0 11-4.5 22.5T862.09-380L643-160H520Zm300-263-37-37 37 37ZM580-220h38l121-122-18-19-19-18-122 121v38Zm141-141-19-18 37 37-18-19Z" />
-        </svg>
+<ul class="post-list">
+  {{- range $paginator.Pages }}
+  <li class="post-item">
+    <a href="{{ .RelPermalink }}">
+      <div class="post-item-date">{{ .Date | time.Format "2006-01-02" }}{{ if $.Site.Params.ShowReadingTime }} · {{ .ReadingTime }} min{{ end }}</div>
+      <span class="post-item-title">
+        {{- .Title }}
+        {{- if .Draft }} <sup style="color:var(--muted);font-size:.7em">draft</sup>{{ end }}
       </span>
-      {{- end }}
-    </h2>
-  </header>
-  {{- if (ne (.Param "hideSummary") true) }}
-  <div class="entry-content">
-    <p>{{ .Summary | plainify | htmlUnescape }}{{ if .Truncated }}...{{ end }}</p>
-  </div>
+    </a>
+    {{- if ne (.Param "hideSummary") true }}
+    <p class="post-item-summary">{{ .Summary | plainify | htmlUnescape }}</p>
+    {{- end }}
+    {{- with first 4 .Params.tags }}
+    <div class="post-item-tags">
+      {{- range . }}<span>{{ . }}</span>{{ end }}
+    </div>
+    {{- end }}
+  </li>
   {{- end }}
-  {{- if not (.Param "hideMeta") }}
-  <footer class="entry-footer">
-    {{- partial "post_meta.html" . -}}
-  </footer>
-  {{- end }}
-  <a class="entry-link" aria-label="post link to {{ .Title | plainify }}" href="{{ .RelPermalink }}"></a>
-</article>
-{{- end }}
+</ul>
 
 {{- if gt $paginator.TotalPages 1 }}
-<footer class="page-footer">
-  <nav class="pagination">
-    {{- if $paginator.HasPrev }}
-    <a class="prev" href="{{ $paginator.Prev.URL | relURL }}">
-      «&nbsp;{{ i18n "prev_page" }}&nbsp;
-      {{- if (.Param "ShowPageNums") }}
-      {{- sub $paginator.PageNumber 1 }}/{{ $paginator.TotalPages }}
-      {{- end }}
-    </a>
-    {{- end }}
-    {{- if $paginator.HasNext }}
-    <a class="next" href="{{ $paginator.Next.URL | relURL }}">
-      {{- i18n "next_page" }}&nbsp;
-      {{- if (.Param "ShowPageNums") }}
-      {{- add 1 $paginator.PageNumber }}/{{ $paginator.TotalPages }}
-      {{- end }}&nbsp;»
-    </a>
-    {{- end }}
-  </nav>
-</footer>
+<nav class="pagination">
+  {{- if $paginator.HasPrev }}<a class="prev" href="{{ $paginator.Prev.URL | relURL }}">← {{ i18n "prev_page" }}</a>{{ end }}
+  {{- if $paginator.HasNext }}<a class="next" href="{{ $paginator.Next.URL | relURL }}">{{ i18n "next_page" }} →</a>{{ end }}
+</nav>
 {{- end }}
 
 {{- end }}

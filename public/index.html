@@ -11,7 +11,7 @@
 <meta name="description" content="Red Team / Offensive Security Research / Pentest.">
 <meta name="author" content="0xMatheuZ">
 <link rel="canonical" href="http://localhost:1313/">
-<link crossorigin="anonymous" href="/assets/css/stylesheet.611f494600a4afa7b7b325284339ae62e7d3910f41f3722c0f53143c5cd6e8e7.css" integrity="sha256-YR9JRgCkr6e3syUoQzmuYufTkQ9B83IsD1MUPFzW6Oc=" rel="preload stylesheet" as="style">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.cd7709143dbfd8231591575aa10b412203641a992e62ac224a96389d247d02ea.css" integrity="sha256-zXcJFD2/2CMVkVdaoQtBIgNkGpkuYqwiSpY4nSR9Auo=" rel="preload stylesheet" as="style">
 <link rel="icon" href="http://localhost:1313/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
@@ -32,7 +32,7 @@
     </style>
 </noscript><link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <meta property="og:title" content="0xMatheuZ" />
 <meta property="og:description" content="Red Team / Offensive Security Research / Pentest." />
 <meta property="og:type" content="website" />
@@ -95,50 +95,13 @@
 </header>
 <main class="main">
 
-<section class="cyber-hero">
-  <div class="cyber-hero-copy">
-    <div class="cyber-window-bar">
-      <span></span><span></span><span></span>
-    </div>
-    <p class="cyber-kicker">0xMatheuZ / red team notes / offensive security research / pentest</p>
-    <h1>0xMatheuZ</h1>
-    <p class="cyber-lead">Red Team Operator, Offensive Security Researcher, and Pentester</p>
-    <p class="cyber-summary">Linux-focused offensive security research, evasion notes, pentest experiments, and post-exploitation write-ups.</p>
-    <a class="cyber-discord-callout" href="https://discord.gg/66N5ZQppU7" rel="noopener noreferrer" target="_blank">
-      <span>Discord</span>
-      <strong>Join Rootkit Researchers</strong>
-    </a>
-    <div class="cyber-actions">
-      <a class="cyber-button" href="/hacking/">Read write-ups</a>
-      <a class="cyber-button cyber-button-secondary" href="/search/">Search research</a>
-      <a class="cyber-button cyber-button-ghost" href="https://github.com/MatheuZSecurity" rel="noopener noreferrer" target="_blank">GitHub</a>
-    </div>
-  </div>
-
-  <aside class="cyber-hero-panel">
-    <div class="cyber-panel-frame">
-      <div class="cyber-panel-topline">
-        <span>About</span>
-        <span>13 posts</span>
-      </div>
-      <div class="cyber-avatar-wrap">
-        <img class="cyber-avatar" draggable="false" src="/img/operator-avatar.png" alt="profile image">
-      </div>
-      <dl class="cyber-stats">
-        <div>
-          <dt>Role</dt>
-          <dd>Red Team / Offensive Security</dd>
-        </div>
-        <div>
-          <dt>Primary topics</dt>
-          <dd>Rootkits, telemetry bypass, Linux internals</dd>
-        </div>
-        <div>
-          <dt>Output</dt>
-          <dd>Hands-on write-ups and reproducible research</dd>
-        </div>
-      </dl>
-      <div class="cyber-social"><div class="social-icons" align="left">
+<section class="intro">
+  <img class="intro-avatar" src="/img/operator-avatar.png" alt="MatheuZ" draggable="false">
+  <div>
+    <h1 class="intro-name">MatheuZ</h1>
+    <p class="intro-role">Red Team Operator, Offensive Security Researcher, and Pentester</p>
+    <p class="intro-bio">Linux-focused offensive security research: evasion, rootkits, telemetry bypass, and post-exploitation write-ups.</p>
+    <div class="intro-links"><div class="social-icons" align="left">
     <a href="https://twitter.com/MatheuzSecurity" target="_blank" rel="noopener noreferrer me"
         title="Twitter">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -185,148 +148,79 @@
 </svg>
     </a>
 </div>
-</div>
+<a class="intro-discord" href="https://discord.gg/66N5ZQppU7" rel="noopener noreferrer" target="_blank">Discord</a>
     </div>
-  </aside>
+  </div>
 </section>
 
-<section class="cyber-feed">
-  <header class="section-header">
-    <div>
-      <p class="section-eyebrow">Recent posts</p>
-      <h2>Research notes</h2>
+<h2 class="section-title">Writing</h2>
+<ul class="post-list">
+  <li class="post-item">
+    <a href="/hacking/bpf-map-poisoning-edr-evasion/">
+      <div class="post-item-date">2026-07-06 · 9 min</div>
+      <span class="post-item-title">BPF Map Poisoning: Attacking the EDR from the Inside</span>
+    </a>
+    <p class="post-item-summary"> Standard EDR evasion is avoidance. Anonymous mmap instead of a file, direct syscalls to skip libc hooks, memfd_create so fanotify never sees a path. Stay out of what the EDR is watching.
+BPF Map Poisoning does the opposite: walk into the EDR and rewrite its monitoring state directly.
+I use Falco as the demo target because it’s open-source and easy to reproduce in a lab. But the issue is architectural: CrowdStrike Falcon on Linux, Elastic Defend, Tetragon, any tool that keeps monitoring state in BPF maps without security_bpf_map enforcement is in the same position. The demo is Falco; the problem is not.
+</p>
+    <div class="post-item-tags"><span>EDR Evasion</span><span>eBPF</span><span>Falco</span><span>Linux</span>
     </div>
-    <p class="section-copy">Technical write-ups on red team operations, offensive security research, Linux internals, persistence, and detection-aware offense.</p>
-  </header>
-
-  <div class="cyber-divider" aria-hidden="true">
-    <span></span>
-    <span></span>
-    <span></span>
-  </div>
-
-  <div class="cyber-post-grid">
-    <article class="post-entry cyber-post-card is-featured">
-      <div class="cyber-post-meta">
-        <span>01</span>
-        <span>2026-07-06</span>
-        <span>EDR Evasion</span>
-      </div>
-      <div class="cyber-post-rule"></div>
-      <header class="entry-header">
-        <h2 class="entry-hint-parent">BPF Map Poisoning: Attacking the EDR from the Inside</h2>
-      </header>
-      <div class="entry-content">
-        <p> Most evasion techniques work by flying under the radar. You use an anonymous mmap instead of a file, you call syscalls directly to skip libc hooks, you execute from a memfd so fanotify never sees a path. All of that works by avoiding the EDR’s detection surface.
-BPF Map Poisoning is different. Instead of avoiding the EDR, you walk straight into it and rewrite its memory.
-I use Falco as the demo target throughout this post because it is open-source, auditable, and easy to reproduce in a lab. Falco is not a traditional EDR, it’s a runtime security tool. But the attack surface here is architectural, not Falco-specific. CrowdStrike Falcon on Linux, Elastic Defend, Tetragon, and any other security tool that stores monitoring state in BPF maps share the same problem: if the maps are not protected by security_bpf_map LSM enforcement, they can be read and written by any privileged process using the standard bpf(2) API. The demo is Falco. The implication extends to everything that follows the same design.
-...</p>
-      </div>
-      <footer class="cyber-inline-tags">
-        <span>#EDR Evasion</span>
-        <span>#eBPF</span>
-        <span>#Falco</span>
-      </footer>
-      <a class="entry-link" aria-label="post link to BPF Map Poisoning: Attacking the EDR from the Inside" href="/hacking/bpf-map-poisoning-edr-evasion/"></a>
-    </article>
-    <article class="post-entry cyber-post-card">
-      <div class="cyber-post-meta">
-        <span>02</span>
-        <span>2026-06-03</span>
-        <span>Trend Micro</span>
-      </div>
-      <div class="cyber-post-rule"></div>
-      <header class="entry-header">
-        <h2 class="entry-hint-parent">Trend Micro Deep Security Agent Research: Forcing bmhook/tmhook Reloads to Open a Protection Bypass Window</h2>
-      </header>
-      <div class="entry-content">
-        <p> Research scope: This is security research on Trend Micro Deep Security Agent on Linux.
+  </li>
+  <li class="post-item">
+    <a href="/hacking/trendmicro-bmhook-tmhook-reload-bypass/">
+      <div class="post-item-date">2026-06-03 · 24 min</div>
+      <span class="post-item-title">Trend Micro Deep Security Agent Research: Forcing bmhook/tmhook Reloads to Open a Protection Bypass Window</span>
+    </a>
+    <p class="post-item-summary"> Research scope: This is security research on Trend Micro Deep Security Agent on Linux.
 The finding is not remote code execution and it is not a persistent kill switch. It is a forced security-control gap. A local unprivileged event storm can make the agent unload and reload its own behavior-monitoring kernel modules. During that window, protection behavior changes, and an artifact that was normally blocked was written to disk successfully.
-...</p>
-      </div>
-      <footer class="cyber-inline-tags">
-        <span>#Trend Micro</span>
-        <span>#Deep Security Agent</span>
-        <span>#Linux Kernel</span>
-      </footer>
-      <a class="entry-link" aria-label="post link to Trend Micro Deep Security Agent Research: Forcing bmhook/tmhook Reloads to Open a Protection Bypass Window" href="/hacking/trendmicro-bmhook-tmhook-reload-bypass/"></a>
-    </article>
-    <article class="post-entry cyber-post-card">
-      <div class="cyber-post-meta">
-        <span>03</span>
-        <span>2026-02-09</span>
-        <span>eBPF</span>
-      </div>
-      <div class="cyber-post-rule"></div>
-      <header class="entry-header">
-        <h2 class="entry-hint-parent">Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</h2>
-      </header>
-      <div class="entry-content">
-        <p>Stealthy Kernel Rootkit: https://github.com/MatheuZSecurity/Singularity
+</p>
+    <div class="post-item-tags"><span>Trend Micro</span><span>Deep Security Agent</span><span>Linux Kernel</span><span>LKM</span>
+    </div>
+  </li>
+  <li class="post-item">
+    <a href="/hacking/ebpf-security-tools-hacking/">
+      <div class="post-item-date">2026-02-09 · 16 min</div>
+      <span class="post-item-title">Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</span>
+    </a>
+    <p class="post-item-summary">Stealthy Kernel Rootkit: https://github.com/MatheuZSecurity/Singularity
 Rootkit Researchers: https://discord.gg/66N5ZQppU7
 Me: https://www.linkedin.com/in/mathsalves/
 Introduction Linux security tooling has leaned heavily into eBPF. Projects like Falco, Tracee, and Tetragon made kernel-level telemetry feel like a step change: richer context, low overhead, and visibility that’s difficult to evade from user space.
 But that promise quietly depends on a threat model: the kernel is assumed to be a trustworthy observer.
 This article explores what happens when that assumption breaks, specifically, when an attacker can execute code in the kernel (e.g., via a loaded module). In that world, the most valuable targets aren’t the eBPF programs themselves, but the plumbing around them: iterators, event delivery paths (ring buffer / perf buffer), perf submission, and map operations that turn kernel activity into user-space signals.
-...</p>
-      </div>
-      <footer class="cyber-inline-tags">
-        <span>#eBPF</span>
-        <span>#Kernel Security</span>
-        <span>#Evasion</span>
-      </footer>
-      <a class="entry-link" aria-label="post link to Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools" href="/hacking/ebpf-security-tools-hacking/"></a>
-    </article>
-    <article class="post-entry cyber-post-card">
-      <div class="cyber-post-meta">
-        <span>04</span>
-        <span>2025-11-09</span>
-        <span>CTF</span>
-      </div>
-      <div class="cyber-post-rule"></div>
-      <header class="entry-header">
-        <h2 class="entry-hint-parent">Ioctl Secrets Writeup</h2>
-      </header>
-      <div class="entry-content">
-        <p> Challenge Description In this challenge, we’re given access to a Linux virtual machine (VM) running Ubuntu. The objective is to exploit a custom kernel module to retrieve a hidden flag. The challenge involves reverse engineering, kernel internals, and crafting a proper exploit.
+</p>
+    <div class="post-item-tags"><span>eBPF</span><span>Kernel Security</span><span>Evasion</span>
+    </div>
+  </li>
+  <li class="post-item">
+    <a href="/hacking/ioctl-secrets/">
+      <div class="post-item-date">2025-11-09 · 5 min</div>
+      <span class="post-item-title">Ioctl Secrets Writeup</span>
+    </a>
+    <p class="post-item-summary"> Challenge Description In this challenge, we’re given access to a Linux virtual machine (VM) running Ubuntu. The objective is to exploit a custom kernel module to retrieve a hidden flag. The challenge involves reverse engineering, kernel internals, and crafting a proper exploit.
 What we have:
 A hidden kernel module loaded at boot Character device at /dev/ioctl_dev Setup script (device.sh) that loads the module and shreds source files SSH access enabled (username: root, password: ioctl) Important Note: Many participants had difficulties copy-pasting code directly into the VM console. As stated in the challenge description, SSH is enabled for easier interaction! This was a common pain point, so let’s start by addressing it.
-...</p>
-      </div>
-      <footer class="cyber-inline-tags">
-        <span>#CTF</span>
-      </footer>
-      <a class="entry-link" aria-label="post link to Ioctl Secrets Writeup" href="/hacking/ioctl-secrets/"></a>
-    </article>
-    <article class="post-entry cyber-post-card">
-      <div class="cyber-post-meta">
-        <span>05</span>
-        <span>2025-10-30</span>
-        <span>Evasion</span>
-      </div>
-      <div class="cyber-post-rule"></div>
-      <header class="entry-header">
-        <h2 class="entry-hint-parent">Evading Elastic Security: Linux Rootkit Detection Bypass</h2>
-      </header>
-      <div class="entry-content">
-        <p> Stealthy Kernel Rootkit: https://github.com/MatheuZSecurity/Singularity
+</p>
+    <div class="post-item-tags"><span>CTF</span>
+    </div>
+  </li>
+  <li class="post-item">
+    <a href="/hacking/bypassing-elastic/">
+      <div class="post-item-date">2025-10-30 · 20 min</div>
+      <span class="post-item-title">Evading Elastic Security: Linux Rootkit Detection Bypass</span>
+    </a>
+    <p class="post-item-summary"> Stealthy Kernel Rootkit: https://github.com/MatheuZSecurity/Singularity
 Rootkit Researchers: https://discord.gg/66N5ZQppU7
 Introduction Security solutions continue to intensify. Modern EDRs like Elastic Security, integrated with Elastic Defend, employ multiple detection layers including YARA signatures and behavioral analysis to identify Linux kernel rootkits, triggering 26&#43; alerts on a single malicious module.
 This article demonstrates how to systematically evade these defenses. We present a comprehensive case study of developing a Linux rootkit that successfully bypasses Elastic Security’s detection mechanisms through obfuscation, fragmentation, and staged execution techniques. All content is strictly for educational purposes only.
-...</p>
-      </div>
-      <footer class="cyber-inline-tags">
-        <span>#Evasion</span>
-      </footer>
-      <a class="entry-link" aria-label="post link to Evading Elastic Security: Linux Rootkit Detection Bypass" href="/hacking/bypassing-elastic/"></a>
-    </article>
-  </div>
-  <footer class="page-footer">
-    <nav class="pagination">
-      <a class="next" href="/page/2/">Next »</a>
-    </nav>
-  </footer>
-</section>
+</p>
+    <div class="post-item-tags"><span>Evasion</span>
+    </div>
+  </li>
+</ul>
+<nav class="pagination"><a class="next" href="/page/2/">Next →</a>
+</nav>
     </main>
     
 <footer class="footer">

@@ -2,143 +2,143 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Tags on 0xMatheuZ</title>
-    <link>https://matheuzsecurity.github.io/tags/</link>
+    <link>http://localhost:1313/tags/</link>
     <description>Recent content in Tags on 0xMatheuZ</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
     <lastBuildDate>Mon, 06 Jul 2026 00:00:00 -0300</lastBuildDate>
-    <atom:link href="https://matheuzsecurity.github.io/tags/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://localhost:1313/tags/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>EBPF</title>
-      <link>https://matheuzsecurity.github.io/tags/ebpf/</link>
+      <link>http://localhost:1313/tags/ebpf/</link>
       <pubDate>Mon, 06 Jul 2026 00:00:00 -0300</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/ebpf/</guid>
+      <guid>http://localhost:1313/tags/ebpf/</guid>
       <description></description>
     </item>
     <item>
       <title>EDR Evasion</title>
-      <link>https://matheuzsecurity.github.io/tags/edr-evasion/</link>
+      <link>http://localhost:1313/tags/edr-evasion/</link>
       <pubDate>Mon, 06 Jul 2026 00:00:00 -0300</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/edr-evasion/</guid>
+      <guid>http://localhost:1313/tags/edr-evasion/</guid>
       <description></description>
     </item>
     <item>
       <title>Falco</title>
-      <link>https://matheuzsecurity.github.io/tags/falco/</link>
+      <link>http://localhost:1313/tags/falco/</link>
       <pubDate>Mon, 06 Jul 2026 00:00:00 -0300</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/falco/</guid>
+      <guid>http://localhost:1313/tags/falco/</guid>
       <description></description>
     </item>
     <item>
       <title>Linux</title>
-      <link>https://matheuzsecurity.github.io/tags/linux/</link>
+      <link>http://localhost:1313/tags/linux/</link>
       <pubDate>Mon, 06 Jul 2026 00:00:00 -0300</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/linux/</guid>
+      <guid>http://localhost:1313/tags/linux/</guid>
       <description></description>
     </item>
     <item>
       <title>Red Team</title>
-      <link>https://matheuzsecurity.github.io/tags/red-team/</link>
+      <link>http://localhost:1313/tags/red-team/</link>
       <pubDate>Mon, 06 Jul 2026 00:00:00 -0300</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/red-team/</guid>
+      <guid>http://localhost:1313/tags/red-team/</guid>
       <description></description>
     </item>
     <item>
       <title>Bypass</title>
-      <link>https://matheuzsecurity.github.io/tags/bypass/</link>
+      <link>http://localhost:1313/tags/bypass/</link>
       <pubDate>Wed, 03 Jun 2026 00:00:00 -0400</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/bypass/</guid>
+      <guid>http://localhost:1313/tags/bypass/</guid>
       <description></description>
     </item>
     <item>
       <title>Deep Security Agent</title>
-      <link>https://matheuzsecurity.github.io/tags/deep-security-agent/</link>
+      <link>http://localhost:1313/tags/deep-security-agent/</link>
       <pubDate>Wed, 03 Jun 2026 00:00:00 -0400</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/deep-security-agent/</guid>
+      <guid>http://localhost:1313/tags/deep-security-agent/</guid>
       <description></description>
     </item>
     <item>
       <title>DoS</title>
-      <link>https://matheuzsecurity.github.io/tags/dos/</link>
+      <link>http://localhost:1313/tags/dos/</link>
       <pubDate>Wed, 03 Jun 2026 00:00:00 -0400</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/dos/</guid>
+      <guid>http://localhost:1313/tags/dos/</guid>
       <description></description>
     </item>
     <item>
       <title>EDR</title>
-      <link>https://matheuzsecurity.github.io/tags/edr/</link>
+      <link>http://localhost:1313/tags/edr/</link>
       <pubDate>Wed, 03 Jun 2026 00:00:00 -0400</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/edr/</guid>
+      <guid>http://localhost:1313/tags/edr/</guid>
       <description></description>
     </item>
     <item>
       <title>Linux Kernel</title>
-      <link>https://matheuzsecurity.github.io/tags/linux-kernel/</link>
+      <link>http://localhost:1313/tags/linux-kernel/</link>
       <pubDate>Wed, 03 Jun 2026 00:00:00 -0400</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/linux-kernel/</guid>
+      <guid>http://localhost:1313/tags/linux-kernel/</guid>
       <description></description>
     </item>
     <item>
       <title>Livepatch</title>
-      <link>https://matheuzsecurity.github.io/tags/livepatch/</link>
+      <link>http://localhost:1313/tags/livepatch/</link>
       <pubDate>Wed, 03 Jun 2026 00:00:00 -0400</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/livepatch/</guid>
+      <guid>http://localhost:1313/tags/livepatch/</guid>
       <description></description>
     </item>
     <item>
       <title>LKM</title>
-      <link>https://matheuzsecurity.github.io/tags/lkm/</link>
+      <link>http://localhost:1313/tags/lkm/</link>
       <pubDate>Wed, 03 Jun 2026 00:00:00 -0400</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/lkm/</guid>
+      <guid>http://localhost:1313/tags/lkm/</guid>
       <description></description>
     </item>
     <item>
       <title>Trend Micro</title>
-      <link>https://matheuzsecurity.github.io/tags/trend-micro/</link>
+      <link>http://localhost:1313/tags/trend-micro/</link>
       <pubDate>Wed, 03 Jun 2026 00:00:00 -0400</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/trend-micro/</guid>
+      <guid>http://localhost:1313/tags/trend-micro/</guid>
       <description></description>
     </item>
     <item>
       <title>Vulnerability Research</title>
-      <link>https://matheuzsecurity.github.io/tags/vulnerability-research/</link>
+      <link>http://localhost:1313/tags/vulnerability-research/</link>
       <pubDate>Wed, 03 Jun 2026 00:00:00 -0400</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/vulnerability-research/</guid>
+      <guid>http://localhost:1313/tags/vulnerability-research/</guid>
       <description></description>
     </item>
     <item>
       <title>Evasion</title>
-      <link>https://matheuzsecurity.github.io/tags/evasion/</link>
+      <link>http://localhost:1313/tags/evasion/</link>
       <pubDate>Mon, 09 Feb 2026 15:25:08 +0000</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/evasion/</guid>
+      <guid>http://localhost:1313/tags/evasion/</guid>
       <description></description>
     </item>
     <item>
       <title>Kernel Security</title>
-      <link>https://matheuzsecurity.github.io/tags/kernel-security/</link>
+      <link>http://localhost:1313/tags/kernel-security/</link>
       <pubDate>Mon, 09 Feb 2026 15:25:08 +0000</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/kernel-security/</guid>
+      <guid>http://localhost:1313/tags/kernel-security/</guid>
       <description></description>
     </item>
     <item>
       <title>CTF</title>
-      <link>https://matheuzsecurity.github.io/tags/ctf/</link>
+      <link>http://localhost:1313/tags/ctf/</link>
       <pubDate>Sun, 09 Nov 2025 12:25:18 -0500</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/ctf/</guid>
+      <guid>http://localhost:1313/tags/ctf/</guid>
       <description></description>
     </item>
     <item>
       <title>Rootkit</title>
-      <link>https://matheuzsecurity.github.io/tags/rootkit/</link>
+      <link>http://localhost:1313/tags/rootkit/</link>
       <pubDate>Sat, 21 Jun 2025 16:33:03 -0400</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/rootkit/</guid>
+      <guid>http://localhost:1313/tags/rootkit/</guid>
       <description></description>
     </item>
     <item>
       <title>Persistence</title>
-      <link>https://matheuzsecurity.github.io/tags/persistence/</link>
+      <link>http://localhost:1313/tags/persistence/</link>
       <pubDate>Fri, 16 Feb 2024 00:00:29 -0300</pubDate>
-      <guid>https://matheuzsecurity.github.io/tags/persistence/</guid>
+      <guid>http://localhost:1313/tags/persistence/</guid>
       <description></description>
     </item>
   </channel>

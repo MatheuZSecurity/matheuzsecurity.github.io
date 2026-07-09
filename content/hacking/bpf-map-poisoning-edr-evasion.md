@@ -15,21 +15,19 @@ images:
 
 ![imgur](https://i.imgur.com/0Tyj00A.gif)
 
-Most evasion techniques work by flying under the radar. You use an anonymous `mmap` instead of a file, you call syscalls directly to skip libc hooks, you execute from a `memfd` so `fanotify` never sees a path. All of that works by avoiding the EDR's detection surface.
+Standard EDR evasion is avoidance. Anonymous `mmap` instead of a file, direct syscalls to skip libc hooks, `memfd_create` so `fanotify` never sees a path. Stay out of what the EDR is watching.
 
-BPF Map Poisoning is different. Instead of avoiding the EDR, you walk straight into it and rewrite its memory.
+BPF Map Poisoning does the opposite: walk into the EDR and rewrite its monitoring state directly.
 
-I use Falco as the demo target throughout this post because it is open-source, auditable, and easy to reproduce in a lab. Falco is not a traditional EDR, it's a runtime security tool. But the attack surface here is architectural, not Falco-specific. CrowdStrike Falcon on Linux, Elastic Defend, Tetragon, and any other security tool that stores monitoring state in BPF maps share the same problem: if the maps are not protected by `security_bpf_map` LSM enforcement, they can be read and written by any privileged process using the standard `bpf(2)` API. The demo is Falco. The implication extends to everything that follows the same design.
+I use Falco as the demo target because it's open-source and easy to reproduce in a lab. But the issue is architectural: CrowdStrike Falcon on Linux, Elastic Defend, Tetragon, any tool that keeps monitoring state in BPF maps without `security_bpf_map` enforcement is in the same position. The demo is Falco; the problem is not.
 
 ## How eBPF EDRs actually work
 
-To understand why this attack works, you need to understand how these tools are built internally.
+Tools like Falco, Tetragon, Elastic Defend, and CrowdStrike Falcon on Linux share the same fundamental design: detection logic runs as eBPF programs inside the kernel. The attachment mechanism varies by tool. CrowdStrike and Elastic use kprobes or fentry hooks per syscall. Falco attaches to the raw `sys_enter`/`sys_exit` tracepoints, which fire for every syscall through a single hook. Regardless of the mechanism, every time a monitored event fires, the eBPF program runs inside the kernel, inspects the arguments, and decides whether to emit a security alert.
 
-Tools like Falco, Tetragon, Elastic Defend, and CrowdStrike Falcon on Linux all share the same fundamental design: detection logic runs as eBPF programs inside the kernel. The attachment mechanism varies by tool. CrowdStrike and Elastic use kprobes or fentry hooks per syscall. Falco attaches to the raw `sys_enter`/`sys_exit` tracepoints, which fire for every syscall through a single hook. Regardless of the mechanism, every time a monitored event fires, the eBPF program runs inside the kernel, inspects the arguments, and decides whether to emit a security alert.
+eBPF programs are stateless: no persistent state across invocations without an external store. That store is BPF maps.
 
-The problem is that eBPF programs are stateless. They cannot maintain persistent state across invocations without an external data store. That data store is BPF maps.
-
-BPF maps are kernel data structures that live in kernel memory and can be accessed from both sides of the boundary. The eBPF program running in-kernel accesses them with helpers like `bpf_map_lookup_elem` and `bpf_map_update_elem`. Userspace accesses them through the `bpf(2)` syscall. This bidirectional access is by design, it's how the EDR's kernel component and its userspace agent communicate with each other.
+BPF maps live in kernel memory and are accessible from both sides. The eBPF program uses helpers like `bpf_map_lookup_elem` and `bpf_map_update_elem`. Userspace uses the `bpf(2)` syscall. That's how the kernel component and the userspace agent communicate.
 
 A typical eBPF EDR maintains maps like these:
 
@@ -41,23 +39,21 @@ A typical eBPF EDR maintains maps like these:
 | ring buffer | ringbuf | Kernel-to-userspace event delivery channel |
 | `capture_settings` | array | Runtime configuration flags |
 
-These maps are not internal-only structures. They are created via the standard `bpf()` syscall API and can be opened and written to by any process with `CAP_BPF` or `CAP_SYS_ADMIN`. This is not a bug. It is how the Linux BPF API is designed to work.
+These aren't internal-only structures. They're created through the standard `bpf()` syscall and any process with `CAP_BPF` or `CAP_SYS_ADMIN` can open and write to them. That's just how the BPF API works.
 
 ## The attack
 
 If the EDR's eBPF program checks an `interesting_sys` array before emitting an alert, and you zero out entries in that array for specific syscalls, the eBPF program will see `0` and return early without generating any event. The EDR keeps running. It still intercepts every syscall. It just silently skips the ones you zeroed in the map.
 
-Two variants:
+If the EDR has a `trusted_pids` hash map, inserting your PID into it suppresses all alerts from your process regardless of what syscalls you make. Targeted, but depends on whether that map exists.
 
-**Variant 1: PID allowlist poisoning.** If the EDR maintains a `trusted_pids` hash map, insert your PID into it. The EDR will treat your process as legitimate and suppress all alerts from it, regardless of what syscalls you make.
+The more general approach is zeroing entries in `interesting_sys`. Every process on the system goes unmonitored for those syscalls as long as the entries stay zeroed. More powerful, but at the SIEM level a complete silence on `execve` events is going to look off if anyone has a baseline.
 
-**Variant 2: Syscall monitoring suppression.** Zero out specific entries in `interesting_sys`. Every process on the system becomes unmonitored for those syscalls for as long as the entries stay zeroed. More powerful but noisier: a complete silence on `execve` events is anomalous if someone is watching.
-
-We will target `interesting_sys` with the save/blind/restore pattern: save original values, zero the entries, run the payload, restore. The resulting gap looks like a processing hiccup rather than tampering.
+We target `interesting_sys` with a save/blind/restore pass: read the current values, zero them, run the payload, write them back.
 
 ## Recon: finding the map IDs
 
-First step is identifying which map IDs belong to Falco:
+Get the map IDs:
 
 ```bash
 sudo bpftool map list | grep -E "interesting_sys|syscall_exit_ta"
@@ -82,7 +78,7 @@ for m in json.load(sys.stdin):
 
 A hash map with `bytes_key=4` and `bytes_value=1` is likely a PID allowlist. An array with `max_entries=512` and `bytes_value=1` is a per-syscall flag table like `interesting_sys`.
 
-To find which eBPF programs are loaded and which maps they reference:
+Programs and their map references:
 
 ```bash
 sudo bpftool prog list
@@ -91,7 +87,7 @@ sudo bpftool prog show id <prog_id>
 # Output includes: map_ids 153 155 156 ...
 ```
 
-Dump the current state of `interesting_sys` to understand the schema before touching it:
+Dump `interesting_sys` before touching it:
 
 ```bash
 sudo bpftool map dump id 155 | head -20
@@ -105,27 +101,25 @@ sudo bpftool map dump id 155 | head -20
 
 Every entry with value `01` is an active monitoring rule. Zero it and Falco goes blind for that syscall.
 
-## Proof: Falco detecting normally
+## Falco working normally
 
-Before running anything, confirm Falco is actually catching things. Open `/etc/shadow` and verify the alert fires:
+Open `/etc/shadow` and watch the alert come in:
 
 ![Falco detecting /etc/shadow access with timestamp](/img/falco-bpf-poison/falco-detecting-normal.png)
 
-Left terminal shows `cat /etc/shadow` at `16:46:12`. Right terminal shows Falco's warning `Sensitive file opened for reading` at exactly `16:46:12`. Working as expected.
-
-Full alert detail including `file=/etc/shadow`, `process=cat`, `user_uid=0`, `evt_type=openat`:
+Left terminal: `cat /etc/shadow` at `16:46:12`. Right terminal: Falco fires `Sensitive file opened for reading` at `16:46:12`.
 
 ![Full Falco alert log entry](/img/falco-bpf-poison/falco-alert-detail.png)
 
-This is the baseline. Now we kill it.
+`file=/etc/shadow`, `process=cat`, `user_uid=0`, `evt_type=openat`. Now we kill it.
 
 ## Syscall suppression with restore: falco_blind.c
 
 `interesting_sys` is a 512-entry array where each index is a syscall number and each value is either `1` (Falco monitors this syscall) or `0` (Falco skips it entirely). When Falco's eBPF program fires on a syscall entry, the first thing it does is look up `interesting_sys[syscall_nr]`. If it gets `0`, it returns immediately without generating any event. The rest of the hook logic, the rule matching, the ring buffer write, none of it runs.
 
-That's the lever. Zero the entries for the syscalls your payload uses and Falco produces nothing for the duration.
+Zero the entries for the syscalls your payload uses and Falco produces nothing for the duration.
 
-Permanently zeroing them would work but it's noisy: a SIEM with a baseline alert rate will notice that `execve` stopped generating events entirely. The cleaner approach is surgical: save the original values, zero the entries, run the payload, write the originals back. The result is a brief window of silence in Falco's event stream that looks like a processing hiccup rather than tampering.
+Permanently zeroing them works but if anyone's watching event volume, `execve` going silent is a tell. Save the originals, zero the entries, run the payload, restore. Short gap in the timeline instead of a sustained hole.
 
 The syscalls we target:
 
@@ -241,21 +235,21 @@ Left: the payload running at `17:04:02`. `/etc/shadow` fully exposed, `uid=0(roo
 
 ![falco_blind running, /etc/shadow exposed, no alert in Falco](/img/falco-bpf-poison/blind-no-alert.png)
 
-Falco is still running. The process is still active. The eBPF program is still attached to the raw syscall tracepoint and fires on every syscall. It just isn't generating anything.
+Falco is still running, eBPF program still attached, still intercepting every syscall. Just not generating anything.
 
-After the restore phase, the next `cat /etc/shadow` at `17:05:53` immediately produces an alert at `17:05:53`:
+After restore, `cat /etc/shadow` at `17:05:53`:
 
 ![Falco detecting again after restore](/img/falco-bpf-poison/falco-restored.png)
 
-The moment the restore writes run, Falco picks up again. No restart, no reload.
+Alert at `17:05:53`. Writes restored, Falco back, no restart required.
 
 ## Why this works
 
-`bpf(BPF_MAP_UPDATE_ELEM)` is a first-class kernel API call. It's not memory corruption, not a kernel exploit, not a hook bypass. It's the legitimate, documented way to modify a BPF map from userspace. That's exactly what the EDR vendor uses to configure the tool at runtime.
+`bpf(BPF_MAP_UPDATE_ELEM)` is the standard, documented way to write to a BPF map from userspace. This is the exact same call the Falco agent uses to configure the tool at runtime.
 
-Falco's eBPF program has no way to distinguish a legitimate write (the Falco agent updating its config) from a malicious one (an attacker zeroing its monitoring rules). Both go through the same `BPF_MAP_UPDATE_ELEM` interface with the same permissions. There's no signature, no kernel-enforced write policy, no per-map ownership check at the API level.
+Falco's eBPF program has no way to distinguish a legitimate write from an attacker zeroing its monitoring rules. Both go through `BPF_MAP_UPDATE_ELEM` with the same permissions. No signature, no per-map ownership check, nothing in the kernel API that differentiates one caller from the other.
 
-The detection logic and the configuration state share the same access control boundary as the threat they're trying to monitor. An attacker with `CAP_BPF` can reconfigure the EDR the same way the EDR's own agent does.
+The attacker and the EDR's own agent are indistinguishable at the `bpf(2)` level.
 
 ## Privilege requirement
 
@@ -263,7 +257,7 @@ This requires `CAP_BPF` or `CAP_SYS_ADMIN`. The `BPF_MAP_GET_FD_BY_ID` command i
 
 This was tested against Falco running with `engine.kind=modern_ebpf` (`falco-modern-bpf.service`), which is the default on modern kernels with BTF support.
 
-This is a post-exploitation technique. In a red team engagement where you already have root, this is a clean way to operate without generating the alerts that would normally follow lateral movement, credential dumping, or persistence installation.
+If you already have root on a box running Falco, this lets you move laterally, dump credentials, or install persistence without generating the alerts that would normally follow.
 
 ## The `security_bpf_map` LSM hook
 
@@ -283,7 +277,7 @@ sudo bpftool map update id 155 key hex 3b 00 00 00 value hex 00
 # No error = maps are open, technique works
 ```
 
-Whether this works depends entirely on whether the target enforces `security_bpf_map`. Most Falco deployments don't by default. Check before assuming.
+Most Falco deployments don't enforce this by default, but check before assuming.
 
 ## Forensic trace
 
