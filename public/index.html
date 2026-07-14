@@ -158,11 +158,11 @@
   <li class="post-item">
     <a href="/hacking/bpf-map-poisoning-edr-evasion/">
       <div class="post-item-date">2026-07-06 · 9 min</div>
-      <span class="post-item-title">BPF Map Poisoning: Attacking the EDR from the Inside</span>
+      <span class="post-item-title">BPF Map Poisoning: Attacking Falco from the Inside</span>
     </a>
     <p class="post-item-summary"> Standard EDR evasion is avoidance. Anonymous mmap instead of a file, direct syscalls to skip libc hooks, memfd_create so fanotify never sees a path. Stay out of what the EDR is watching.
 BPF Map Poisoning does the opposite: walk into the EDR and rewrite its monitoring state directly.
-I use Falco as the demo target because it’s open-source and easy to reproduce in a lab. But the issue is architectural: Elastic Defend, Tetragon, any tool that keeps monitoring state in BPF maps without security_bpf_map enforcement is in the same position. The demo is Falco; the problem is not.
+Everything here was tested against Falco. The technique is possible in any eBPF-based sensor that stores monitoring state in BPF maps without security_bpf_map enforcement.
 </p>
     <div class="post-item-tags"><span>EDR Evasion</span><span>eBPF</span><span>Falco</span><span>Linux</span>
     </div>

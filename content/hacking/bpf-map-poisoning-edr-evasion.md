@@ -1,7 +1,7 @@
 ---
-title: "BPF Map Poisoning: Attacking the EDR from the Inside"
+title: "BPF Map Poisoning: Attacking Falco from the Inside"
 date: 2026-07-06T00:00:00-03:00
-description: "Most evasion techniques try to avoid the EDR. This one walks straight into it and writes to its memory."
+description: "Rewriting Falco's BPF map state from userspace to suppress syscall monitoring without touching the eBPF program."
 categories: [Malware]
 tags: [EDR Evasion, eBPF, Falco, Linux, Red Team]
 author: 0xMatheuZ
@@ -19,7 +19,7 @@ Standard EDR evasion is avoidance. Anonymous `mmap` instead of a file, direct sy
 
 BPF Map Poisoning does the opposite: walk into the EDR and rewrite its monitoring state directly.
 
-I use Falco as the demo target because it's open-source and easy to reproduce in a lab. But the issue is architectural: Elastic Defend, Tetragon, any tool that keeps monitoring state in BPF maps without `security_bpf_map` enforcement is in the same position. The demo is Falco; the problem is not.
+Everything here was tested against Falco. The technique is possible in any eBPF-based sensor that stores monitoring state in BPF maps without `security_bpf_map` enforcement.
 
 ## How eBPF EDRs actually work
 

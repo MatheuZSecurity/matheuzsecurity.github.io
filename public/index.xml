@@ -9,11 +9,11 @@
     <lastBuildDate>Mon, 06 Jul 2026 00:00:00 -0300</lastBuildDate>
     <atom:link href="http://localhost:1313/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>BPF Map Poisoning: Attacking the EDR from the Inside</title>
+      <title>BPF Map Poisoning: Attacking Falco from the Inside</title>
       <link>http://localhost:1313/hacking/bpf-map-poisoning-edr-evasion/</link>
       <pubDate>Mon, 06 Jul 2026 00:00:00 -0300</pubDate>
       <guid>http://localhost:1313/hacking/bpf-map-poisoning-edr-evasion/</guid>
-      <description>Most evasion techniques try to avoid the EDR. This one walks straight into it and writes to its memory.</description>
+      <description>Rewriting Falco&amp;#39;s BPF map state from userspace to suppress syscall monitoring without touching the eBPF program.</description>
     </item>
     <item>
       <title>Trend Micro Deep Security Agent Research: Forcing bmhook/tmhook Reloads to Open a Protection Bypass Window</title>
