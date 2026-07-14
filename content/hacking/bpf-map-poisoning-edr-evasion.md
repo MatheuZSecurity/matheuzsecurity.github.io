@@ -19,11 +19,11 @@ Standard EDR evasion is avoidance. Anonymous `mmap` instead of a file, direct sy
 
 BPF Map Poisoning does the opposite: walk into the EDR and rewrite its monitoring state directly.
 
-I use Falco as the demo target because it's open-source and easy to reproduce in a lab. But the issue is architectural: CrowdStrike Falcon on Linux, Elastic Defend, Tetragon, any tool that keeps monitoring state in BPF maps without `security_bpf_map` enforcement is in the same position. The demo is Falco; the problem is not.
+I use Falco as the demo target because it's open-source and easy to reproduce in a lab. But the issue is architectural: Elastic Defend, Tetragon, any tool that keeps monitoring state in BPF maps without `security_bpf_map` enforcement is in the same position. The demo is Falco; the problem is not.
 
 ## How eBPF EDRs actually work
 
-Tools like Falco, Tetragon, Elastic Defend, and CrowdStrike Falcon on Linux share the same fundamental design: detection logic runs as eBPF programs inside the kernel. The attachment mechanism varies by tool. CrowdStrike and Elastic use kprobes or fentry hooks per syscall. Falco attaches to the raw `sys_enter`/`sys_exit` tracepoints, which fire for every syscall through a single hook. Regardless of the mechanism, every time a monitored event fires, the eBPF program runs inside the kernel, inspects the arguments, and decides whether to emit a security alert.
+Tools like Falco and Tetragon share the same fundamental design: detection logic runs as eBPF programs inside the kernel. The attachment mechanism varies by tool. Elastic use kprobes or fentry hooks per syscall. Falco attaches to the raw `sys_enter`/`sys_exit` tracepoints, which fire for every syscall through a single hook. Regardless of the mechanism, every time a monitored event fires, the eBPF program runs inside the kernel, inspects the arguments, and decides whether to emit a security alert.
 
 eBPF programs are stateless: no persistent state across invocations without an external store. That store is BPF maps.
 

@@ -162,7 +162,7 @@
     </a>
     <p class="post-item-summary"> Standard EDR evasion is avoidance. Anonymous mmap instead of a file, direct syscalls to skip libc hooks, memfd_create so fanotify never sees a path. Stay out of what the EDR is watching.
 BPF Map Poisoning does the opposite: walk into the EDR and rewrite its monitoring state directly.
-I use Falco as the demo target because it’s open-source and easy to reproduce in a lab. But the issue is architectural: CrowdStrike Falcon on Linux, Elastic Defend, Tetragon, any tool that keeps monitoring state in BPF maps without security_bpf_map enforcement is in the same position. The demo is Falco; the problem is not.
+I use Falco as the demo target because it’s open-source and easy to reproduce in a lab. But the issue is architectural: Elastic Defend, Tetragon, any tool that keeps monitoring state in BPF maps without security_bpf_map enforcement is in the same position. The demo is Falco; the problem is not.
 </p>
     <div class="post-item-tags"><span>EDR Evasion</span><span>eBPF</span><span>Falco</span><span>Linux</span>
     </div>
