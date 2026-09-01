@@ -10,7 +10,7 @@ ShowToc: true
 TocOpen: true
 UseHugoToc: true
 images:
-  - "https://i.imgur.com/60t8gkg.jpeg"
+  - "https://i.imgur.com/E7xbfk7.jpeg"
 ---
 
 ![imgur](https://i.imgur.com/60t8gkg.jpeg)
