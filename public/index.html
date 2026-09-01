@@ -156,6 +156,19 @@
 <h2 class="section-title">Writing</h2>
 <ul class="post-list">
   <li class="post-item">
+    <a href="/hacking/elastic-trusted-pid-bypass/">
+      <div class="post-item-date">2026-08-31 · 6 min</div>
+      <span class="post-item-title">Singularity Rootkit: Bypassing Elastic Defend Module Loading and Taint Detection</span>
+    </a>
+    <p class="post-item-summary">Rootkit Researchers: https://discord.gg/66N5ZQppU7
+Singularity Rootkit: https://github.com/MatheuZSecurity/Singularity
+Elastic Defend has shipped a BPF-based module load event since around 8.14. With 9.5.0, that event gained a taint_flags field, and PR #6588 added the EQL detection rule that queries it. The older syslog rule from 2023 is still active and fires independently. Between the two, loading an unsigned or out-of-tree module without any evasion generates alerts from both paths.
+So there are two problems to deal with: the YARA scan on the .ko file, and the BPF hook on module load.
+</p>
+    <div class="post-item-tags"><span>EDR Evasion</span><span>eBPF</span><span>Elastic</span><span>Linux</span>
+    </div>
+  </li>
+  <li class="post-item">
     <a href="/hacking/bpf-map-poisoning-edr-evasion/">
       <div class="post-item-date">2026-07-06 · 9 min</div>
       <span class="post-item-title">BPF Map Poisoning: Attacking Falco from the Inside</span>
@@ -203,19 +216,6 @@ What we have:
 A hidden kernel module loaded at boot Character device at /dev/ioctl_dev Setup script (device.sh) that loads the module and shreds source files SSH access enabled (username: root, password: ioctl) Important Note: Many participants had difficulties copy-pasting code directly into the VM console. As stated in the challenge description, SSH is enabled for easier interaction! This was a common pain point, so let’s start by addressing it.
 </p>
     <div class="post-item-tags"><span>CTF</span>
-    </div>
-  </li>
-  <li class="post-item">
-    <a href="/hacking/bypassing-elastic/">
-      <div class="post-item-date">2025-10-30 · 20 min</div>
-      <span class="post-item-title">Evading Elastic Security: Linux Rootkit Detection Bypass</span>
-    </a>
-    <p class="post-item-summary"> Stealthy Kernel Rootkit: https://github.com/MatheuZSecurity/Singularity
-Rootkit Researchers: https://discord.gg/66N5ZQppU7
-Introduction Security solutions continue to intensify. Modern EDRs like Elastic Security, integrated with Elastic Defend, employ multiple detection layers including YARA signatures and behavioral analysis to identify Linux kernel rootkits, triggering 26&#43; alerts on a single malicious module.
-This article demonstrates how to systematically evade these defenses. We present a comprehensive case study of developing a Linux rootkit that successfully bypasses Elastic Security’s detection mechanisms through obfuscation, fragmentation, and staged execution techniques. All content is strictly for educational purposes only.
-</p>
-    <div class="post-item-tags"><span>Evasion</span>
     </div>
   </li>
 </ul>

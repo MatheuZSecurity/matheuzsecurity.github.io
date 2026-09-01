@@ -3,36 +3,48 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>http://localhost:1313/</loc>
-    <lastmod>2026-07-06T00:00:00-03:00</lastmod>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/categories/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/ebpf/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/edr-evasion/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/elastic/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/hacking/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/linux/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/lkm/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/categories/malware/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/red-team/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/rootkit/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/hacking/elastic-trusted-pid-bypass/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/</loc>
+    <lastmod>2026-08-31T00:00:00-03:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/hacking/bpf-map-poisoning-edr-evasion/</loc>
     <lastmod>2026-07-06T00:00:00-03:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/categories/</loc>
-    <lastmod>2026-07-06T00:00:00-03:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/tags/ebpf/</loc>
-    <lastmod>2026-07-06T00:00:00-03:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/tags/edr-evasion/</loc>
-    <lastmod>2026-07-06T00:00:00-03:00</lastmod>
-  </url><url>
     <loc>http://localhost:1313/tags/falco/</loc>
-    <lastmod>2026-07-06T00:00:00-03:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/hacking/</loc>
-    <lastmod>2026-07-06T00:00:00-03:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/tags/linux/</loc>
-    <lastmod>2026-07-06T00:00:00-03:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/categories/malware/</loc>
-    <lastmod>2026-07-06T00:00:00-03:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/tags/red-team/</loc>
-    <lastmod>2026-07-06T00:00:00-03:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/tags/</loc>
     <lastmod>2026-07-06T00:00:00-03:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/tags/bypass/</loc>
@@ -54,9 +66,6 @@
     <lastmod>2026-06-03T00:00:00-04:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/tags/livepatch/</loc>
-    <lastmod>2026-06-03T00:00:00-04:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/tags/lkm/</loc>
     <lastmod>2026-06-03T00:00:00-04:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/tags/trend-micro/</loc>
@@ -99,9 +108,6 @@
     <lastmod>2025-07-04T10:35:09-04:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/</loc>
-    <lastmod>2025-06-21T16:33:03-04:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/tags/rootkit/</loc>
     <lastmod>2025-06-21T16:33:03-04:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/hacking/bypass-userland-hooks/</loc>
