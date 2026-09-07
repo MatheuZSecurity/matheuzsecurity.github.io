@@ -2,7 +2,7 @@
 <html lang="en" dir="auto">
 
 <head>
-	<meta name="generator" content="Hugo 0.161.0"><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=32769&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+	<meta name="generator" content="Hugo 0.161.0"><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <meta name="robots" content="index, follow">
@@ -10,18 +10,18 @@
 <meta name="keywords" content="Blog">
 <meta name="description" content="Red Team / Offensive Security Research / Pentest.">
 <meta name="author" content="0xMatheuZ">
-<link rel="canonical" href="http://localhost:32769/">
+<link rel="canonical" href="http://localhost:1313/">
 <link crossorigin="anonymous" href="/assets/css/stylesheet.cd7709143dbfd8231591575aa10b412203641a992e62ac224a96389d247d02ea.css" integrity="sha256-zXcJFD2/2CMVkVdaoQtBIgNkGpkuYqwiSpY4nSR9Auo=" rel="preload stylesheet" as="style">
-<link rel="icon" href="http://localhost:32769/favicon.ico">
-<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:32769/favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:32769/favicon-32x32.png">
-<link rel="apple-touch-icon" href="http://localhost:32769/apple-touch-icon.png">
-<link rel="mask-icon" href="http://localhost:32769/safari-pinned-tab.svg">
+<link rel="icon" href="http://localhost:1313/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
 <meta name="theme-color" content="#06070b">
 <meta name="msapplication-TileColor" content="#06070b">
-<link rel="alternate" type="application/rss+xml" href="http://localhost:32769/index.xml">
-<link rel="alternate" type="application/json" href="http://localhost:32769/index.json">
-<link rel="alternate" hreflang="en" href="http://localhost:32769/">
+<link rel="alternate" type="application/rss+xml" href="http://localhost:1313/index.xml">
+<link rel="alternate" type="application/json" href="http://localhost:1313/index.json">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/">
 <noscript>
     <style>
         #theme-toggle,
@@ -36,7 +36,7 @@
 <meta property="og:title" content="0xMatheuZ" />
 <meta property="og:description" content="Red Team / Offensive Security Research / Pentest." />
 <meta property="og:type" content="website" />
-<meta property="og:url" content="http://localhost:32769/" /><meta property="og:site_name" content="0xMatheuZ" />
+<meta property="og:url" content="http://localhost:1313/" /><meta property="og:site_name" content="0xMatheuZ" />
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="0xMatheuZ"/>
@@ -47,9 +47,9 @@
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "0xMatheuZ",
-  "url": "http://localhost:32769/",
+  "url": "http://localhost:1313/",
   "description": "Red Team / Offensive Security Research / Pentest.",
-  "thumbnailUrl": "http://localhost:32769/favicon.ico",
+  "thumbnailUrl": "http://localhost:1313/favicon.ico",
   "sameAs": [
       "https://twitter.com/MatheuzSecurity", "https://github.com/MatheuZSecurity", "https://app.hackthebox.com/users/1711272", "https://tryhackme.com/p/MatheuZSec", "https://www.youtube.com/MatheuZSecurity"
   ]
@@ -156,6 +156,17 @@
 <h2 class="section-title">Writing</h2>
 <ul class="post-list">
   <li class="post-item">
+    <a href="/hacking/fileless-loader-bypassing-elastic-memfd/">
+      <div class="post-item-date">2026-09-06 · 5 min</div>
+      <span class="post-item-title">Fileless ELF Execution via O_TMPFILE</span>
+    </a>
+    <p class="post-item-summary"> O_TMPFILE &#43; execveat(AT_EMPTY_PATH) is a way to execute an ELF binary that never touches disk as a named file. The running process shows up as /tmp/#N (deleted) in telemetry. No directory entry is ever created, no path ever exists, and the technique works on any kernel since 3.19.
+Elastic Security Labs published FENIX alongside their fileless execution research, covering 15 techniques across every major backing store. It’s the most complete public coverage matrix for this category. This combination isn’t in it.
+</p>
+    <div class="post-item-tags"><span>Fileless</span><span>EDR</span><span>Elastic</span><span>Linux</span>
+    </div>
+  </li>
+  <li class="post-item">
     <a href="/hacking/elastic-trusted-pid-bypass/">
       <div class="post-item-date">2026-08-31 · 6 min</div>
       <span class="post-item-title">Singularity Rootkit: Evading Elastic Defend Module Load Detection</span>
@@ -204,18 +215,6 @@ But that promise quietly depends on a threat model: the kernel is assumed to be 
 This article explores what happens when that assumption breaks, specifically, when an attacker can execute code in the kernel (e.g., via a loaded module). In that world, the most valuable targets aren’t the eBPF programs themselves, but the plumbing around them: iterators, event delivery paths (ring buffer / perf buffer), perf submission, and map operations that turn kernel activity into user-space signals.
 </p>
     <div class="post-item-tags"><span>eBPF</span><span>Kernel Security</span><span>Evasion</span>
-    </div>
-  </li>
-  <li class="post-item">
-    <a href="/hacking/ioctl-secrets/">
-      <div class="post-item-date">2025-11-09 · 5 min</div>
-      <span class="post-item-title">Ioctl Secrets Writeup</span>
-    </a>
-    <p class="post-item-summary"> Challenge Description In this challenge, we’re given access to a Linux virtual machine (VM) running Ubuntu. The objective is to exploit a custom kernel module to retrieve a hidden flag. The challenge involves reverse engineering, kernel internals, and crafting a proper exploit.
-What we have:
-A hidden kernel module loaded at boot Character device at /dev/ioctl_dev Setup script (device.sh) that loads the module and shreds source files SSH access enabled (username: root, password: ioctl) Important Note: Many participants had difficulties copy-pasting code directly into the VM console. As stated in the challenge description, SSH is enabled for easier interaction! This was a common pain point, so let’s start by addressing it.
-</p>
-    <div class="post-item-tags"><span>CTF</span>
     </div>
   </li>
 </ul>

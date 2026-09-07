@@ -2,17 +2,24 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Evasion on 0xMatheuZ</title>
-    <link>http://localhost:32769/categories/evasion/</link>
+    <link>http://localhost:1313/categories/evasion/</link>
     <description>Recent content in Evasion on 0xMatheuZ</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
-    <lastBuildDate>Tue, 26 Nov 2024 20:06:42 -0800</lastBuildDate>
-    <atom:link href="http://localhost:32769/categories/evasion/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sun, 06 Sep 2026 00:00:00 -0400</lastBuildDate>
+    <atom:link href="http://localhost:1313/categories/evasion/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Fileless ELF Execution via O_TMPFILE</title>
+      <link>http://localhost:1313/hacking/fileless-loader-bypassing-elastic-memfd/</link>
+      <pubDate>Sun, 06 Sep 2026 00:00:00 -0400</pubDate>
+      <guid>http://localhost:1313/hacking/fileless-loader-bypassing-elastic-memfd/</guid>
+      <description>O_TMPFILE creates anonymous inodes on real filesystems with no directory entry. Combine it with execveat(AT_EMPTY_PATH) and you get fileless ELF execution that looks nothing like memfd_create in telemetry.</description>
+    </item>
     <item>
       <title>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</title>
-      <link>http://localhost:32769/hacking/ldpreload-rootkit/</link>
+      <link>http://localhost:1313/hacking/ldpreload-rootkit/</link>
       <pubDate>Tue, 26 Nov 2024 20:06:42 -0800</pubDate>
-      <guid>http://localhost:32769/hacking/ldpreload-rootkit/</guid>
+      <guid>http://localhost:1313/hacking/ldpreload-rootkit/</guid>
       <description>Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc.</description>
     </item>
   </channel>
