@@ -131,12 +131,12 @@ process.executable: /tmp/#220 (deleted)
 
 Running the loader under strace shows the syscall chain:
 
-- `open("/tmp", O_RDWR|O_CLOEXEC|O_TMPFILE, 0700)` — anonymous inode created, syscall 2
-- `read(0, ...)` / `write(3, ...)` — payload written to the anon fd
-- `open("/proc/self/fd/3", O_RDONLY|O_CLOEXEC)` — reopen to clear the write flag
-- `prctl(PR_SET_NAME, "sshd")` — thread rename before exec
-- `unlink("./dntry")` — loader removed from disk
-- `execveat(4, "", ["sshd"], ..., AT_EMPTY_PATH)` — fd executed directly, no path
+- `open("/tmp", O_RDWR|O_CLOEXEC|O_TMPFILE, 0700)` -> anonymous inode created, syscall 2
+- `read(0, ...)` / `write(3, ...)` -> payload written to the anon fd
+- `open("/proc/self/fd/3", O_RDONLY|O_CLOEXEC)` -> reopen to clear the write flag
+- `prctl(PR_SET_NAME, "sshd")` -> thread rename before exec
+- `unlink("./dntry")` -> loader removed from disk
+- `execveat(4, "", ["sshd"], ..., AT_EMPTY_PATH)` -> fd executed directly, no path
 
 ![strace output part 1](/img/fileless-strace1.png)
 ![strace output part 2](/img/fileless-strace2.png)
