@@ -156,6 +156,17 @@
 <h2 class="section-title">Writing</h2>
 <ul class="post-list">
   <li class="post-item">
+    <a href="/hacking/linux-kernel-keyring-fileless-exec/">
+      <div class="post-item-date">2026-09-09 · 6 min</div>
+      <span class="post-item-title">Fileless ELF Execution via Kernel Keyring</span>
+    </a>
+    <p class="post-item-summary"> Hello guys! So I wanted to show a technique for executing an ELF payload without ever touching the filesystem and without calling execve. The trick is the Linux kernel keyring, and it’s a bit different from what most people do for fileless execution, so lets go.
+The issue with the usual approaches like memfd_create or O_TMPFILE is that even though there’s no directory entry, you still end up with a file descriptor sitting in /proc/self/fd/ and an inode somewhere on a real filesystem. What if we skip all that? That’s where the keyring comes in.
+</p>
+    <div class="post-item-tags"><span>Fileless</span><span>Linux</span><span>Red Team</span><span>Kernel</span>
+    </div>
+  </li>
+  <li class="post-item">
     <a href="/hacking/fileless-loader-bypassing-elastic-memfd/">
       <div class="post-item-date">2026-09-06 · 5 min</div>
       <span class="post-item-title">Fileless ELF Execution via O_TMPFILE</span>
@@ -200,21 +211,6 @@ Everything here was tested against Falco. The technique is possible in any eBPF-
 The finding is not remote code execution and it is not a persistent kill switch. It is a forced security-control gap. A local unprivileged event storm can make the agent unload and reload its own behavior-monitoring kernel modules. During that window, protection behavior changes, and an artifact that was normally blocked was written to disk successfully.
 </p>
     <div class="post-item-tags"><span>Trend Micro</span><span>Deep Security Agent</span><span>Linux Kernel</span><span>LKM</span>
-    </div>
-  </li>
-  <li class="post-item">
-    <a href="/hacking/ebpf-security-tools-hacking/">
-      <div class="post-item-date">2026-02-09 · 16 min</div>
-      <span class="post-item-title">Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</span>
-    </a>
-    <p class="post-item-summary">Stealthy Kernel Rootkit: https://github.com/MatheuZSecurity/Singularity
-Rootkit Researchers: https://discord.gg/66N5ZQppU7
-Me: https://www.linkedin.com/in/mathsalves/
-Introduction Linux security tooling has leaned heavily into eBPF. Projects like Falco, Tracee, and Tetragon made kernel-level telemetry feel like a step change: richer context, low overhead, and visibility that’s difficult to evade from user space.
-But that promise quietly depends on a threat model: the kernel is assumed to be a trustworthy observer.
-This article explores what happens when that assumption breaks, specifically, when an attacker can execute code in the kernel (e.g., via a loaded module). In that world, the most valuable targets aren’t the eBPF programs themselves, but the plumbing around them: iterators, event delivery paths (ring buffer / perf buffer), perf submission, and map operations that turn kernel activity into user-space signals.
-</p>
-    <div class="post-item-tags"><span>eBPF</span><span>Kernel Security</span><span>Evasion</span>
     </div>
   </li>
 </ul>
