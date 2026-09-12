@@ -171,8 +171,8 @@ The issue with the usual approaches like memfd_create or O_TMPFILE is that even 
       <div class="post-item-date">2026-09-06 · 5 min</div>
       <span class="post-item-title">Fileless ELF Execution via O_TMPFILE</span>
     </a>
-    <p class="post-item-summary"> O_TMPFILE &#43; execveat(AT_EMPTY_PATH) is a way to execute an ELF binary that never touches disk as a named file. The running process shows up as /tmp/#N (deleted) in telemetry. No directory entry is ever created, no path ever exists, and the technique works on any kernel since 3.19.
-Elastic Security Labs published FENIX alongside their fileless execution research, covering 15 techniques across every major backing store. It’s the most complete public coverage matrix for this category. This combination isn’t in it.
+    <p class="post-item-summary"> Hello guys! So today I want to show a way to execute an ELF payload that never touches disk as a named file. No memfd_create, no /memfd: prefix anywhere in telemetry. The trick is O_TMPFILE combined with execveat(AT_EMPTY_PATH), and it works on any kernel since 3.19.
+The issue with memfd_create is that it leaves a very specific fingerprint: process.executable shows /memfd:name (deleted), the backing device is 00:01 (the kernel’s internal anonymous tmpfs), and the syscall number is 319. Elastic, Falco, and basically every modern EDR have signatures for exactly that combination. O_TMPFILE takes a completely different path through the kernel and produces none of those artifacts.
 </p>
     <div class="post-item-tags"><span>Fileless</span><span>EDR</span><span>Elastic</span><span>Linux</span>
     </div>

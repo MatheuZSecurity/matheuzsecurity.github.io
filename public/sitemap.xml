@@ -8,19 +8,13 @@
     <loc>http://localhost:1313/categories/</loc>
     <lastmod>2026-09-09T00:00:00-04:00</lastmod>
   </url><url>
-    <loc>http://localhost:1313/tags/edr/</loc>
-    <lastmod>2026-09-09T00:00:00-04:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/tags/elastic/</loc>
-    <lastmod>2026-09-09T00:00:00-04:00</lastmod>
-  </url><url>
-    <loc>http://localhost:1313/hacking/linux-kernel-keyring-fileless-exec/</loc>
-    <lastmod>2026-09-09T00:00:00-04:00</lastmod>
-  </url><url>
     <loc>http://localhost:1313/categories/evasion/</loc>
     <lastmod>2026-09-09T00:00:00-04:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/tags/fileless/</loc>
+    <lastmod>2026-09-09T00:00:00-04:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/hacking/linux-kernel-keyring-fileless-exec/</loc>
     <lastmod>2026-09-09T00:00:00-04:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/hacking/</loc>
@@ -40,6 +34,12 @@
   </url><url>
     <loc>http://localhost:1313/tags/</loc>
     <lastmod>2026-09-09T00:00:00-04:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/edr/</loc>
+    <lastmod>2026-09-06T00:00:00-04:00</lastmod>
+  </url><url>
+    <loc>http://localhost:1313/tags/elastic/</loc>
+    <lastmod>2026-09-06T00:00:00-04:00</lastmod>
   </url><url>
     <loc>http://localhost:1313/hacking/fileless-loader-bypassing-elastic-memfd/</loc>
     <lastmod>2026-09-06T00:00:00-04:00</lastmod>

