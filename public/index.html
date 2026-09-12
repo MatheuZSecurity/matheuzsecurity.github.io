@@ -157,11 +157,11 @@
 <ul class="post-list">
   <li class="post-item">
     <a href="/hacking/linux-kernel-keyring-fileless-exec/">
-      <div class="post-item-date">2026-09-09 · 6 min</div>
+      <div class="post-item-date">2026-09-09 · 7 min</div>
       <span class="post-item-title">Fileless ELF Execution via Kernel Keyring</span>
     </a>
-    <p class="post-item-summary"> Hello guys! So I wanted to show a technique for executing an ELF payload without ever touching the filesystem and without calling execve. The trick is the Linux kernel keyring, and it’s a bit different from what most people do for fileless execution, so lets go.
-The issue with the usual approaches like memfd_create or O_TMPFILE is that even though there’s no directory entry, you still end up with a file descriptor sitting in /proc/self/fd/ and an inode somewhere on a real filesystem. What if we skip all that? That’s where the keyring comes in.
+    <p class="post-item-summary"> Hello guys! So I wanted to show a technique for executing an ELF payload without ever touching the filesystem and without calling execve, the userland exec part is not new, the trick is using the Linux kernel keyring for staging, which is a bit different from what most people do for fileless execution, so lets go.
+The issue with the usual approaches like memfd_create or O_TMPFILE is that even though there’s no directory entry, you still end up with a file descriptor sitting in /proc/self/fd/ and an inode somewhere on a real filesystem. The keyring skips both.
 </p>
     <div class="post-item-tags"><span>Fileless</span><span>Linux</span><span>Red Team</span><span>Kernel</span>
     </div>
