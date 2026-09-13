@@ -171,7 +171,7 @@ A plain `mmap` can't do this. An anonymous mapping dies with the process that cr
 
 In the khttp/kfile flow, dntry pulls the payload into a temporary userspace buffer, passes it to `add_key()`, and frees the buffer. From there until `KEYCTL_READ`, the payload is in kernel slab with no user VA. `bpf_probe_read_user()` and `ptrace(PEEKDATA)` read from userspace VAs, so neither has anything to read during that window. Once B calls `KEYCTL_READ`, the payload gets copied into an anonymous mapping and the key is revoked. No fd, no inode, the payload never touches the VFS. The loader is the only thing that existed on disk.
 
-The keyring works well here because it's a kernel subsystem that isn't normally thought of as a way to pass data between unrelated processes.
+The keyring works well here because it's a kernel subsystem that isn't normally thought of as a way to pass a payload between unrelated processes.
 
 ---
 
