@@ -2,7 +2,6 @@ baseURL: "https://matheuzsecurity.github.io/"
 title: 0xMatheuZ
 pagination:
   pagerSize: 5
-theme: PaperMod
 
 params:
   env: production # to enable google analytics, opengraph, twitter-cards and schema.

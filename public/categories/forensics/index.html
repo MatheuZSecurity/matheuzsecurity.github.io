@@ -1,157 +1,55 @@
 <!DOCTYPE html>
-<html lang="en" dir="auto">
-
+<html lang="en" dir="ltr">
 <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="index, follow">
-<title>Forensics | 0xMatheuZ</title>
-<meta name="keywords" content="">
+
+<title>Forensics · 0xMatheuZ</title>
 <meta name="description" content="Red Team / Offensive Security Research / Pentest.">
-<meta name="author" content="0xMatheuZ">
+<meta name="author" content="0xMatheuZ"><meta name="keywords" content="Blog">
 <link rel="canonical" href="http://localhost:1313/categories/forensics/">
-<link crossorigin="anonymous" href="/assets/css/stylesheet.cd7709143dbfd8231591575aa10b412203641a992e62ac224a96389d247d02ea.css" integrity="sha256-zXcJFD2/2CMVkVdaoQtBIgNkGpkuYqwiSpY4nSR9Auo=" rel="preload stylesheet" as="style">
-<link rel="icon" href="http://localhost:1313/favicon.ico">
-<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
-<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
-<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
-<meta name="theme-color" content="#06070b">
-<meta name="msapplication-TileColor" content="#06070b">
-<link rel="alternate" type="application/rss+xml" href="http://localhost:1313/categories/forensics/index.xml">
-<link rel="alternate" hreflang="en" href="http://localhost:1313/categories/forensics/">
-<noscript>
-    <style>
-        #theme-toggle,
-        .top-link {
-            display: none;
-        }
-
-    </style>
-</noscript><link rel="preconnect" href="https://fonts.googleapis.com">
+<meta property="og:title" content="Forensics · 0xMatheuZ">
+<meta property="og:description" content="Red Team / Offensive Security Research / Pentest.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="http://localhost:1313/categories/forensics/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@MatheuzSecurity">
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<meta property="og:title" content="Forensics" />
-<meta property="og:description" content="Red Team / Offensive Security Research / Pentest." />
-<meta property="og:type" content="website" />
-<meta property="og:url" content="http://localhost:1313/categories/forensics/" /><meta property="og:site_name" content="0xMatheuZ" />
-
-<meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Forensics"/>
-<meta name="twitter:description" content="Red Team / Offensive Security Research / Pentest."/>
-
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css" integrity="sha256-G8Z/&#43;0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI=">
+<link rel="icon" href="/img/0xm-badge.png">
+<meta name="theme-color" content="#06070b"><link rel="alternate" type="application/rss&#43;xml" href="http://localhost:1313/categories/forensics/index.xml">
 </head>
-
-<body class="list dark" id="top">
-
-<header class="header">
+<body id="top"><header class="site-head">
+  <div class="wrap">
     <nav class="nav">
-        <div class="logo">
-            <a href="/" accesskey="h" title="MatheuZ (Alt + H)">
-                <img src="/img/0xm-badge.png" alt="" aria-label="logo" height="28">MatheuZ</a>
-            <div class="logo-switches">
-                <ul class="lang-switch"><li>|</li>
-                </ul>
-            </div>
-        </div>
-        <ul id="menu">
-            <li>
-                <a href="/" title="Home">
-                    <span>Home</span>
-                </a>
-            </li>
-            <li>
-                <a href="/hacking" title="hacking">
-                    <span>hacking</span>
-                </a>
-            </li>
-            <li>
-                <a href="/tags" title="Tags">
-                    <span>Tags</span>
-                </a>
-            </li>
-            <li>
-                <a href="/search" title="Search (Alt &#43; /)" accesskey=/>
-                    <span>Search</span>
-                </a>
-            </li>
-        </ul>
+      <span class="prompt"><a href="/">matheuz</a>@0xm:~$</span>
+      <a href="/">Home</a>
+      <a href="/hacking">hacking</a>
+      <a href="/tags">Tags</a>
+      <a href="/search">Search</a>
     </nav>
+  </div>
 </header>
 <main class="main">
-<header class="page-header"><div class="breadcrumbs"><a href="/">Home</a>&nbsp;»&nbsp;<a href="/categories/">Categories</a></div>
-  <h1>Forensics</h1>
+
+<header class="page-head"><div class="crumbs">
+    <span class="prompt">$ cd</span>
+    <a href="/">~</a><span class="sep">/</span><a href="http://localhost:1313/categories/">Categories</a></div>
+
+  <h1><span class="prompt">~/</span>Forensics</h1>
 </header>
-
-<ul class="post-list">
-  <li class="post-item">
-    <a href="/hacking/ftrace-rootkit/">
-      <div class="post-item-date">2024-12-26 · 2 min</div>
-      <span class="post-item-title">Detecting rootkits based on ftrace hooking.
-      </span>
-    </a>
-    <div class="post-item-tags"><span>Rootkit</span>
-    </div>
-  </li>
-</ul>
-    </main>
-    
-<footer class="footer">
+<div class="index">
+  <a class="row" href="/hacking/ftrace-rootkit/">
+    <span class="date">2024-12-26</span>
+    <span class="ttl">Detecting rootkits based on ftrace hooking.</span><span class="rt">2 min</span>
+    <span class="tags"><span>Rootkit</span> </span>
+  </a>
+</div>
+    </main><footer class="foot">
     <span>&copy; 2026 <a href="/">0xMatheuZ</a></span>
-    <span>
-        Powered by
-        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
-        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
-    </span>
+    <span>built with <a href="https://gohugo.io/" target="_blank" rel="noopener">hugo</a> · handcrafted layouts</span>
 </footer>
-<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
-        <path d="M12 6H0l6-6z" />
-    </svg>
-</a>
-
-<script>
-    let menu = document.getElementById('menu')
-    if (menu) {
-        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
-        menu.onscroll = function () {
-            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
-        }
-    }
-
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener("click", function (e) {
-            e.preventDefault();
-            var id = this.getAttribute("href").substr(1);
-            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
-                    behavior: "smooth"
-                });
-            } else {
-                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
-            }
-            if (id === "top") {
-                history.replaceState(null, null, " ");
-            } else {
-                history.pushState(null, null, `#${id}`);
-            }
-        });
-    });
-
-</script>
-<script>
-    var mybutton = document.getElementById("top-link");
-    window.onscroll = function () {
-        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
-            mybutton.style.visibility = "visible";
-            mybutton.style.opacity = "1";
-        } else {
-            mybutton.style.visibility = "hidden";
-            mybutton.style.opacity = "0";
-        }
-    };
-
-</script>
 </body>
-
 </html>

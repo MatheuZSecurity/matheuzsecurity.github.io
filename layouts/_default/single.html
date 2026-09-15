@@ -1,52 +1,44 @@
 {{- define "main" }}
 
-<article class="post-single">
-  <header class="post-header">
+<article class="article">
+  <div class="art-head">
     {{ partial "breadcrumbs.html" . }}
-    <h1 class="post-title">{{ .Title }}</h1>
-    {{- if .Description }}<div class="post-description">{{ .Description }}</div>{{ end }}
-    {{- if not (.Param "hideMeta") }}
-    <div class="post-meta">
-      {{- partial "post_meta.html" . -}}
+    <h1 class="art-title">{{ .Title }}</h1>
+    {{- with .Description }}<p class="art-desc">{{ . }}</p>{{ end }}
+    <div class="art-meta">
+      <span>{{ .Date | time.Format (default "2006-01-02" site.Params.DateFormat) }}</span>
+      {{- if site.Params.ShowReadingTime }}<span class="sep">·</span><span>{{ .ReadingTime }} min read</span>{{ end }}
+      <span class="sep">·</span><span>{{ site.Params.author | default site.Title }}</span>
+      {{- with .Params.categories }}<span class="sep">·</span><span>{{ delimit . ", " }}</span>{{ end }}
+    </div>
+    {{- with .Params.tags }}
+    <div class="art-tags">
+      {{- range . }}<a href="{{ (printf "/tags/%s/" (. | urlize)) | relLangURL }}">{{ . }}</a>{{ end }}
     </div>
     {{- end }}
-    {{- if or .Params.categories .Params.tags }}
-    <div class="post-badges">
-      {{- range .Params.categories }}<span>{{ . }}</span>{{ end }}
-      {{- range first 5 .Params.tags }}<span>#{{ . }}</span>{{ end }}
-    </div>
-    {{- end }}
-  </header>
-
-  {{- if (.Param "ShowToc") }}
-  {{- partial "toc.html" . }}
-  {{- end }}
-
-  {{- if .Content }}
-  <div class="post-content">
-    {{- if not (.Param "disableAnchoredHeadings") }}
-    {{- partial "anchored_headings.html" .Content -}}
-    {{- else }}{{ .Content }}{{ end }}
   </div>
+
+  <hr class="art-sep">
+
+  {{- if and (.Param "ShowToc") .TableOfContents (ne .TableOfContents "<nav id=\"TableOfContents\"></nav>") }}
+  <details class="toc" {{ if .Param "TocOpen" }}open{{ end }}>
+    <summary>contents</summary>
+    {{ .TableOfContents }}
+  </details>
   {{- end }}
 
-  <footer class="post-footer">
-    {{- $tags := .Language.Params.Taxonomies.tag | default "tags" }}
-    {{- with ($.GetTerms $tags) }}
-    <ul class="post-tags">
-      {{- range . }}
-      <li><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></li>
-      {{- end }}
-    </ul>
-    {{- end }}
-    {{- if (.Param "ShowPostNavLinks") }}
-    {{- partial "post_nav_links.html" . }}
+  <div class="content">
+    {{ .Content }}
+  </div>
+
+  <footer class="art-foot">
+    {{- if or .PrevInSection .NextInSection }}
+    <nav class="navlinks">
+      {{- with .PrevInSection }}<a class="prev" href="{{ .RelPermalink }}"><span class="label">&lt;&lt; prev</span><br>{{ .Title }}</a>{{ end }}
+      {{- with .NextInSection }}<a class="next" href="{{ .RelPermalink }}"><span class="label">next &gt;&gt;</span><br>{{ .Title }}</a>{{ end }}
+    </nav>
     {{- end }}
   </footer>
-
-  {{- if (.Param "comments") }}
-  {{- partial "comments.html" . }}
-  {{- end }}
 </article>
 
-{{- end }}{{/* end main */}}
+{{- end }}
