@@ -1,0 +1,7 @@
+{{- $index := slice -}}
+{{- range where site.RegularPages "Type" "in" site.Params.mainSections -}}
+{{- if ne .Layout "search" -}}
+{{- $index = $index | append (dict "title" .Title "permalink" .Permalink "summary" .Summary "content" .Plain) -}}
+{{- end -}}
+{{- end -}}
+{{- $index | jsonify -}}

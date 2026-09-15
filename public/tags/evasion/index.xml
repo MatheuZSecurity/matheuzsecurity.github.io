@@ -1,26 +1,12 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
-  <channel>
-    <title>Evasion on 0xMatheuZ</title>
-    <link>http://localhost:1313/tags/evasion/</link>
-    <description>Recent content in Evasion on 0xMatheuZ</description>
-    <generator>Hugo -- gohugo.io</generator>
-    <language>en</language>
-    <lastBuildDate>Mon, 09 Feb 2026 15:25:08 +0000</lastBuildDate>
-    <atom:link href="http://localhost:1313/tags/evasion/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</title>
-      <link>http://localhost:1313/hacking/ebpf-security-tools-hacking/</link>
-      <pubDate>Mon, 09 Feb 2026 15:25:08 +0000</pubDate>
-      <guid>http://localhost:1313/hacking/ebpf-security-tools-hacking/</guid>
-      <description>Deep technical analysis of bypassing eBPF-based security solutions through kernel-level hooks targeting BPF iterators, ringbuffers, and perf events</description>
-    </item>
-    <item>
-      <title>Evading Elastic Security: Linux Rootkit Detection Bypass</title>
-      <link>http://localhost:1313/hacking/bypassing-elastic/</link>
-      <pubDate>Thu, 30 Oct 2025 14:15:09 -0400</pubDate>
-      <guid>http://localhost:1313/hacking/bypassing-elastic/</guid>
-      <description>Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Evasion on 0xMatheuZ</title><link>https://matheuzsecurity.github.io/tags/evasion/</link><description>Recent content in Evasion on 0xMatheuZ</description><generator>Hugo</generator><language>en</language><lastBuildDate>Mon, 09 Feb 2026 15:25:08 +0000</lastBuildDate><atom:link href="https://matheuzsecurity.github.io/tags/evasion/index.xml" rel="self" type="application/rss+xml"/><item><title>Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</title><link>https://matheuzsecurity.github.io/hacking/ebpf-security-tools-hacking/</link><pubDate>Mon, 09 Feb 2026 15:25:08 +0000</pubDate><guid>https://matheuzsecurity.github.io/hacking/ebpf-security-tools-hacking/</guid><description>&lt;p&gt;Stealthy Kernel Rootkit: &lt;a href="https://github.com/MatheuZSecurity/Singularity"&gt;https://github.com/MatheuZSecurity/Singularity&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Rootkit Researchers: &lt;a href="https://discord.gg/66N5ZQppU7"&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Me: &lt;a href="https://www.linkedin.com/in/mathsalves/"&gt;https://www.linkedin.com/in/mathsalves/&lt;/a&gt;&lt;/p&gt;
+&lt;h1 id="introduction"&gt;Introduction&lt;/h1&gt;
+&lt;p&gt;Linux security tooling has leaned heavily into eBPF. Projects like Falco, Tracee, and Tetragon made kernel-level telemetry feel like a step change: richer context, low overhead, and visibility that&amp;rsquo;s difficult to evade from user space.&lt;/p&gt;
+&lt;p&gt;But that promise quietly depends on a threat model: the kernel is assumed to be a trustworthy observer.&lt;/p&gt;
+&lt;p&gt;This article explores what happens when that assumption breaks, specifically, when an attacker can execute code in the kernel (e.g., via a loaded module). In that world, the most valuable targets aren&amp;rsquo;t the eBPF programs themselves, but the plumbing around them: iterators, event delivery paths (ring buffer / perf buffer), perf submission, and map operations that turn kernel activity into user-space signals.&lt;/p&gt;</description></item><item><title>Evading Elastic Security: Linux Rootkit Detection Bypass</title><link>https://matheuzsecurity.github.io/hacking/bypassing-elastic/</link><pubDate>Thu, 30 Oct 2025 14:15:09 -0400</pubDate><guid>https://matheuzsecurity.github.io/hacking/bypassing-elastic/</guid><description>&lt;p&gt;&lt;img src="https://giffiles.alphacoders.com/223/223415.gif" alt="imgur"&gt;&lt;/p&gt;
+&lt;p&gt;Stealthy Kernel Rootkit: &lt;a href="https://github.com/MatheuZSecurity/Singularity"&gt;https://github.com/MatheuZSecurity/Singularity&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Rootkit Researchers: &lt;a href="https://discord.gg/66N5ZQppU7"&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/p&gt;
+&lt;h1 id="introduction"&gt;Introduction&lt;/h1&gt;
+&lt;p&gt;Security solutions continue to intensify. Modern EDRs like Elastic Security, integrated with Elastic Defend, employ multiple detection layers including YARA signatures and behavioral analysis to identify Linux kernel rootkits, triggering 26+ alerts on a single malicious module.&lt;/p&gt;
+&lt;p&gt;This article demonstrates how to systematically evade these defenses. We present a comprehensive case study of developing a Linux rootkit that successfully bypasses Elastic Security&amp;rsquo;s detection mechanisms through obfuscation, fragmentation, and staged execution techniques. All content is strictly for educational purposes only.&lt;/p&gt;</description></item></channel></rss>

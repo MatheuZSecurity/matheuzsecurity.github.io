@@ -1,33 +1,15 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
-  <channel>
-    <title>Evasion on 0xMatheuZ</title>
-    <link>http://localhost:1313/categories/evasion/</link>
-    <description>Recent content in Evasion on 0xMatheuZ</description>
-    <generator>Hugo -- gohugo.io</generator>
-    <language>en</language>
-    <lastBuildDate>Wed, 09 Sep 2026 00:00:00 -0400</lastBuildDate>
-    <atom:link href="http://localhost:1313/categories/evasion/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Fileless ELF Execution via Kernel Keyring</title>
-      <link>http://localhost:1313/hacking/linux-kernel-keyring-fileless-exec/</link>
-      <pubDate>Wed, 09 Sep 2026 00:00:00 -0400</pubDate>
-      <guid>http://localhost:1313/hacking/linux-kernel-keyring-fileless-exec/</guid>
-      <description>Using the Linux kernel keyring to stage an ELF in slab memory and execute it via userland exec, skipping execve and the filesystem entirely.</description>
-    </item>
-    <item>
-      <title>Fileless ELF Execution via O_TMPFILE</title>
-      <link>http://localhost:1313/hacking/fileless-loader-bypassing-elastic-memfd/</link>
-      <pubDate>Sun, 06 Sep 2026 00:00:00 -0400</pubDate>
-      <guid>http://localhost:1313/hacking/fileless-loader-bypassing-elastic-memfd/</guid>
-      <description>O_TMPFILE creates anonymous inodes on real filesystems with no directory entry. Combine it with execveat(AT_EMPTY_PATH) and you get fileless ELF execution that looks nothing like memfd_create in telemetry.</description>
-    </item>
-    <item>
-      <title>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</title>
-      <link>http://localhost:1313/hacking/ldpreload-rootkit/</link>
-      <pubDate>Tue, 26 Nov 2024 20:06:42 -0800</pubDate>
-      <guid>http://localhost:1313/hacking/ldpreload-rootkit/</guid>
-      <description>Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc.</description>
-    </item>
-  </channel>
-</rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Evasion on 0xMatheuZ</title><link>https://matheuzsecurity.github.io/categories/evasion/</link><description>Recent content in Evasion on 0xMatheuZ</description><generator>Hugo</generator><language>en</language><lastBuildDate>Wed, 09 Sep 2026 00:00:00 -0400</lastBuildDate><atom:link href="https://matheuzsecurity.github.io/categories/evasion/index.xml" rel="self" type="application/rss+xml"/><item><title>Fileless ELF Execution via Kernel Keyring</title><link>https://matheuzsecurity.github.io/hacking/linux-kernel-keyring-fileless-exec/</link><pubDate>Wed, 09 Sep 2026 00:00:00 -0400</pubDate><guid>https://matheuzsecurity.github.io/hacking/linux-kernel-keyring-fileless-exec/</guid><description>&lt;p&gt;&lt;img src="https://i.imgur.com/VHYFmWT.png" alt="imgur"&gt;&lt;/p&gt;
+&lt;p&gt;Hello guys! So I wanted to show a technique for executing an ELF payload without ever touching the filesystem and without calling execve, the userland exec part is not new, the trick is using the Linux kernel keyring for staging, which is a bit different from what most people do for fileless execution, so lets go.&lt;/p&gt;
+&lt;p&gt;The issue with the usual approaches like &lt;code&gt;memfd_create&lt;/code&gt; or &lt;code&gt;O_TMPFILE&lt;/code&gt; is that even though there&amp;rsquo;s no directory entry, you still end up with a file descriptor sitting in &lt;code&gt;/proc/self/fd/&lt;/code&gt; and an inode somewhere on a real filesystem. The keyring skips both.&lt;/p&gt;</description></item><item><title>Fileless ELF Execution via O_TMPFILE</title><link>https://matheuzsecurity.github.io/hacking/fileless-loader-bypassing-elastic-memfd/</link><pubDate>Sun, 06 Sep 2026 00:00:00 -0400</pubDate><guid>https://matheuzsecurity.github.io/hacking/fileless-loader-bypassing-elastic-memfd/</guid><description>&lt;p&gt;&lt;img src="https://i.imgur.com/n4kkDlE.jpeg" alt="imgur"&gt;&lt;/p&gt;
+&lt;p&gt;Hello guys! So today I want to show a way to execute an ELF payload that never touches disk as a named file. No &lt;code&gt;memfd_create&lt;/code&gt;, no &lt;code&gt;/memfd:&lt;/code&gt; prefix anywhere in telemetry. The trick is &lt;code&gt;O_TMPFILE&lt;/code&gt; combined with &lt;code&gt;execveat(AT_EMPTY_PATH)&lt;/code&gt;, and it works on any kernel since 3.19.&lt;/p&gt;
+&lt;p&gt;The issue with &lt;code&gt;memfd_create&lt;/code&gt; is that it leaves a very specific fingerprint: &lt;code&gt;process.executable&lt;/code&gt; shows &lt;code&gt;/memfd:name (deleted)&lt;/code&gt;, the backing device is &lt;code&gt;00:01&lt;/code&gt; (the kernel&amp;rsquo;s internal anonymous tmpfs), and the syscall number is 319. Elastic, Falco, and basically every modern EDR have signatures for exactly that combination. &lt;code&gt;O_TMPFILE&lt;/code&gt; takes a completely different path through the kernel and produces none of those artifacts.&lt;/p&gt;</description></item><item><title>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</title><link>https://matheuzsecurity.github.io/hacking/ldpreload-rootkit/</link><pubDate>Tue, 26 Nov 2024 20:06:42 -0800</pubDate><guid>https://matheuzsecurity.github.io/hacking/ldpreload-rootkit/</guid><description>&lt;p&gt;Hello! Welcome to this post! Well, I have a group that is focused on rootkit research, both for Linux and Windows, feel free to come and participate in our community.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://discord.gg/66N5ZQppU7"&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="what-is-ld_preload-rootkit"&gt;What is LD_PRELOAD Rootkit?&lt;/h2&gt;
+&lt;p&gt;Before we begin, we need to understand what an &lt;code&gt;LD_PRELOAD rootkit&lt;/code&gt; is.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Is a type of malware that uses the &lt;code&gt;LD_PRELOAD&lt;/code&gt; environment variable to load malicious shared libraries. It intercepts and modifies functions, allowing you to hide files, processes and activities. So, an LD_PRELOAD rootkit runs in user space (ring3), because it does not interact directly with the kernel.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id="introduction"&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;A good point about LD_PRELOAD Rootkit is that, unlike LKM (Loadable Kernel Module), they are much more stable, compatible and are also easier to develop.&lt;/p&gt;</description></item></channel></rss>

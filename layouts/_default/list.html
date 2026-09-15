@@ -1,105 +1,47 @@
 {{- define "main" }}
 
-{{- $pages := union .RegularPages .Sections }}
-{{- if .IsHome }}
-{{- $pages = where site.RegularPages "Type" "in" site.Params.mainSections }}
-{{- $pages = where $pages "Params.hiddenInHomeList" "!=" "true" }}
-{{- end }}
-{{- $paginator := .Paginate $pages }}
-
-{{- if .IsHome }}
-{{- $profile := site.Params.profileMode }}
-{{- $title := site.Params.title | default site.Title }}
-
-<section class="intro">
-  {{- with $profile.imageUrl }}
-  <img class="intro-avatar" src="{{ . | relURL }}" alt="{{ $profile.title | default $title }}" draggable="false">
-  {{- end }}
-  <div>
-    <h1 class="intro-name">{{ $profile.title | default $title }}</h1>
-    <p class="intro-role">{{ $profile.subtitle | default site.Params.description }}</p>
-    <p class="intro-bio">Linux-focused offensive security research: evasion, rootkits, telemetry bypass, and post-exploitation write-ups.</p>
-    <div class="intro-links">
-      {{- partial "social_icons.html" (dict "align" "left") -}}
-      <a class="intro-discord" href="https://discord.gg/66N5ZQppU7" rel="noopener noreferrer" target="_blank">Discord</a>
-    </div>
-  </div>
-</section>
-
-<h2 class="section-title">Writing</h2>
-<ul class="post-list">
-  {{- range $paginator.Pages }}
-  <li class="post-item">
-    <a href="{{ .RelPermalink }}">
-      <div class="post-item-date">{{ .Date | time.Format "2006-01-02" }}{{ if $.Site.Params.ShowReadingTime }} · {{ .ReadingTime }} min{{ end }}</div>
-      <span class="post-item-title">{{ .Title }}</span>
-    </a>
-    {{- if not .Params.hideSummary }}
-    <p class="post-item-summary">{{ .Summary | plainify | htmlUnescape }}</p>
-    {{- end }}
-    {{- with first 4 .Params.tags }}
-    <div class="post-item-tags">
-      {{- range . }}<span>{{ . }}</span>{{ end }}
-    </div>
-    {{- end }}
-  </li>
-  {{- end }}
-</ul>
-
-{{- if gt $paginator.TotalPages 1 }}
-<nav class="pagination">
-  {{- if $paginator.HasPrev }}<a class="prev" href="{{ $paginator.Prev.URL | relURL }}">← {{ i18n "prev_page" }}</a>{{ end }}
-  {{- if $paginator.HasNext }}<a class="next" href="{{ $paginator.Next.URL | relURL }}">{{ i18n "next_page" }} →</a>{{ end }}
-</nav>
-{{- end }}
-
-{{- else }}
-
-{{- if and (not .IsHome) .Title }}
-<header class="page-header">
-  {{- partial "breadcrumbs.html" . }}
-  <h1>{{ .Title }}</h1>
-  {{- if .Description }}<div class="post-description">{{ .Description | markdownify }}</div>{{ end }}
+<header class="page-head">
+  {{- if .Parent }}{{ partial "breadcrumbs.html" . }}{{ end }}
+  <h1><span class="prompt">~/</span>{{ .Title }}</h1>
+  {{- with .Description }}<div class="desc">{{ . | markdownify }}</div>{{ end }}
 </header>
-{{- end }}
 
 {{- if .Content }}
-<div class="post-content">
-  {{- if not (.Param "disableAnchoredHeadings") }}
-  {{- partial "anchored_headings.html" .Content -}}
-  {{- else }}{{ .Content }}{{ end }}
-</div>
+<div class="content">{{ .Content }}</div>
 {{- end }}
 
-<ul class="post-list">
-  {{- range $paginator.Pages }}
-  <li class="post-item">
-    <a href="{{ .RelPermalink }}">
-      <div class="post-item-date">{{ .Date | time.Format "2006-01-02" }}{{ if $.Site.Params.ShowReadingTime }} · {{ .ReadingTime }} min{{ end }}</div>
-      <span class="post-item-title">
-        {{- .Title }}
-        {{- if .Draft }} <sup style="color:var(--muted);font-size:.7em">draft</sup>{{ end }}
-      </span>
-    </a>
-    {{- if ne (.Param "hideSummary") true }}
-    <p class="post-item-summary">{{ .Summary | plainify | htmlUnescape }}</p>
-    {{- end }}
-    {{- with first 4 .Params.tags }}
-    <div class="post-item-tags">
-      {{- range . }}<span>{{ . }}</span>{{ end }}
-    </div>
-    {{- end }}
-  </li>
+{{- if eq .Kind "taxonomy" }}
+{{- /* tag / category index: a dry tag cloud */}}
+<div class="cloud">
+  {{- range .Data.Terms.Alphabetical }}
+  <a href="{{ .Page.RelPermalink }}">{{ .Page.Title }} <span class="n">{{ .Count }}</span></a>
   {{- end }}
-</ul>
+</div>
+
+{{- else }}
+{{- /* section or single term: paginated post listing */}}
+{{- $pages := .Pages }}
+{{- if .IsSection }}{{ $pages = .RegularPages }}{{ end }}
+{{- $paginator := .Paginate $pages }}
+<div class="index">
+  {{- range $paginator.Pages }}
+  <a class="row" href="{{ .RelPermalink }}">
+    <span class="date">{{ .Date | time.Format "2006-01-02" }}</span>
+    <span class="ttl">{{ .Title }}{{ if .Draft }} <sup>draft</sup>{{ end }}</span>
+    {{- if site.Params.ShowReadingTime }}<span class="rt">{{ .ReadingTime }} min</span>{{ else }}<span class="rt"></span>{{ end }}
+    {{- with first 4 .Params.tags }}
+    <span class="tags">{{ range . }}<span>{{ . }}</span> {{ end }}</span>
+    {{- end }}
+  </a>
+  {{- end }}
+</div>
 
 {{- if gt $paginator.TotalPages 1 }}
-<nav class="pagination">
-  {{- if $paginator.HasPrev }}<a class="prev" href="{{ $paginator.Prev.URL | relURL }}">← {{ i18n "prev_page" }}</a>{{ end }}
-  {{- if $paginator.HasNext }}<a class="next" href="{{ $paginator.Next.URL | relURL }}">{{ i18n "next_page" }} →</a>{{ end }}
+<nav class="pager">
+  {{- if $paginator.HasPrev }}<a class="prev" href="{{ $paginator.Prev.URL | relURL }}">&lt;&lt; newer</a>{{ end }}
+  {{- if $paginator.HasNext }}<a class="next" href="{{ $paginator.Next.URL | relURL }}">older &gt;&gt;</a>{{ end }}
 </nav>
 {{- end }}
-
 {{- end }}
 
-{{- end }}{{- /* end main */ -}}
+{{- end }}

@@ -1,0 +1,46 @@
+{{- define "main" }}
+
+{{- $profile := site.Params.profileMode }}
+
+<section class="whoami">
+  {{- with $profile.imageUrl }}
+  <img src="{{ . | relURL }}" alt="{{ $profile.title | default site.Title }}" draggable="false" loading="lazy">
+  {{- end }}
+  <div>
+    <h1>{{ $profile.title | default site.Title }}</h1>
+    <p class="role">{{ $profile.subtitle | default site.Params.description }}</p>
+    <p class="bio">Linux-focused offensive security research — evasion, rootkits, telemetry bypass, and post-exploitation write-ups.</p>
+    <div class="links">
+      {{- partial "social_icons.html" . -}}
+      <a class="disc" href="https://discord.gg/66N5ZQppU7" target="_blank" rel="noopener noreferrer">discord</a>
+    </div>
+  </div>
+</section>
+
+{{- $posts := where site.RegularPages "Type" "in" site.Params.mainSections }}
+{{- $posts = where $posts "Params.hiddenInHomeList" "!=" "true" }}
+{{- $paginator := .Paginate $posts }}
+
+<p class="sect"><span class="prompt">$</span> ls -t <b>./hacking</b> <span class="prompt">#</span> {{ len $posts }} phile{{ if ne (len $posts) 1 }}s{{ end }}</p>
+
+<div class="index">
+  {{- range $paginator.Pages }}
+  <a class="row" href="{{ .RelPermalink }}">
+    <span class="date">{{ .Date | time.Format "2006-01-02" }}</span>
+    <span class="ttl">{{ .Title }}</span>
+    {{- if site.Params.ShowReadingTime }}<span class="rt">{{ .ReadingTime }} min</span>{{ else }}<span class="rt"></span>{{ end }}
+    {{- with first 4 .Params.tags }}
+    <span class="tags">{{ range . }}<span>{{ . }}</span> {{ end }}</span>
+    {{- end }}
+  </a>
+  {{- end }}
+</div>
+
+{{- if gt $paginator.TotalPages 1 }}
+<nav class="pager">
+  {{- if $paginator.HasPrev }}<a class="prev" href="{{ $paginator.Prev.URL | relURL }}">&lt;&lt; newer</a>{{ end }}
+  {{- if $paginator.HasNext }}<a class="next" href="{{ $paginator.Next.URL | relURL }}">older &gt;&gt;</a>{{ end }}
+</nav>
+{{- end }}
+
+{{- end }}
