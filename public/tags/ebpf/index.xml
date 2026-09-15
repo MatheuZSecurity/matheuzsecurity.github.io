@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>EBPF on 0xMatheuZ</title>
     <link>http://localhost:1313/tags/ebpf/</link>
     <description>Recent content in EBPF on 0xMatheuZ</description>
-    <generator>Hugo</generator>
+    <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
     <lastBuildDate>Mon, 31 Aug 2026 00:00:00 -0300</lastBuildDate>
     <atom:link href="http://localhost:1313/tags/ebpf/index.xml" rel="self" type="application/rss+xml" />
@@ -13,21 +13,21 @@
       <link>http://localhost:1313/hacking/elastic-trusted-pid-bypass/</link>
       <pubDate>Mon, 31 Aug 2026 00:00:00 -0300</pubDate>
       <guid>http://localhost:1313/hacking/elastic-trusted-pid-bypass/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/60t8gkg.jpeg&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;Rootkit Researchers: &lt;a href=&#34;https://discord.gg/66N5ZQppU7&#34;&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;Singularity Rootkit: &lt;a href=&#34;https://github.com/MatheuZSecurity/Singularity&#34;&gt;https://github.com/MatheuZSecurity/Singularity&lt;/a&gt;&lt;/p&gt;&#xA;&lt;hr&gt;&#xA;&lt;p&gt;Elastic Defend has shipped a BPF-based module load event since around 8.14. With 9.5.0, that event gained a &lt;code&gt;taint_flags&lt;/code&gt; field, and &lt;a href=&#34;https://github.com/elastic/detection-rules/pull/6588&#34;&gt;PR #6588&lt;/a&gt; added the EQL detection rule that queries it. The older syslog rule from 2023 is still active and fires independently. Between the two, loading an unsigned or out-of-tree module without any evasion generates alerts from both paths.&lt;/p&gt;&#xA;&lt;p&gt;So there are two problems to deal with: the YARA scan on the &lt;code&gt;.ko&lt;/code&gt; file, and the BPF hook on module load.&lt;/p&gt;</description>
+      <description>Elastic Defend 9.5 added taint_flags to the module_load BPF event and a new detection rule on top of it. Here is how Singularity loads clean: source obfuscation for YARA, trusted_pids insertion for the BPF hook, and OBF_OUT=/var/lib/dkms for the .ko creation rule.</description>
     </item>
     <item>
       <title>BPF Map Poisoning: Attacking Falco from the Inside</title>
       <link>http://localhost:1313/hacking/bpf-map-poisoning-edr-evasion/</link>
       <pubDate>Mon, 06 Jul 2026 00:00:00 -0300</pubDate>
       <guid>http://localhost:1313/hacking/bpf-map-poisoning-edr-evasion/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/0Tyj00A.gif&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;Standard EDR evasion is avoidance. Anonymous &lt;code&gt;mmap&lt;/code&gt; instead of a file, direct syscalls to skip libc hooks, &lt;code&gt;memfd_create&lt;/code&gt; so &lt;code&gt;fanotify&lt;/code&gt; never sees a path. Stay out of what the EDR is watching.&lt;/p&gt;&#xA;&lt;p&gt;BPF Map Poisoning does the opposite: walk into the EDR and rewrite its monitoring state directly.&lt;/p&gt;&#xA;&lt;p&gt;Everything here was tested against Falco. The technique is possible in any eBPF-based sensor that stores monitoring state in BPF maps without &lt;code&gt;security_bpf_map&lt;/code&gt; enforcement.&lt;/p&gt;</description>
+      <description>Rewriting Falco&amp;#39;s BPF map state from userspace to suppress syscall monitoring without touching the eBPF program.</description>
     </item>
     <item>
       <title>Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</title>
       <link>http://localhost:1313/hacking/ebpf-security-tools-hacking/</link>
       <pubDate>Mon, 09 Feb 2026 15:25:08 +0000</pubDate>
       <guid>http://localhost:1313/hacking/ebpf-security-tools-hacking/</guid>
-      <description>&lt;p&gt;Stealthy Kernel Rootkit: &lt;a href=&#34;https://github.com/MatheuZSecurity/Singularity&#34;&gt;https://github.com/MatheuZSecurity/Singularity&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;Rootkit Researchers: &lt;a href=&#34;https://discord.gg/66N5ZQppU7&#34;&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;Me: &lt;a href=&#34;https://www.linkedin.com/in/mathsalves/&#34;&gt;https://www.linkedin.com/in/mathsalves/&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h1 id=&#34;introduction&#34;&gt;Introduction&lt;/h1&gt;&#xA;&lt;p&gt;Linux security tooling has leaned heavily into eBPF. Projects like Falco, Tracee, and Tetragon made kernel-level telemetry feel like a step change: richer context, low overhead, and visibility that&amp;rsquo;s difficult to evade from user space.&lt;/p&gt;&#xA;&lt;p&gt;But that promise quietly depends on a threat model: the kernel is assumed to be a trustworthy observer.&lt;/p&gt;&#xA;&lt;p&gt;This article explores what happens when that assumption breaks, specifically, when an attacker can execute code in the kernel (e.g., via a loaded module). In that world, the most valuable targets aren&amp;rsquo;t the eBPF programs themselves, but the plumbing around them: iterators, event delivery paths (ring buffer / perf buffer), perf submission, and map operations that turn kernel activity into user-space signals.&lt;/p&gt;</description>
+      <description>Deep technical analysis of bypassing eBPF-based security solutions through kernel-level hooks targeting BPF iterators, ringbuffers, and perf events</description>
     </item>
   </channel>
 </rss>

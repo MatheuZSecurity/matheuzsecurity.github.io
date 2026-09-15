@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>CTF on 0xMatheuZ</title>
     <link>http://localhost:1313/tags/ctf/</link>
     <description>Recent content in CTF on 0xMatheuZ</description>
-    <generator>Hugo</generator>
+    <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
     <lastBuildDate>Sun, 09 Nov 2025 12:25:18 -0500</lastBuildDate>
     <atom:link href="http://localhost:1313/tags/ctf/index.xml" rel="self" type="application/rss+xml" />
@@ -13,7 +13,7 @@
       <link>http://localhost:1313/hacking/ioctl-secrets/</link>
       <pubDate>Sun, 09 Nov 2025 12:25:18 -0500</pubDate>
       <guid>http://localhost:1313/hacking/ioctl-secrets/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/ZTjHU7a.jpeg&#34; alt=&#34;img&#34;&gt;&lt;/p&gt;&#xA;&lt;hr&gt;&#xA;&lt;h2 id=&#34;challenge-description&#34;&gt;Challenge Description&lt;/h2&gt;&#xA;&lt;p&gt;In this challenge, we&amp;rsquo;re given access to a Linux virtual machine (VM) running Ubuntu. The objective is to exploit a custom kernel module to retrieve a hidden flag. The challenge involves reverse engineering, kernel internals, and crafting a proper exploit.&lt;/p&gt;&#xA;&lt;p&gt;&lt;strong&gt;What we have:&lt;/strong&gt;&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;A hidden kernel module loaded at boot&lt;/li&gt;&#xA;&lt;li&gt;Character device at &lt;code&gt;/dev/ioctl_dev&lt;/code&gt;&lt;/li&gt;&#xA;&lt;li&gt;Setup script (&lt;code&gt;device.sh&lt;/code&gt;) that loads the module and shreds source files&lt;/li&gt;&#xA;&lt;li&gt;SSH access enabled (username: &lt;code&gt;root&lt;/code&gt;, password: &lt;code&gt;ioctl&lt;/code&gt;)&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;&lt;strong&gt;Important Note:&lt;/strong&gt; Many participants had difficulties copy-pasting code directly into the VM console. As stated in the challenge description, &lt;strong&gt;SSH is enabled&lt;/strong&gt; for easier interaction! This was a common pain point, so let&amp;rsquo;s start by addressing it.&lt;/p&gt;</description>
+      <description>Solving an easy reversing challenge from rootkit researchers.</description>
     </item>
   </channel>
 </rss>

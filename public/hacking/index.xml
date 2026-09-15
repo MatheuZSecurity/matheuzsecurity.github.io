@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Hacking on 0xMatheuZ</title>
     <link>http://localhost:1313/hacking/</link>
     <description>Recent content in Hacking on 0xMatheuZ</description>
-    <generator>Hugo</generator>
+    <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
     <lastBuildDate>Wed, 09 Sep 2026 00:00:00 -0400</lastBuildDate>
     <atom:link href="http://localhost:1313/hacking/index.xml" rel="self" type="application/rss+xml" />
@@ -13,112 +13,112 @@
       <link>http://localhost:1313/hacking/linux-kernel-keyring-fileless-exec/</link>
       <pubDate>Wed, 09 Sep 2026 00:00:00 -0400</pubDate>
       <guid>http://localhost:1313/hacking/linux-kernel-keyring-fileless-exec/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/VHYFmWT.png&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;Hello guys! So I wanted to show a technique for executing an ELF payload without ever touching the filesystem and without calling execve, the userland exec part is not new, the trick is using the Linux kernel keyring for staging, which is a bit different from what most people do for fileless execution, so lets go.&lt;/p&gt;&#xA;&lt;p&gt;The issue with the usual approaches like &lt;code&gt;memfd_create&lt;/code&gt; or &lt;code&gt;O_TMPFILE&lt;/code&gt; is that even though there&amp;rsquo;s no directory entry, you still end up with a file descriptor sitting in &lt;code&gt;/proc/self/fd/&lt;/code&gt; and an inode somewhere on a real filesystem. The keyring skips both.&lt;/p&gt;</description>
+      <description>Using the Linux kernel keyring to stage an ELF in slab memory and execute it via userland exec, skipping execve and the filesystem entirely.</description>
     </item>
     <item>
       <title>Fileless ELF Execution via O_TMPFILE</title>
       <link>http://localhost:1313/hacking/fileless-loader-bypassing-elastic-memfd/</link>
       <pubDate>Sun, 06 Sep 2026 00:00:00 -0400</pubDate>
       <guid>http://localhost:1313/hacking/fileless-loader-bypassing-elastic-memfd/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/n4kkDlE.jpeg&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;Hello guys! So today I want to show a way to execute an ELF payload that never touches disk as a named file. No &lt;code&gt;memfd_create&lt;/code&gt;, no &lt;code&gt;/memfd:&lt;/code&gt; prefix anywhere in telemetry. The trick is &lt;code&gt;O_TMPFILE&lt;/code&gt; combined with &lt;code&gt;execveat(AT_EMPTY_PATH)&lt;/code&gt;, and it works on any kernel since 3.19.&lt;/p&gt;&#xA;&lt;p&gt;The issue with &lt;code&gt;memfd_create&lt;/code&gt; is that it leaves a very specific fingerprint: &lt;code&gt;process.executable&lt;/code&gt; shows &lt;code&gt;/memfd:name (deleted)&lt;/code&gt;, the backing device is &lt;code&gt;00:01&lt;/code&gt; (the kernel&amp;rsquo;s internal anonymous tmpfs), and the syscall number is 319. Elastic, Falco, and basically every modern EDR have signatures for exactly that combination. &lt;code&gt;O_TMPFILE&lt;/code&gt; takes a completely different path through the kernel and produces none of those artifacts.&lt;/p&gt;</description>
+      <description>O_TMPFILE creates anonymous inodes on real filesystems with no directory entry. Combine it with execveat(AT_EMPTY_PATH) and you get fileless ELF execution that looks nothing like memfd_create in telemetry.</description>
     </item>
     <item>
       <title>Singularity Rootkit: Evading Elastic Defend Module Load Detection</title>
       <link>http://localhost:1313/hacking/elastic-trusted-pid-bypass/</link>
       <pubDate>Mon, 31 Aug 2026 00:00:00 -0300</pubDate>
       <guid>http://localhost:1313/hacking/elastic-trusted-pid-bypass/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/60t8gkg.jpeg&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;Rootkit Researchers: &lt;a href=&#34;https://discord.gg/66N5ZQppU7&#34;&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;Singularity Rootkit: &lt;a href=&#34;https://github.com/MatheuZSecurity/Singularity&#34;&gt;https://github.com/MatheuZSecurity/Singularity&lt;/a&gt;&lt;/p&gt;&#xA;&lt;hr&gt;&#xA;&lt;p&gt;Elastic Defend has shipped a BPF-based module load event since around 8.14. With 9.5.0, that event gained a &lt;code&gt;taint_flags&lt;/code&gt; field, and &lt;a href=&#34;https://github.com/elastic/detection-rules/pull/6588&#34;&gt;PR #6588&lt;/a&gt; added the EQL detection rule that queries it. The older syslog rule from 2023 is still active and fires independently. Between the two, loading an unsigned or out-of-tree module without any evasion generates alerts from both paths.&lt;/p&gt;&#xA;&lt;p&gt;So there are two problems to deal with: the YARA scan on the &lt;code&gt;.ko&lt;/code&gt; file, and the BPF hook on module load.&lt;/p&gt;</description>
+      <description>Elastic Defend 9.5 added taint_flags to the module_load BPF event and a new detection rule on top of it. Here is how Singularity loads clean: source obfuscation for YARA, trusted_pids insertion for the BPF hook, and OBF_OUT=/var/lib/dkms for the .ko creation rule.</description>
     </item>
     <item>
       <title>BPF Map Poisoning: Attacking Falco from the Inside</title>
       <link>http://localhost:1313/hacking/bpf-map-poisoning-edr-evasion/</link>
       <pubDate>Mon, 06 Jul 2026 00:00:00 -0300</pubDate>
       <guid>http://localhost:1313/hacking/bpf-map-poisoning-edr-evasion/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/0Tyj00A.gif&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;Standard EDR evasion is avoidance. Anonymous &lt;code&gt;mmap&lt;/code&gt; instead of a file, direct syscalls to skip libc hooks, &lt;code&gt;memfd_create&lt;/code&gt; so &lt;code&gt;fanotify&lt;/code&gt; never sees a path. Stay out of what the EDR is watching.&lt;/p&gt;&#xA;&lt;p&gt;BPF Map Poisoning does the opposite: walk into the EDR and rewrite its monitoring state directly.&lt;/p&gt;&#xA;&lt;p&gt;Everything here was tested against Falco. The technique is possible in any eBPF-based sensor that stores monitoring state in BPF maps without &lt;code&gt;security_bpf_map&lt;/code&gt; enforcement.&lt;/p&gt;</description>
+      <description>Rewriting Falco&amp;#39;s BPF map state from userspace to suppress syscall monitoring without touching the eBPF program.</description>
     </item>
     <item>
       <title>Trend Micro Deep Security Agent Research: Forcing bmhook/tmhook Reloads to Open a Protection Bypass Window</title>
       <link>http://localhost:1313/hacking/trendmicro-bmhook-tmhook-reload-bypass/</link>
       <pubDate>Wed, 03 Jun 2026 00:00:00 -0400</pubDate>
       <guid>http://localhost:1313/hacking/trendmicro-bmhook-tmhook-reload-bypass/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;http://localhost:1313/img/trendmicro-bmhook-tmhook-bypass/architecture.svg&#34; alt=&#34;architecture&#34;&gt;&lt;/p&gt;&#xA;&lt;blockquote&gt;&#xA;&lt;p&gt;&lt;strong&gt;Research scope:&lt;/strong&gt; This is security research on Trend Micro Deep Security Agent on Linux.&lt;/p&gt;&#xA;&lt;p&gt;The finding is not remote code execution and it is not a persistent kill switch. It is a forced security-control gap. A local unprivileged event storm can make the agent unload and reload its own behavior-monitoring kernel modules. During that window, protection behavior changes, and an artifact that was normally blocked was written to disk successfully.&lt;/p&gt;</description>
+      <description>Security research on a local event-storm condition that makes Trend Micro Deep Security Agent unload and reload bmhook/tmhook, creating a repeatable protection bypass window.</description>
     </item>
     <item>
       <title>Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</title>
       <link>http://localhost:1313/hacking/ebpf-security-tools-hacking/</link>
       <pubDate>Mon, 09 Feb 2026 15:25:08 +0000</pubDate>
       <guid>http://localhost:1313/hacking/ebpf-security-tools-hacking/</guid>
-      <description>&lt;p&gt;Stealthy Kernel Rootkit: &lt;a href=&#34;https://github.com/MatheuZSecurity/Singularity&#34;&gt;https://github.com/MatheuZSecurity/Singularity&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;Rootkit Researchers: &lt;a href=&#34;https://discord.gg/66N5ZQppU7&#34;&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;Me: &lt;a href=&#34;https://www.linkedin.com/in/mathsalves/&#34;&gt;https://www.linkedin.com/in/mathsalves/&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h1 id=&#34;introduction&#34;&gt;Introduction&lt;/h1&gt;&#xA;&lt;p&gt;Linux security tooling has leaned heavily into eBPF. Projects like Falco, Tracee, and Tetragon made kernel-level telemetry feel like a step change: richer context, low overhead, and visibility that&amp;rsquo;s difficult to evade from user space.&lt;/p&gt;&#xA;&lt;p&gt;But that promise quietly depends on a threat model: the kernel is assumed to be a trustworthy observer.&lt;/p&gt;&#xA;&lt;p&gt;This article explores what happens when that assumption breaks, specifically, when an attacker can execute code in the kernel (e.g., via a loaded module). In that world, the most valuable targets aren&amp;rsquo;t the eBPF programs themselves, but the plumbing around them: iterators, event delivery paths (ring buffer / perf buffer), perf submission, and map operations that turn kernel activity into user-space signals.&lt;/p&gt;</description>
+      <description>Deep technical analysis of bypassing eBPF-based security solutions through kernel-level hooks targeting BPF iterators, ringbuffers, and perf events</description>
     </item>
     <item>
       <title>Ioctl Secrets Writeup</title>
       <link>http://localhost:1313/hacking/ioctl-secrets/</link>
       <pubDate>Sun, 09 Nov 2025 12:25:18 -0500</pubDate>
       <guid>http://localhost:1313/hacking/ioctl-secrets/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/ZTjHU7a.jpeg&#34; alt=&#34;img&#34;&gt;&lt;/p&gt;&#xA;&lt;hr&gt;&#xA;&lt;h2 id=&#34;challenge-description&#34;&gt;Challenge Description&lt;/h2&gt;&#xA;&lt;p&gt;In this challenge, we&amp;rsquo;re given access to a Linux virtual machine (VM) running Ubuntu. The objective is to exploit a custom kernel module to retrieve a hidden flag. The challenge involves reverse engineering, kernel internals, and crafting a proper exploit.&lt;/p&gt;&#xA;&lt;p&gt;&lt;strong&gt;What we have:&lt;/strong&gt;&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;A hidden kernel module loaded at boot&lt;/li&gt;&#xA;&lt;li&gt;Character device at &lt;code&gt;/dev/ioctl_dev&lt;/code&gt;&lt;/li&gt;&#xA;&lt;li&gt;Setup script (&lt;code&gt;device.sh&lt;/code&gt;) that loads the module and shreds source files&lt;/li&gt;&#xA;&lt;li&gt;SSH access enabled (username: &lt;code&gt;root&lt;/code&gt;, password: &lt;code&gt;ioctl&lt;/code&gt;)&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;&lt;strong&gt;Important Note:&lt;/strong&gt; Many participants had difficulties copy-pasting code directly into the VM console. As stated in the challenge description, &lt;strong&gt;SSH is enabled&lt;/strong&gt; for easier interaction! This was a common pain point, so let&amp;rsquo;s start by addressing it.&lt;/p&gt;</description>
+      <description>Solving an easy reversing challenge from rootkit researchers.</description>
     </item>
     <item>
       <title>Evading Elastic Security: Linux Rootkit Detection Bypass</title>
       <link>http://localhost:1313/hacking/bypassing-elastic/</link>
       <pubDate>Thu, 30 Oct 2025 14:15:09 -0400</pubDate>
       <guid>http://localhost:1313/hacking/bypassing-elastic/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://giffiles.alphacoders.com/223/223415.gif&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;Stealthy Kernel Rootkit: &lt;a href=&#34;https://github.com/MatheuZSecurity/Singularity&#34;&gt;https://github.com/MatheuZSecurity/Singularity&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;Rootkit Researchers: &lt;a href=&#34;https://discord.gg/66N5ZQppU7&#34;&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h1 id=&#34;introduction&#34;&gt;Introduction&lt;/h1&gt;&#xA;&lt;p&gt;Security solutions continue to intensify. Modern EDRs like Elastic Security, integrated with Elastic Defend, employ multiple detection layers including YARA signatures and behavioral analysis to identify Linux kernel rootkits, triggering 26+ alerts on a single malicious module.&lt;/p&gt;&#xA;&lt;p&gt;This article demonstrates how to systematically evade these defenses. We present a comprehensive case study of developing a Linux rootkit that successfully bypasses Elastic Security&amp;rsquo;s detection mechanisms through obfuscation, fragmentation, and staged execution techniques. All content is strictly for educational purposes only.&lt;/p&gt;</description>
+      <description>Bypassing YARA rules and behavioral detection through symbol randomization, module fragmentation, XOR encoding, and ICMP reverse shell staging</description>
     </item>
     <item>
       <title>Red Team Tactics: Evading EDR on Linux with io_uring</title>
       <link>http://localhost:1313/hacking/evading-linux-edrs-with-io-uring/</link>
       <pubDate>Fri, 04 Jul 2025 10:35:09 -0400</pubDate>
       <guid>http://localhost:1313/hacking/evading-linux-edrs-with-io-uring/</guid>
-      <description>&lt;p&gt;Full source: &lt;a href=&#34;https://github.com/MatheuZSecurity/RingReaper&#34;&gt;https://github.com/MatheuZSecurity/RingReaper&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;table-of-contents&#34;&gt;Table of Contents&lt;/h2&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;&lt;a href=&#34;#introduction&#34;&gt;Introduction&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;#what-is-io_uring&#34;&gt;What is io_uring?&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;#the-agent&#34;&gt;The Agent&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;#code-analysis&#34;&gt;Code Analysis&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;#how-does-the-edr-typically-fail-here&#34;&gt;How Does the EDR Typically Fail Here?&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;#practical-edr-bypass&#34;&gt;Practical EDR Bypass&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;#python-c2-server-flow&#34;&gt;Python C2 Server Flow&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;#defensive-reflections&#34;&gt;Defensive Reflections&lt;/a&gt;&lt;/li&gt;&#xA;&lt;li&gt;&lt;a href=&#34;#conclusion&#34;&gt;Conclusion&lt;/a&gt;&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;Each year, new security solutions emerge to protect Linux systems against increasingly sophisticated threats. Technologies such as &lt;code&gt;EDR (Endpoint Detection and Response)&lt;/code&gt; evolve rapidly, making the work of an attacker more challenging.&lt;/p&gt;&#xA;&lt;p&gt;We, as &lt;strong&gt;red teamers&lt;/strong&gt;, we need to stay one step ahead, seeking to understand not only the defenses, but also how to creatively circumvent them.&lt;/p&gt;</description>
+      <description>Learn how to bypass modern defenses with io_uring</description>
     </item>
     <item>
       <title>breaking ld_preload rootkit hooks</title>
       <link>http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/</link>
       <pubDate>Sat, 21 Jun 2025 16:33:03 -0400</pubDate>
       <guid>http://localhost:1313/hacking/using-io-uring-to-break-linux-rootkits-hooks/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/TGcNnzI.png&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;This article explores a technique to bypass Userland based hooks, such as those implemented via LD_PRELOAD by leveraging io_uring, a modern Linux kernel interface for asynchronous I/O. By bypassing traditional libc wrappers, such as &lt;code&gt;open()&lt;/code&gt;, &lt;code&gt;write()&lt;/code&gt;, and &lt;code&gt;close()&lt;/code&gt;, which are commonly intercepted in LD_PRELOAD based hooks, it&amp;rsquo;s possible to evade detection or interference by such malicious userspace mechanisms.&lt;/p&gt;&#xA;&lt;p&gt;We demonstrate this by comparing a simple LD_PRELOAD rootkit that hooks the &lt;code&gt;open()&lt;/code&gt; call with a program that uses io_uring to interact with the file system while still leveraging syscalls internally, io_uring minimizes user‑kernel transitions by batching operations through shared memory queues, issuing only a few essential syscalls (e.g., &lt;code&gt;io_uring_enter&lt;/code&gt;, &lt;code&gt;io_uring_setup&lt;/code&gt;) for coordination.&lt;/p&gt;</description>
+      <description>I miss you</description>
     </item>
     <item>
       <title>Bypassing LD_PRELOAD Rootkits Is Easy</title>
       <link>http://localhost:1313/hacking/bypass-userland-hooks/</link>
       <pubDate>Wed, 14 May 2025 19:42:06 -0400</pubDate>
       <guid>http://localhost:1313/hacking/bypass-userland-hooks/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/JhWCyVT.png&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;In this post, I&amp;rsquo;m going to get into a really cool topic, which is how to bypass the hooks used by LD_PRELOAD rootkits, a technique that is effective against most, if not all, of them.&lt;/p&gt;&#xA;&lt;h2 id=&#34;ld_preload&#34;&gt;LD_PRELOAD&lt;/h2&gt;&#xA;&lt;p&gt;&lt;code&gt;LD_PRELOAD&lt;/code&gt; is an environment variable used by dynamic linkers on Unix-like systems (such as /lib64/ld-linux-x86-64.so.2 on x86_64 Linux) to force specific shared libraries to be loaded before any others during program execution.&lt;/p&gt;</description>
+      <description>Learn how to bypass LD_PRELOAD rootkits.</description>
     </item>
     <item>
       <title>ElfDoor-gcc</title>
       <link>http://localhost:1313/hacking/gcc/</link>
       <pubDate>Sun, 13 Apr 2025 13:14:56 -0400</pubDate>
       <guid>http://localhost:1313/hacking/gcc/</guid>
-      <description>&lt;h1 id=&#34;hijacking-gcc-with-ld_preload&#34;&gt;Hijacking GCC with LD_PRELOAD&lt;/h1&gt;&#xA;&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/MmPbrjL.png&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;If you&amp;rsquo;ve ever wondered how it&amp;rsquo;s possible to inject malicious code into binaries &lt;strong&gt;without touching the source code&lt;/strong&gt;, and using only standard Linux tools, this article is for you. We&amp;rsquo;ll explore a very cool technique that intercepts the compilation process with LD_PRELOAD, modifying the commands executed and forcing the inclusion of a malicious library during &lt;strong&gt;linking&lt;/strong&gt;.&lt;/p&gt;&#xA;&lt;p&gt;In the end, the compiled binary looks legitimate, but it is infected with embedded malicious code, ready to be executed at the right time.&lt;/p&gt;</description>
+      <description>Hijacking GCC via LD_PRELOAD.</description>
     </item>
     <item>
       <title>Detecting rootkits based on ftrace hooking.</title>
       <link>http://localhost:1313/hacking/ftrace-rootkit/</link>
       <pubDate>Thu, 26 Dec 2024 21:46:23 -0300</pubDate>
       <guid>http://localhost:1313/hacking/ftrace-rootkit/</guid>
-      <description>&lt;p&gt;Hello! Welcome to this post! Well, I have a server that is focused on rootkit research, both for Linux and Windows, feel free to come and participate in our community.&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;&lt;a href=&#34;https://discord.gg/66N5ZQppU7&#34;&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;h2 id=&#34;what-is-ftrace&#34;&gt;What is Ftrace?&lt;/h2&gt;&#xA;&lt;p&gt;ftrace (Function tracing) is a kernel function tracer. It helps a lot with debugging the Linux kernel, tracing functions, events, and of course, you can use ftrace to do hooking, etc.&lt;/p&gt;&#xA;&lt;p&gt;Main Features:&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;Function Tracing: Records kernel function calls, including order and execution time.&lt;/li&gt;&#xA;&lt;li&gt;Event Tracing: Monitors system events.&lt;/li&gt;&#xA;&lt;li&gt;Custom Filters: Focus on specific functions or events via configuration files.&lt;/li&gt;&#xA;&lt;li&gt;Support for dynamic tracers like kprobes and integration with tools like perf.&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;On more current systems, tracing is enabled by default, but if not, simply set it:&lt;/p&gt;</description>
+      <description>Learn how to detect rootkit based on ftrace hooking.</description>
     </item>
     <item>
       <title>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</title>
       <link>http://localhost:1313/hacking/ldpreload-rootkit/</link>
       <pubDate>Tue, 26 Nov 2024 20:06:42 -0800</pubDate>
       <guid>http://localhost:1313/hacking/ldpreload-rootkit/</guid>
-      <description>&lt;p&gt;Hello! Welcome to this post! Well, I have a group that is focused on rootkit research, both for Linux and Windows, feel free to come and participate in our community.&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;&lt;a href=&#34;https://discord.gg/66N5ZQppU7&#34;&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;h2 id=&#34;what-is-ld_preload-rootkit&#34;&gt;What is LD_PRELOAD Rootkit?&lt;/h2&gt;&#xA;&lt;p&gt;Before we begin, we need to understand what an &lt;code&gt;LD_PRELOAD rootkit&lt;/code&gt; is.&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;Is a type of malware that uses the &lt;code&gt;LD_PRELOAD&lt;/code&gt; environment variable to load malicious shared libraries. It intercepts and modifies functions, allowing you to hide files, processes and activities. So, an LD_PRELOAD rootkit runs in user space (ring3), because it does not interact directly with the kernel.&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;A good point about LD_PRELOAD Rootkit is that, unlike LKM (Loadable Kernel Module), they are much more stable, compatible and are also easier to develop.&lt;/p&gt;</description>
+      <description>Learn how to detect and hide a LD_PRELOAD rootkit from ldd, /proc/pid/maps, etc.</description>
     </item>
     <item>
       <title>A simple way to detect and remove LKM rootkit KoviD (Outdated)</title>
       <link>http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/</link>
       <pubDate>Mon, 26 Aug 2024 10:29:01 -0400</pubDate>
       <guid>http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/Xd3Y153.jpeg&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;Hello everyone, welcome to this post where I will cover the easiest way on how to detect and remove LKM KoviD rootkit.&lt;/p&gt;&#xA;&lt;p&gt;But first of all, we need to understand how the KoviD works.&lt;/p&gt;&#xA;&lt;h2 id=&#34;what-is-kovid&#34;&gt;What is KoviD?&lt;/h2&gt;&#xA;&lt;p&gt;KoviD is a Linux kernel rootkit, containing several features that make it difficult to detect and remove, in my opinion KoviD is the best open source LKM rootkit today, you can see more about it on &lt;a href=&#34;https://github.com/carloslack/KoviD&#34;&gt;github&lt;/a&gt;.&lt;/p&gt;</description>
+      <description>Learn a simple way on how to detect and remove Kovid rootkit.</description>
     </item>
     <item>
       <title>Linux Threat Hunting Persistence</title>
       <link>http://localhost:1313/hacking/linux-threat-hunting-persistence/</link>
       <pubDate>Fri, 16 Feb 2024 00:00:29 -0300</pubDate>
       <guid>http://localhost:1313/hacking/linux-threat-hunting-persistence/</guid>
-      <description>&lt;p&gt;&lt;img src=&#34;https://i.imgur.com/lM0kWBM.jpeg&#34; alt=&#34;imgur&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;Hello everyone, welcome to this post, where I will cover the topic “Linux Threat Hunting Persistence”.&lt;/p&gt;&#xA;&lt;p&gt;The objective of this post is to learn how to hunt for persistence on Linux machines, without using paid tools/framework, just using the tools that are already available (open source) for anyone to download and use and also using Linux&amp;rsquo;s own resources to be able to do hunt for persistence.&lt;/p&gt;&#xA;&lt;p&gt;Below is what we will cover in this post.&lt;/p&gt;</description>
+      <description>Learn about persistence in Linux and how to hunt</description>
     </item>
   </channel>
 </rss>
