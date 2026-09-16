@@ -59,9 +59,9 @@ params:
       url:  "https://www.youtube.com/MatheuZSecurity"
 
   cover:
-    hidden: true # hide everywhere but not in structured data
-    hiddenInList: true # hide on list pages and home
-    hiddenInSingle: true # hide on single page
+    hidden: false
+    hiddenInList: false
+    hiddenInSingle: false
 
   assets:
     theme_color: "#06070b"
