@@ -5,8 +5,8 @@ description: Deep technical analysis of bypassing eBPF-based security solutions 
 categories: [Red Team]
 tags: [eBPF, Kernel Security, Evasion]
 author: 0xMatheuZ
-images:
-  - "https://i.imgur.com/RtaoVy1.jpeg"
+cover:
+  image: "https://i.imgur.com/RtaoVy1.jpeg"
 ---
 
 Stealthy Kernel Rootkit: https://github.com/MatheuZSecurity/Singularity

@@ -5,8 +5,8 @@ description: Solving an easy reversing challenge from rootkit researchers.
 categories: [Reversing]
 tags: [CTF]
 author: 0xMatheuZ
-images:
-  - "https://i.imgur.com/ZTjHU7a.jpeg"
+cover:
+  image: "https://i.imgur.com/ZTjHU7a.jpeg"
 ---
 
 ![img](https://i.imgur.com/ZTjHU7a.jpeg)

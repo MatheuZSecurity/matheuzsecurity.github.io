@@ -9,8 +9,8 @@ draft: false
 ShowToc: true
 TocOpen: true
 UseHugoToc: true
-images:
-  - "https://i.imgur.com/QPJusUn.png"
+cover:
+  image: "https://i.imgur.com/QPJusUn.png"
 ---
 
 ![architecture](/img/trendmicro-bmhook-tmhook-bypass/architecture.svg)

@@ -5,8 +5,8 @@ description: Bypassing YARA rules and behavioral detection through symbol random
 categories: [Red Team]
 tags: [Evasion]
 author: 0xMatheuZ
-images:
-  - "https://i.imgur.com/5vHDN0B.png"
+cover:
+  image: "https://i.imgur.com/5vHDN0B.png"
 ---
 
 ![imgur](https://giffiles.alphacoders.com/223/223415.gif)

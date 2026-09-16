@@ -9,8 +9,8 @@ draft: false
 ShowToc: true
 TocOpen: true
 UseHugoToc: true
-images:
-  - "https://i.imgur.com/n4kkDlE.jpeg"
+cover:
+  image: "https://i.imgur.com/n4kkDlE.jpeg"
 ---
 
 ![imgur](https://i.imgur.com/n4kkDlE.jpeg)
