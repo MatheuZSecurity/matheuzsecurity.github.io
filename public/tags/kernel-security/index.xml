@@ -1,7 +1,19 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Kernel Security on 0xMatheuZ</title><link>https://matheuzsecurity.github.io/tags/kernel-security/</link><description>Recent content in Kernel Security on 0xMatheuZ</description><generator>Hugo</generator><language>en</language><lastBuildDate>Mon, 09 Feb 2026 15:25:08 +0000</lastBuildDate><atom:link href="https://matheuzsecurity.github.io/tags/kernel-security/index.xml" rel="self" type="application/rss+xml"/><item><title>Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</title><link>https://matheuzsecurity.github.io/hacking/ebpf-security-tools-hacking/</link><pubDate>Mon, 09 Feb 2026 15:25:08 +0000</pubDate><guid>https://matheuzsecurity.github.io/hacking/ebpf-security-tools-hacking/</guid><description>&lt;p&gt;Stealthy Kernel Rootkit: &lt;a href="https://github.com/MatheuZSecurity/Singularity"&gt;https://github.com/MatheuZSecurity/Singularity&lt;/a&gt;&lt;/p&gt;
-&lt;p&gt;Rootkit Researchers: &lt;a href="https://discord.gg/66N5ZQppU7"&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/p&gt;
-&lt;p&gt;Me: &lt;a href="https://www.linkedin.com/in/mathsalves/"&gt;https://www.linkedin.com/in/mathsalves/&lt;/a&gt;&lt;/p&gt;
-&lt;h1 id="introduction"&gt;Introduction&lt;/h1&gt;
-&lt;p&gt;Linux security tooling has leaned heavily into eBPF. Projects like Falco, Tracee, and Tetragon made kernel-level telemetry feel like a step change: richer context, low overhead, and visibility that&amp;rsquo;s difficult to evade from user space.&lt;/p&gt;
-&lt;p&gt;But that promise quietly depends on a threat model: the kernel is assumed to be a trustworthy observer.&lt;/p&gt;
-&lt;p&gt;This article explores what happens when that assumption breaks, specifically, when an attacker can execute code in the kernel (e.g., via a loaded module). In that world, the most valuable targets aren&amp;rsquo;t the eBPF programs themselves, but the plumbing around them: iterators, event delivery paths (ring buffer / perf buffer), perf submission, and map operations that turn kernel activity into user-space signals.&lt;/p&gt;</description></item></channel></rss>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Kernel Security on 0xMatheuZ</title>
+    <link>http://localhost:1313/tags/kernel-security/</link>
+    <description>Recent content in Kernel Security on 0xMatheuZ</description>
+    <generator>Hugo</generator>
+    <language>en</language>
+    <lastBuildDate>Mon, 09 Feb 2026 15:25:08 +0000</lastBuildDate>
+    <atom:link href="http://localhost:1313/tags/kernel-security/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</title>
+      <link>http://localhost:1313/hacking/ebpf-security-tools-hacking/</link>
+      <pubDate>Mon, 09 Feb 2026 15:25:08 +0000</pubDate>
+      <guid>http://localhost:1313/hacking/ebpf-security-tools-hacking/</guid>
+      <description>&lt;p&gt;Stealthy Kernel Rootkit: &lt;a href=&#34;https://github.com/MatheuZSecurity/Singularity&#34;&gt;https://github.com/MatheuZSecurity/Singularity&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;Rootkit Researchers: &lt;a href=&#34;https://discord.gg/66N5ZQppU7&#34;&gt;https://discord.gg/66N5ZQppU7&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;Me: &lt;a href=&#34;https://www.linkedin.com/in/mathsalves/&#34;&gt;https://www.linkedin.com/in/mathsalves/&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h1 id=&#34;introduction&#34;&gt;Introduction&lt;/h1&gt;&#xA;&lt;p&gt;Linux security tooling has leaned heavily into eBPF. Projects like Falco, Tracee, and Tetragon made kernel-level telemetry feel like a step change: richer context, low overhead, and visibility that&amp;rsquo;s difficult to evade from user space.&lt;/p&gt;&#xA;&lt;p&gt;But that promise quietly depends on a threat model: the kernel is assumed to be a trustworthy observer.&lt;/p&gt;&#xA;&lt;p&gt;This article explores what happens when that assumption breaks, specifically, when an attacker can execute code in the kernel (e.g., via a loaded module). In that world, the most valuable targets aren&amp;rsquo;t the eBPF programs themselves, but the plumbing around them: iterators, event delivery paths (ring buffer / perf buffer), perf submission, and map operations that turn kernel activity into user-space signals.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

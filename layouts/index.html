@@ -9,7 +9,7 @@
   <div>
     <h1>{{ $profile.title | default site.Title }}</h1>
     <p class="role">{{ $profile.subtitle | default site.Params.description }}</p>
-    <p class="bio">Linux-focused offensive security research — evasion, rootkits, telemetry bypass, and post-exploitation write-ups.</p>
+    <p class="bio">My research writeups and tricks</p>
     <div class="links">
       {{- partial "social_icons.html" . -}}
       <a class="disc" href="https://discord.gg/66N5ZQppU7" target="_blank" rel="noopener noreferrer">discord</a>
@@ -21,7 +21,7 @@
 {{- $posts = where $posts "Params.hiddenInHomeList" "!=" "true" }}
 {{- $paginator := .Paginate $posts }}
 
-<p class="sect"><span class="prompt">$</span> ls -t <b>./hacking</b> <span class="prompt">#</span> {{ len $posts }} phile{{ if ne (len $posts) 1 }}s{{ end }}</p>
+<p class="sect"><span class="prompt">$</span> ls -t <b>./hacking</b> <span class="prompt">#</span> {{ len $posts }} file{{ if ne (len $posts) 1 }}s{{ end }}</p>
 
 <div class="index">
   {{- range $paginator.Pages }}

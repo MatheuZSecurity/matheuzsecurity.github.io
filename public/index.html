@@ -1,4 +1,31 @@
-<!doctype html><html lang=en dir=ltr><head><meta name=generator content="Hugo 0.161.0"><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=robots content="index, follow"><title>0xMatheuZ</title><meta name=description content="Red Team / Offensive Security Research / Pentest."><meta name=author content="0xMatheuZ"><meta name=keywords content="Blog"><link rel=canonical href=https://matheuzsecurity.github.io/><meta property="og:title" content="0xMatheuZ"><meta property="og:description" content="Red Team / Offensive Security Research / Pentest."><meta property="og:type" content="website"><meta property="og:url" content="https://matheuzsecurity.github.io/"><meta name=twitter:card content="summary"><meta name=twitter:site content="@MatheuzSecurity"><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel=stylesheet><link rel=stylesheet href=/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css integrity="sha256-G8Z/+0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI="><link rel=icon href=/img/0xm-badge.png><meta name=theme-color content="#06070b"><link rel=alternate type=application/rss+xml href=https://matheuzsecurity.github.io/index.xml><link rel=alternate type=application/json href=https://matheuzsecurity.github.io/index.json></head><body id=top><header class=site-head><div class=wrap><div class=masthead><pre class=logo-art role=img aria-label=MatheuZ>
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+	<meta name="generator" content="Hugo 0.161.0"><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index, follow">
+
+<title>0xMatheuZ</title>
+<meta name="description" content="Red Team / Offensive Security Research / Pentest.">
+<meta name="author" content="0xMatheuZ"><meta name="keywords" content="Blog">
+<link rel="canonical" href="http://localhost:1313/">
+<meta property="og:title" content="0xMatheuZ">
+<meta property="og:description" content="Red Team / Offensive Security Research / Pentest.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="http://localhost:1313/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@MatheuzSecurity">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css" integrity="sha256-G8Z/&#43;0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI=">
+<link rel="icon" href="/img/0xm-badge.png">
+<meta name="theme-color" content="#06070b"><link rel="alternate" type="application/rss&#43;xml" href="http://localhost:1313/index.xml"><link rel="alternate" type="application/json" href="http://localhost:1313/index.json">
+</head>
+<body id="top"><header class="site-head">
+  <div class="wrap">
+    <div class="masthead">
+      <pre class="logo-art" role="img" aria-label="MatheuZ">
  _____ ______   ________  _________  ___  ___  _______   ___  ___  ________
 |\   _ \  _   \|\   __  \|\___   ___\\  \|\  \|\  ___ \ |\  \|\  \|\_____  \
 \ \  \\\__\ \  \ \  \|\  \|___ \  \_\ \  \\\  \ \   __/|\ \  \\\  \\|___/  /|
@@ -8,24 +35,74 @@
     \|__|     \|__|\|__|\|__|    \|__|  \|__|\|__|\|_______|\|_______|\|_______|
 
 
-</pre><div class=masthead-bar><span class=hn>MatheuZ</span><span class=sep> :: </span>offensive security research<span class=sep> :: </span>linux internals</div></div><nav class=nav><span class=prompt>visitor@0xm:~$</span>
-<a href=/ class=active>Home</a>
-<a href=/hacking>hacking</a>
-<a href=/tags>Tags</a>
-<a href=/search>Search</a></nav></div></header><main class=main><section class=whoami><img src=/img/operator-avatar.png alt=MatheuZ draggable=false loading=lazy><div><h1>MatheuZ</h1><p class=role>Red Team Operator, Offensive Security Researcher, and Pentester</p><p class=bio>Linux-focused offensive security research — evasion, rootkits, telemetry bypass, and post-exploitation write-ups.</p><div class=links><span class=social-icons><a href=https://twitter.com/MatheuzSecurity target=_blank rel="noopener noreferrer me" title=Twitter aria-label=Twitter><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23 3a10.9 10.9.0 01-3.14 1.53 4.48 4.48.0 00-7.86 3v1A10.66 10.66.0 013 4s-4 9 5 13a11.64 11.64.0 01-7 2c9 5 20 0 20-11.5a4.5 4.5.0 00-.08-.83A7.72 7.72.0 0023 3z"/></svg></a>
-<a href=https://github.com/MatheuZSecurity target=_blank rel="noopener noreferrer me" title=Github aria-label=Github><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.4.5.0 5.9.0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9.0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2.0.0 1-.3 3.3 1.2a11.5 11.5.0 016 0C17 4.6 18 4.9 18 4.9c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2.0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0024 12.5c0-6.6-5.4-12-12-12z"/></svg></a>
-<a href=https://app.hackthebox.com/users/1711272 target=_blank rel="noopener noreferrer me" title=Hackthebox aria-label=Hackthebox><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.2 2.7 6.6v10.8L12 22.8l9.3-5.4V6.6L12 1.2zm6.9 6.2-6.9 4-6.9-4 6.9-4 6.9 4zm-13 1.7 6 3.5v6.9l-6-3.5V9.1zm7.2 10.4v-6.9l6-3.5V16l-6 3.5z"/></svg></a>
-<a href=https://tryhackme.com/p/MatheuZSec target=_blank rel="noopener noreferrer me" title=Tryhackme aria-label=Tryhackme><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 3 6v6c0 5 3.8 8.9 9 10 5.2-1.1 9-5 9-10V6l-9-4zm0 2.2 7 3.1V12c0 3.9-2.9 7-7 8-4.1-1-7-4.1-7-8V7.3l7-3.1zm-1 3.6L8 13h2.2L9 16l4-5.4h-2.3L12 7.8h-1z"/></svg></a>
-<a href=https://www.youtube.com/MatheuZSecurity target=_blank rel="noopener noreferrer me" title=Youtube aria-label=Youtube><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23 7.5s-.2-1.6-.9-2.3c-.9-.9-1.8-.9-2.3-1C16.6 4 12 4 12 4s-4.6.0-7.8.2c-.5.1-1.4.1-2.3 1-.7.7-.9 2.3-.9 2.3S.8 9.4.8 11.3v1.4c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2.1.9 2.6 1 1.9.2 7.5.2 7.5.2s4.6.0 7.8-.2c.5-.1 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8v-1.4c0-1.9-.2-3.8-.2-3.8zM9.8 15.1V8.9l6 3.1-6 3.1z"/></svg></a>
-</span><a class=disc href=https://discord.gg/66N5ZQppU7 target=_blank rel="noopener noreferrer">discord</a></div></div></section><p class=sect><span class=prompt>$</span> ls -t <b>./hacking</b> <span class=prompt>#</span> 16 philes</p><div class=index><a class=row href=/hacking/linux-kernel-keyring-fileless-exec/><span class=date>2026-09-09</span>
-<span class=ttl>Fileless ELF Execution via Kernel Keyring</span><span class=rt>7 min</span>
-<span class=tags><span>Fileless</span> <span>Linux</span> <span>Red Team</span> <span>Kernel</span> </span></a><a class=row href=/hacking/fileless-loader-bypassing-elastic-memfd/><span class=date>2026-09-06</span>
-<span class=ttl>Fileless ELF Execution via O_TMPFILE</span><span class=rt>5 min</span>
-<span class=tags><span>Fileless</span> <span>EDR</span> <span>Elastic</span> <span>Linux</span> </span></a><a class=row href=/hacking/elastic-trusted-pid-bypass/><span class=date>2026-08-31</span>
-<span class=ttl>Singularity Rootkit: Evading Elastic Defend Module Load Detection</span><span class=rt>6 min</span>
-<span class=tags><span>EDR Evasion</span> <span>eBPF</span> <span>Elastic</span> <span>Linux</span> </span></a><a class=row href=/hacking/bpf-map-poisoning-edr-evasion/><span class=date>2026-07-06</span>
-<span class=ttl>BPF Map Poisoning: Attacking Falco from the Inside</span><span class=rt>9 min</span>
-<span class=tags><span>EDR Evasion</span> <span>eBPF</span> <span>Falco</span> <span>Linux</span> </span></a><a class=row href=/hacking/trendmicro-bmhook-tmhook-reload-bypass/><span class=date>2026-06-03</span>
-<span class=ttl>Trend Micro Deep Security Agent Research: Forcing bmhook/tmhook Reloads to Open a Protection Bypass Window</span><span class=rt>24 min</span>
-<span class=tags><span>Trend Micro</span> <span>Deep Security Agent</span> <span>Linux Kernel</span> <span>LKM</span></span></a></div><nav class=pager><a class=next href=/page/2/>older >></a></nav></main><footer class=foot><span>&copy; 2026 <a href=/>0xMatheuZ</a></span>
-<span>built with <a href=https://gohugo.io/ target=_blank rel=noopener>hugo</a> · handcrafted layouts</span></footer></body></html>
+</pre>
+      <div class="masthead-bar">
+        <span class="hn">MatheuZ</span><span class="sep"> :: </span>offensive security research<span class="sep"> :: </span>linux internals
+      </div>
+    </div>
+    <nav class="nav">
+      <span class="prompt">guest@box:~$</span>
+      <a href="/" class="active">Home</a>
+      <a href="/hacking">hacking</a>
+      <a href="/tags">Tags</a>
+      <a href="/search">Search</a>
+    </nav>
+  </div>
+</header>
+<main class="main">
+
+<section class="whoami">
+  <img src="/img/operator-avatar.png" alt="MatheuZ" draggable="false" loading="lazy">
+  <div>
+    <h1>MatheuZ</h1>
+    <p class="role">Red Team Operator, Offensive Security Researcher, and Pentester</p>
+    <p class="bio">My research writeups and tricks</p>
+    <div class="links"><span class="social-icons">
+    <a href="https://twitter.com/MatheuzSecurity" target="_blank" rel="noopener noreferrer me" title="Twitter" aria-label="Twitter"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg></a>
+    <a href="https://github.com/MatheuZSecurity" target="_blank" rel="noopener noreferrer me" title="Github" aria-label="Github"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17 4.6 18 4.9 18 4.9c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 24 12.5C24 5.9 18.6.5 12 .5z"/></svg></a>
+    <a href="https://app.hackthebox.com/users/1711272" target="_blank" rel="noopener noreferrer me" title="Hackthebox" aria-label="Hackthebox"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.2 2.7 6.6v10.8L12 22.8l9.3-5.4V6.6L12 1.2Zm6.9 6.2L12 11.4 5.1 7.4 12 3.4l6.9 4Zm-13 1.7 6 3.5v6.9l-6-3.5V9.1Zm7.2 10.4v-6.9l6-3.5v6.9l-6 3.5Z"/></svg></a>
+    <a href="https://tryhackme.com/p/MatheuZSec" target="_blank" rel="noopener noreferrer me" title="Tryhackme" aria-label="Tryhackme"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 3 6v6c0 5 3.8 8.9 9 10 5.2-1.1 9-5 9-10V6l-9-4Zm0 2.2 7 3.1v4.7c0 3.9-2.9 7-7 8-4.1-1-7-4.1-7-8V7.3l7-3.1Zm-1 3.6-3 5.2h2.2L9 16l4-5.4h-2.3L12 7.8h-1Z"/></svg></a>
+    <a href="https://www.youtube.com/MatheuZSecurity" target="_blank" rel="noopener noreferrer me" title="Youtube" aria-label="Youtube"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23 7.5s-.2-1.6-.9-2.3c-.9-.9-1.8-.9-2.3-1C16.6 4 12 4 12 4s-4.6 0-7.8.2c-.5.1-1.4.1-2.3 1C1.2 5.9 1 7.5 1 7.5S.8 9.4.8 11.3v1.4c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2.1.9 2.6 1 1.9.2 7.5.2 7.5.2s4.6 0 7.8-.2c.5-.1 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8v-1.4c0-1.9-.2-3.8-.2-3.8ZM9.8 15.1V8.9l6 3.1-6 3.1Z"/></svg></a>
+</span>
+<a class="disc" href="https://discord.gg/66N5ZQppU7" target="_blank" rel="noopener noreferrer">discord</a>
+    </div>
+  </div>
+</section>
+
+<p class="sect"><span class="prompt">$</span> ls -t <b>./hacking</b> <span class="prompt">#</span> 16 files</p>
+
+<div class="index">
+  <a class="row" href="/hacking/linux-kernel-keyring-fileless-exec/">
+    <span class="date">2026-09-09</span>
+    <span class="ttl">Fileless ELF Execution via Kernel Keyring</span><span class="rt">7 min</span>
+    <span class="tags"><span>Fileless</span> <span>Linux</span> <span>Red Team</span> <span>Kernel</span> </span>
+  </a>
+  <a class="row" href="/hacking/fileless-loader-bypassing-elastic-memfd/">
+    <span class="date">2026-09-06</span>
+    <span class="ttl">Fileless ELF Execution via O_TMPFILE</span><span class="rt">5 min</span>
+    <span class="tags"><span>Fileless</span> <span>EDR</span> <span>Elastic</span> <span>Linux</span> </span>
+  </a>
+  <a class="row" href="/hacking/elastic-trusted-pid-bypass/">
+    <span class="date">2026-08-31</span>
+    <span class="ttl">Singularity Rootkit: Evading Elastic Defend Module Load Detection</span><span class="rt">6 min</span>
+    <span class="tags"><span>EDR Evasion</span> <span>eBPF</span> <span>Elastic</span> <span>Linux</span> </span>
+  </a>
+  <a class="row" href="/hacking/bpf-map-poisoning-edr-evasion/">
+    <span class="date">2026-07-06</span>
+    <span class="ttl">BPF Map Poisoning: Attacking Falco from the Inside</span><span class="rt">9 min</span>
+    <span class="tags"><span>EDR Evasion</span> <span>eBPF</span> <span>Falco</span> <span>Linux</span> </span>
+  </a>
+  <a class="row" href="/hacking/trendmicro-bmhook-tmhook-reload-bypass/">
+    <span class="date">2026-06-03</span>
+    <span class="ttl">Trend Micro Deep Security Agent Research: Forcing bmhook/tmhook Reloads to Open a Protection Bypass Window</span><span class="rt">24 min</span>
+    <span class="tags"><span>Trend Micro</span> <span>Deep Security Agent</span> <span>Linux Kernel</span> <span>LKM</span> </span>
+  </a>
+</div>
+<nav class="pager"><a class="next" href="/page/2/">older &gt;&gt;</a>
+</nav>
+    </main><footer class="foot">
+    <span>&copy; 2026 <a href="/">0xMatheuZ</a></span>
+    <span>built with <a href="https://gohugo.io/" target="_blank" rel="noopener">hugo</a> · handcrafted layouts</span>
+</footer>
+</body>
+</html>

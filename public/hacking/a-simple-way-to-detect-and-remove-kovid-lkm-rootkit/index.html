@@ -1,11 +1,137 @@
-<!doctype html><html lang=en dir=ltr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=robots content="index, follow"><title>A simple way to detect and remove LKM rootkit KoviD (Outdated) · 0xMatheuZ</title><meta name=description content="Learn a simple way on how to detect and remove Kovid rootkit."><meta name=author content="0xMatheuZ"><meta name=keywords content="Rootkit"><link rel=canonical href=https://matheuzsecurity.github.io/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/><meta property="og:title" content="A simple way to detect and remove LKM rootkit KoviD (Outdated) · 0xMatheuZ"><meta property="og:description" content="Learn a simple way on how to detect and remove Kovid rootkit."><meta property="og:type" content="article"><meta property="og:url" content="https://matheuzsecurity.github.io/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/"><meta name=twitter:card content="summary"><meta name=twitter:site content="@MatheuzSecurity"><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel=stylesheet><link rel=stylesheet href=/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css integrity="sha256-G8Z/+0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI="><link rel=icon href=/img/0xm-badge.png><meta name=theme-color content="#06070b"></head><body id=top><header class=site-head><div class=wrap><nav class=nav><span class=prompt><a href=/>matheuz</a>@0xm:~$</span>
-<a href=/>Home</a>
-<a href=/hacking>hacking</a>
-<a href=/tags>Tags</a>
-<a href=/search>Search</a></nav></div></header><main class=main><article class=article><div class=art-head><div class=crumbs><span class=prompt>$ cd</span>
-<a href=/>~</a><span class=sep>/</span><a href=https://matheuzsecurity.github.io/hacking/>Hacking</a></div><h1 class=art-title>A simple way to detect and remove LKM rootkit KoviD (Outdated)</h1><p class=art-desc>Learn a simple way on how to detect and remove Kovid rootkit.</p><div class=art-meta><span>August 26, 2024</span><span class=sep>·</span><span>4 min read</span>
-<span class=sep>·</span><span>0xMatheuZ</span><span class=sep>·</span><span>Hunting</span></div><div class=art-tags><a href=/tags/rootkit/>Rootkit</a></div></div><hr class=art-sep><div class=content><p><img src=https://i.imgur.com/Xd3Y153.jpeg alt=imgur></p><p>Hello everyone, welcome to this post where I will cover the easiest way on how to detect and remove LKM KoviD rootkit.</p><p>But first of all, we need to understand how the KoviD works.</p><h2 id=what-is-kovid>What is KoviD?</h2><p>KoviD is a Linux kernel rootkit, containing several features that make it difficult to detect and remove, in my opinion KoviD is the best open source LKM rootkit today, you can see more about it on <a href=https://github.com/carloslack/KoviD>github</a>.</p><p>Now that we know what KoviD is, we can analyze its code and see how it works, for example, which hooking method it uses.</p><h3 id=ftrace-hooking>Ftrace hooking</h3><p><img src=https://i.imgur.com/Lanlg4L.png alt=imgur></p><p>Looking at KoviD <a href=https://github.com/carloslack/KoviD/blob/master/src/sys.c>sys.c</a>, we can see that it uses a very famous method for hooking syscalls that works very well on newer kernels, which is ftrace (function tracer).</p><p>Keep this information, it will be very useful later in this post.</p><h3 id=setup-kovid-and-loading>Setup KoviD and Loading.</h3><p>According to the kovid readme, before compiling, we need to edit the Makefile to choose a unique file name for &ldquo;/proc/name&rdquo;.</p><p><img src=https://i.imgur.com/OR0n9Zd.png alt=imgur></p><p>After compiling using <code>make</code>, we can insert it using <code>insmod kovid.ko</code>.</p><p><img src=https://i.imgur.com/pZeUSA3.png alt=imgur></p><p>After inserting it, we can see that /proc/mtz had not been enabled and also the module was not hidden after its insertion, so first it is necessary to enable /proc/mtz using <code>kill -SIGCONT 31337</code> and after that, hide the LKM from lsmod using <code>echo -h >/proc/mtz</code>.</p><p>I also hid the file containing the name mtz, making it invisible in /proc/.</p><p>Well, after enabling /proc/mtz, we can look in dmesg that a random magic word was generated, and this magic word is used to make KoviD visible again.</p><p><img src=https://i.imgur.com/HCcI1tH.png alt=imgur></p><p>In <a href=https://github.com/carloslack/KoviD/blob/master/src/kovid.c#L337>kovid.c</a> we can see this magic word function being called to make the module visible again.</p><p><img src=https://i.imgur.com/azg1fh1.png alt=imgur></p><h3 id=detecting-kovid>Detecting KoviD</h3><p>Well, luckily for us, there is a filesystem that is not very well known, which is tracing, normally on more up-to-date systems, it is already mounted by default, if tracefs is not mounted, just mount it using <code>mount -t tracefs nodev /sys/kernel/tracing</code>, and you can find its documentation at <a href=https://www.kernel.org/doc/html/v6.5/trace/ftrace.html>kernel.org</a>.</p><p>And in it we can simply view all the LKM functions that are loaded on the machine.</p><p><img src=https://i.imgur.com/iX13ILl.png alt=imgur></p><p>A very interesting curiosity is that when Kovid is invisible, the trace only shows the addresses of each Kovid function (which in my head still doesn&rsquo;t make much sense, since the /sys/kernel/tracing/available_filter_functions_addrs file was only added in kernel 6.5x, in it we can view the addresses of each function of each loaded lkm too and I am using kernel 5.15.0-119-generic for testing).</p><p>Now, if we make kovid visible again, the name of its functions will appear.</p><p><img src=https://i.imgur.com/dsMqi2i.png alt=imgur></p><p>This is a very simple way to detect KoviD, and it doesn&rsquo;t require much effort.</p><p>However, there is still a way to hide any function/LKM from the tracefs file system, so don&rsquo;t be fooled by that and don&rsquo;t think that if you didn&rsquo;t find anything there that you are safe. Maybe I&rsquo;ll talk about this in a future post.</p><p>You can also use <a href=https://github.com/ksen-lin/nitara2>nitara2</a> to detect KoviD.</p><p><img src=https://i.imgur.com/7uWuNz6.png alt=imgur></p><h3 id=making-kovid-hooks-useless>Making KoviD hooks useless</h3><p>This part is very interesting and you will learn a really cool trick (if you didn&rsquo;t already know).</p><p>Remember when I mentioned at the beginning of the post that KoviD uses ftrace as a hooking method? So, many people may not know that there is a way to disable ftrace with just one command.</p><pre tabindex=0><code>echo 0 &gt; /proc/sys/kernel/ftrace_enabled
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index, follow">
+
+<title>A simple way to detect and remove LKM rootkit KoviD (Outdated) · 0xMatheuZ</title>
+<meta name="description" content="Learn a simple way on how to detect and remove Kovid rootkit.">
+<meta name="author" content="0xMatheuZ"><meta name="keywords" content="Rootkit">
+<link rel="canonical" href="http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/">
+<meta property="og:title" content="A simple way to detect and remove LKM rootkit KoviD (Outdated) · 0xMatheuZ">
+<meta property="og:description" content="Learn a simple way on how to detect and remove Kovid rootkit.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="http://localhost:1313/hacking/a-simple-way-to-detect-and-remove-kovid-lkm-rootkit/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@MatheuzSecurity">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css" integrity="sha256-G8Z/&#43;0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI=">
+<link rel="icon" href="/img/0xm-badge.png">
+<meta name="theme-color" content="#06070b">
+</head>
+<body id="top"><header class="site-head">
+  <div class="wrap">
+    <nav class="nav">
+      <span class="prompt"><a href="/">matheuz</a>@0xm:~$</span>
+      <a href="/">Home</a>
+      <a href="/hacking">hacking</a>
+      <a href="/tags">Tags</a>
+      <a href="/search">Search</a>
+    </nav>
+  </div>
+</header>
+<main class="main">
+
+<article class="article">
+  <div class="art-head">
+    <div class="crumbs">
+    <span class="prompt">$ cd</span>
+    <a href="/">~</a><span class="sep">/</span><a href="http://localhost:1313/hacking/">Hacking</a></div>
+
+    <h1 class="art-title">A simple way to detect and remove LKM rootkit KoviD (Outdated)</h1><p class="art-desc">Learn a simple way on how to detect and remove Kovid rootkit.</p>
+    <div class="art-meta">
+      <span>August 26, 2024</span><span class="sep">·</span><span>4 min read</span>
+      <span class="sep">·</span><span>0xMatheuZ</span><span class="sep">·</span><span>Hunting</span>
+    </div>
+    <div class="art-tags"><a href="/tags/rootkit/">Rootkit</a>
+    </div>
+  </div>
+
+  <hr class="art-sep">
+
+  <div class="content">
+    <p><img src="https://i.imgur.com/Xd3Y153.jpeg" alt="imgur"></p>
+<p>Hello everyone, welcome to this post where I will cover the easiest way on how to detect and remove LKM KoviD rootkit.</p>
+<p>But first of all, we need to understand how the KoviD works.</p>
+<h2 id="what-is-kovid">What is KoviD?</h2>
+<p>KoviD is a Linux kernel rootkit, containing several features that make it difficult to detect and remove, in my opinion KoviD is the best open source LKM rootkit today, you can see more about it on <a href="https://github.com/carloslack/KoviD">github</a>.</p>
+<p>Now that we know what KoviD is, we can analyze its code and see how it works, for example, which hooking method it uses.</p>
+<h3 id="ftrace-hooking">Ftrace hooking</h3>
+<p><img src="https://i.imgur.com/Lanlg4L.png" alt="imgur"></p>
+<p>Looking at KoviD <a href="https://github.com/carloslack/KoviD/blob/master/src/sys.c">sys.c</a>, we can see that it uses a very famous method for hooking syscalls that works very well on newer kernels, which is ftrace (function tracer).</p>
+<p>Keep this information, it will be very useful later in this post.</p>
+<h3 id="setup-kovid-and-loading">Setup KoviD and Loading.</h3>
+<p>According to the kovid readme, before compiling, we need to edit the Makefile to choose a unique file name for &ldquo;/proc/name&rdquo;.</p>
+<p><img src="https://i.imgur.com/OR0n9Zd.png" alt="imgur"></p>
+<p>After compiling using <code>make</code>, we can insert it using <code>insmod kovid.ko</code>.</p>
+<p><img src="https://i.imgur.com/pZeUSA3.png" alt="imgur"></p>
+<p>After inserting it, we can see that /proc/mtz had not been enabled and also the module was not hidden after its insertion, so first it is necessary to enable /proc/mtz using <code>kill -SIGCONT 31337</code> and after that, hide the LKM from lsmod using <code>echo -h &gt;/proc/mtz</code>.</p>
+<p>I also hid the file containing the name mtz, making it invisible in /proc/.</p>
+<p>Well, after enabling /proc/mtz, we can look in dmesg that a random magic word was generated, and this magic word is used to make KoviD visible again.</p>
+<p><img src="https://i.imgur.com/HCcI1tH.png" alt="imgur"></p>
+<p>In <a href="https://github.com/carloslack/KoviD/blob/master/src/kovid.c#L337">kovid.c</a> we can see this magic word function being called to make the module visible again.</p>
+<p><img src="https://i.imgur.com/azg1fh1.png" alt="imgur"></p>
+<h3 id="detecting-kovid">Detecting KoviD</h3>
+<p>Well, luckily for us, there is a filesystem that is not very well known, which is tracing, normally on more up-to-date systems, it is already mounted by default, if tracefs is not mounted, just mount it using <code>mount -t tracefs nodev /sys/kernel/tracing</code>, and you can find its documentation at <a href="https://www.kernel.org/doc/html/v6.5/trace/ftrace.html">kernel.org</a>.</p>
+<p>And in it we can simply view all the LKM functions that are loaded on the machine.</p>
+<p><img src="https://i.imgur.com/iX13ILl.png" alt="imgur"></p>
+<p>A very interesting curiosity is that when Kovid is invisible, the trace only shows the addresses of each Kovid function (which in my head still doesn&rsquo;t make much sense, since the /sys/kernel/tracing/available_filter_functions_addrs file was only added in kernel 6.5x, in it we can view the addresses of each function of each loaded lkm too and I am using kernel 5.15.0-119-generic for testing).</p>
+<p>Now, if we make kovid visible again, the name of its functions will appear.</p>
+<p><img src="https://i.imgur.com/dsMqi2i.png" alt="imgur"></p>
+<p>This is a very simple way to detect KoviD, and it doesn&rsquo;t require much effort.</p>
+<p>However, there is still a way to hide any function/LKM from the tracefs file system, so don&rsquo;t be fooled by that and don&rsquo;t think that if you didn&rsquo;t find anything there that you are safe. Maybe I&rsquo;ll talk about this in a future post.</p>
+<p>You can also use <a href="https://github.com/ksen-lin/nitara2">nitara2</a> to detect KoviD.</p>
+<p><img src="https://i.imgur.com/7uWuNz6.png" alt="imgur"></p>
+<h3 id="making-kovid-hooks-useless">Making KoviD hooks useless</h3>
+<p>This part is very interesting and you will learn a really cool trick (if you didn&rsquo;t already know).</p>
+<p>Remember when I mentioned at the beginning of the post that KoviD uses ftrace as a hooking method? So, many people may not know that there is a way to disable ftrace with just one command.</p>
+<pre tabindex="0"><code>echo 0 &gt; /proc/sys/kernel/ftrace_enabled
 or
 sysctl kernel.ftrace_enabled=0
-</code></pre><p>Okay, but what&rsquo;s so great about that? Well, let&rsquo;s go!</p><p>By temporarily disabling ftrace, all kovid hooks stop working, as it uses ftrace for hooking, but this still does not make kovid visible, but it makes it useless.</p><p>KoviD hides the file containing the name mtz, so /proc/mtz is hidden, and in it is the magic word to make LKM visible again.</p><p><img src=https://i.imgur.com/CywD6Ow.png alt=imgur></p><p>Well now with ftrace disabled we can see that the hidden /proc/mtz has become visible as no kovid hook works as it uses ftrace as syscalls hook.</p><p><img src=https://i.imgur.com/3YyukDi.png alt=imgur></p><p>So, after disabling ftrace, just go to /proc/mtz that was visible, get the magic word, and make LKM visible again, being able to remove it.</p><p>And this is the easiest way to detect/remove KoviD.</p><h2 id=notes>Notes</h2><p>1- Of course, this is not 100% effective, as it has a way of hiding from the tracefs filesystem, but against KoviD so far, this works perfectly.</p><p>2- And it is also obvious that in a real scenario, if someone is using KoviD, the name in /proc/name will not be something common like mtz, they would probably use a name that is less &ldquo;imperceptible&rdquo;.</p><p>3- You can make any LKM rootkit that uses ftrace as hooking completely useless, and when you make it useless, you can use that to your advantage and analyze the compromised environment, looking for hidden PIDs, directories/files, etc.</p><h2 id=final-consideration>Final consideration</h2><p>I hope you enjoyed this post and learned something, if you have any questions, please DM me on <a href=https://x.com/MatheuzSecurity>Twitter</a>.</p></div><footer class=art-foot><nav class=navlinks><a class=prev href=/hacking/linux-threat-hunting-persistence/><span class=label>&lt;&lt; prev</span><br>Linux Threat Hunting Persistence</a><a class=next href=/hacking/ldpreload-rootkit/><span class=label>next >></span><br>How detect a LD_PRELOAD rootkit and hide from ldd & /proc</a></nav></footer></article></main><footer class=foot><span>&copy; 2026 <a href=/>0xMatheuZ</a></span>
-<span>built with <a href=https://gohugo.io/ target=_blank rel=noopener>hugo</a> · handcrafted layouts</span></footer><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode,s=n.parentNode,t=document.createElement("button");t.className="copy-code",t.type="button",t.textContent="copy";const i=()=>{t.textContent="copied",setTimeout(()=>t.textContent="copy",1600)};t.addEventListener("click",()=>{navigator.clipboard.writeText(e.textContent).then(i).catch(()=>{})});const o=s.classList.contains("highlight")?s:n;o.style.position="relative",o.appendChild(t)})</script></body></html>
+</code></pre><p>Okay, but what&rsquo;s so great about that? Well, let&rsquo;s go!</p>
+<p>By temporarily disabling ftrace, all kovid hooks stop working, as it uses ftrace for hooking, but this still does not make kovid visible, but it makes it useless.</p>
+<p>KoviD hides the file containing the name mtz, so /proc/mtz is hidden, and in it is the magic word to make LKM visible again.</p>
+<p><img src="https://i.imgur.com/CywD6Ow.png" alt="imgur"></p>
+<p>Well now with ftrace disabled we can see that the hidden /proc/mtz has become visible as no kovid hook works as it uses ftrace as syscalls hook.</p>
+<p><img src="https://i.imgur.com/3YyukDi.png" alt="imgur"></p>
+<p>So, after disabling ftrace, just go to /proc/mtz that was visible, get the magic word, and make LKM visible again, being able to remove it.</p>
+<p>And this is the easiest way to detect/remove KoviD.</p>
+<h2 id="notes">Notes</h2>
+<p>1- Of course, this is not 100% effective, as it has a way of hiding from the tracefs filesystem, but against KoviD so far, this works perfectly.</p>
+<p>2- And it is also obvious that in a real scenario, if someone is using KoviD, the name in /proc/name will not be something common like mtz, they would probably use a name that is less &ldquo;imperceptible&rdquo;.</p>
+<p>3- You can make any LKM rootkit that uses ftrace as hooking completely useless, and when you make it useless, you can use that to your advantage and analyze the compromised environment, looking for hidden PIDs, directories/files, etc.</p>
+<h2 id="final-consideration">Final consideration</h2>
+<p>I hope you enjoyed this post and learned something, if you have any questions, please DM me on <a href="https://x.com/MatheuzSecurity">Twitter</a>.</p>
+
+  </div>
+
+  <footer class="art-foot">
+    <nav class="navlinks"><a class="prev" href="/hacking/linux-threat-hunting-persistence/"><span class="label">&lt;&lt; prev</span><br>Linux Threat Hunting Persistence</a><a class="next" href="/hacking/ldpreload-rootkit/"><span class="label">next &gt;&gt;</span><br>How detect a LD_PRELOAD rootkit and hide from ldd &amp; /proc</a>
+    </nav>
+  </footer>
+</article>
+    </main><footer class="foot">
+    <span>&copy; 2026 <a href="/">0xMatheuZ</a></span>
+    <span>built with <a href="https://gohugo.io/" target="_blank" rel="noopener">hugo</a> · handcrafted layouts</span>
+</footer>
+<script>
+document.querySelectorAll('pre > code').forEach((code) => {
+    const pre = code.parentNode;
+    const wrap = pre.parentNode;
+    const btn = document.createElement('button');
+    btn.className = 'copy-code';
+    btn.type = 'button';
+    btn.textContent = 'copy';
+    const done = () => { btn.textContent = 'copied'; setTimeout(() => btn.textContent = 'copy', 1600); };
+    btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(code.textContent).then(done).catch(() => {});
+    });
+    const host = wrap.classList.contains('highlight') ? wrap : pre;
+    host.style.position = 'relative';
+    host.appendChild(btn);
+});
+</script>
+</body>
+</html>

@@ -1,95 +1,309 @@
-<!doctype html><html lang=en dir=ltr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=robots content="index, follow"><title>Ioctl Secrets Writeup · 0xMatheuZ</title><meta name=description content="Solving an easy reversing challenge from rootkit researchers."><meta name=author content="0xMatheuZ"><meta name=keywords content="CTF"><link rel=canonical href=https://matheuzsecurity.github.io/hacking/ioctl-secrets/><meta property="og:title" content="Ioctl Secrets Writeup · 0xMatheuZ"><meta property="og:description" content="Solving an easy reversing challenge from rootkit researchers."><meta property="og:type" content="article"><meta property="og:url" content="https://matheuzsecurity.github.io/hacking/ioctl-secrets/"><meta name=twitter:card content="summary"><meta name=twitter:site content="@MatheuzSecurity"><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel=stylesheet><link rel=stylesheet href=/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css integrity="sha256-G8Z/+0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI="><link rel=icon href=/img/0xm-badge.png><meta name=theme-color content="#06070b"></head><body id=top><header class=site-head><div class=wrap><nav class=nav><span class=prompt><a href=/>matheuz</a>@0xm:~$</span>
-<a href=/>Home</a>
-<a href=/hacking>hacking</a>
-<a href=/tags>Tags</a>
-<a href=/search>Search</a></nav></div></header><main class=main><article class=article><div class=art-head><div class=crumbs><span class=prompt>$ cd</span>
-<a href=/>~</a><span class=sep>/</span><a href=https://matheuzsecurity.github.io/hacking/>Hacking</a></div><h1 class=art-title>Ioctl Secrets Writeup</h1><p class=art-desc>Solving an easy reversing challenge from rootkit researchers.</p><div class=art-meta><span>November 9, 2025</span><span class=sep>·</span><span>5 min read</span>
-<span class=sep>·</span><span>0xMatheuZ</span><span class=sep>·</span><span>Reversing</span></div><div class=art-tags><a href=/tags/ctf/>CTF</a></div></div><hr class=art-sep><div class=content><p><img src=https://i.imgur.com/ZTjHU7a.jpeg alt=img></p><hr><h2 id=challenge-description>Challenge Description</h2><p>In this challenge, we&rsquo;re given access to a Linux virtual machine (VM) running Ubuntu. The objective is to exploit a custom kernel module to retrieve a hidden flag. The challenge involves reverse engineering, kernel internals, and crafting a proper exploit.</p><p><strong>What we have:</strong></p><ul><li>A hidden kernel module loaded at boot</li><li>Character device at <code>/dev/ioctl_dev</code></li><li>Setup script (<code>device.sh</code>) that loads the module and shreds source files</li><li>SSH access enabled (username: <code>root</code>, password: <code>ioctl</code>)</li></ul><p><strong>Important Note:</strong> Many participants had difficulties copy-pasting code directly into the VM console. As stated in the challenge description, <strong>SSH is enabled</strong> for easier interaction! This was a common pain point, so let&rsquo;s start by addressing it.</p><hr><h2 id=getting-started---vm-access--ssh>Getting Started - VM Access & SSH</h2><p>When you boot the VM, you&rsquo;ll see the login screen. The credentials are straightforward:</p><ul><li><strong>Username:</strong> <code>root</code></li><li><strong>Password:</strong> <code>ioctl</code></li></ul><h3 id=setting-up-ssh-access>Setting Up SSH Access</h3><p>After logging in, the first thing you should do is check the VM&rsquo;s IP address to enable SSH access. This makes the challenge much more comfortable as you can:</p><ul><li>Copy and paste code easily</li><li>Use multiple terminal windows</li><li>Access from your preferred terminal emulator</li></ul><p>Run <code>ip a</code> to get the network configuration:</p><p>As we can see, the VM has IP <code>192.168.200.165</code>. Now we can SSH from our host machine:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>ssh root@192.168.200.165
-</span></span></code></pre></div><p><img src=https://i.imgur.com/HjDAVom.png alt="SSH Connection"></p><hr><h2 id=initial-reconnaissance>Initial Reconnaissance</h2><p>Now that we&rsquo;re comfortably connected via SSH, let&rsquo;s explore what we have on the system.</p><h3 id=checking-for-the-device>Checking for the Device</h3><p>The challenge mentions a device at <code>/dev/ioctl_dev</code>. Let&rsquo;s verify it exists:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>root@hunter:~# ls -lah /dev/ioctl_dev
-</span></span><span class=line><span class=cl>crw------- <span class=m>1</span> root root 237, <span class=m>0</span> Nov <span class=m>9</span> 16:15 /dev/ioctl_dev
-</span></span></code></pre></div><p><img src=https://i.imgur.com/6NkOMLc.png alt="Device File"></p><p>Perfect! The device exists with:</p><ul><li><strong>Type:</strong> Character device (<code>c</code>)</li><li><strong>Permissions:</strong> root only</li><li><strong>Major number:</strong> 237</li><li><strong>Minor number:</strong> 0</li></ul><h2 id=reverse-engineering-the-kernel-module>Reverse Engineering the Kernel Module</h2><p>Time to analyze the kernel object (device.ko)! I&rsquo;ll be using binary ninja for this, but Ghidra or IDA work just as well.</p><h3 id=loading-deviceko-into-binary-ninja>Loading device.ko into binary ninja</h3><p>After loading <code>device.ko</code> into binary ninja and letting it analyze, we can see several interesting functions in the symbol:</p><p>Key functions identified:</p><ul><li><code>ioctl_handler</code> - The main function we need to understand</li><li><code>init_module</code> - Module initialization</li><li><code>hide</code> - Module hiding functionality</li><li><code>cleanup_module</code> - Module cleanup</li></ul><h3 id=analyzing-ioctl_handler>Analyzing ioctl_handler()</h3><p>This is where the magic happens! Let&rsquo;s examine the decompiled code:</p><p><img src=https://i.imgur.com/bipyxZi.png alt="ioctl_handler Code"></p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=kt>int64_t</span> <span class=nf>ioctl_handler</span><span class=p>()</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int64_t</span> <span class=n>rdx_2</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int32_t</span> <span class=n>rsi_3</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=n>rdx_2</span> <span class=o>=</span> <span class=nf>__fentry__</span><span class=p>();</span>
-</span></span><span class=line><span class=cl>    <span class=kt>void</span><span class=o>*</span> <span class=n>gsbase</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int64_t</span> <span class=n>rax</span> <span class=o>=</span> <span class=o>*</span><span class=p>(</span><span class=kt>uint64_t</span><span class=o>*</span><span class=p>)((</span><span class=kt>char</span><span class=o>*</span><span class=p>)</span><span class=n>gsbase</span> <span class=o>+</span> <span class=mh>0x28</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int32_t</span> <span class=n>var_7c</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int32_t</span> <span class=n>var_78</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>rsi_3</span> <span class=o>==</span> <span class=mh>0xc0487213</span> <span class=o>&amp;&amp;</span> 
-</span></span><span class=line><span class=cl>        <span class=o>!</span><span class=nf>_copy_from_user</span><span class=p>(</span><span class=o>&amp;</span><span class=n>var_7c</span><span class=p>,</span> <span class=n>rdx_2</span><span class=p>,</span> <span class=mh>0x48</span><span class=p>)</span> <span class=o>&amp;&amp;</span>
-</span></span><span class=line><span class=cl>        <span class=n>var_7c</span> <span class=o>==</span> <span class=mh>0x1337dead</span> <span class=o>&amp;&amp;</span> 
-</span></span><span class=line><span class=cl>        <span class=n>var_78</span> <span class=o>==</span> <span class=mh>0xcafebabe</span><span class=p>)</span>
-</span></span><span class=line><span class=cl>    <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=kt>int64_t</span> <span class=n>var_74</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        <span class=nf>__builtin_strncpy</span><span class=p>(</span><span class=o>&amp;</span><span class=n>var_74</span><span class=p>,</span> <span class=s>&#34;ROOTKIT{fake_flag_for_you}&#34;</span><span class=p>,</span> <span class=mh>0x1b</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>        <span class=nf>_copy_to_user</span><span class=p>(</span><span class=n>rdx_2</span><span class=p>,</span> <span class=o>&amp;</span><span class=n>var_7c</span><span class=p>,</span> <span class=mh>0x48</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>    
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>rax</span> <span class=o>==</span> <span class=o>*</span><span class=p>(</span><span class=kt>uint64_t</span><span class=o>*</span><span class=p>)((</span><span class=kt>char</span><span class=o>*</span><span class=p>)</span><span class=n>gsbase</span> <span class=o>+</span> <span class=mh>0x28</span><span class=p>))</span>
-</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nf>__x86_return_thunk</span><span class=p>();</span>
-</span></span><span class=line><span class=cl>    
-</span></span><span class=line><span class=cl>    <span class=nf>__stack_chk_fail</span><span class=p>();</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p><strong>findings:</strong></p><ol><li><p><strong>ioctl Command Check:</strong> <code>rsi_3 == 0xc0487213</code></p><ul><li>This is the ioctl request number we need to use</li></ul></li><li><p><strong>Buffer Size:</strong> <code>_copy_from_user(&amp;var_7c, rdx_2, 0x48)</code></p><ul><li>Expects exactly <code>0x48</code> bytes (72 bytes)</li></ul></li><li><p><strong>Magic Value #1:</strong> <code>var_7c == 0x1337dead</code></p><ul><li>First 4 bytes must be <code>0x1337DEAD</code></li></ul></li><li><p><strong>Magic Value #2:</strong> <code>var_78 == 0xcafebabe</code></p><ul><li>Next 4 bytes must be <code>0xCAFEBABE</code></li></ul></li></ol><h3 id=understanding-the-init_module>Understanding the init_module()</h3><p>Let&rsquo;s also check how the device gets created:</p><p><img src=https://i.imgur.com/GSLBhPr.png alt="init_module Code"></p><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=kt>int64_t</span> <span class=nf>init_module</span><span class=p>()</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=nf>__fentry__</span><span class=p>();</span>
-</span></span><span class=line><span class=cl>    <span class=kt>uint32_t</span> <span class=n>rax</span> <span class=o>=</span> <span class=nf>__register_chrdev</span><span class=p>(</span><span class=mi>0</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=mh>0x100</span><span class=p>,</span> <span class=s>&#34;ioctl_dev&#34;</span><span class=p>,</span> <span class=o>&amp;</span><span class=n>fops</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=n>major</span> <span class=o>=</span> <span class=n>rax</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>rax</span> <span class=o>&gt;=</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=kt>uint64_t</span> <span class=n>rax_1</span> <span class=o>=</span> <span class=nf>__class_create</span><span class=p>(</span><span class=o>&amp;</span><span class=n>__this_module</span><span class=p>,</span> <span class=s>&#34;ioctl_class&#34;</span><span class=p>,</span> <span class=o>&amp;</span><span class=n>__key</span><span class=mf>.2</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>        <span class=n>ioctl_class</span> <span class=o>=</span> <span class=n>rax_1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>        
-</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=n>rax_1</span> <span class=o>&lt;=</span> <span class=o>-</span><span class=mh>0x1000</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>            <span class=kt>uint64_t</span> <span class=n>rax_3</span> <span class=o>=</span> <span class=nf>device_create</span><span class=p>(</span><span class=n>rax_1</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=p>(</span><span class=kt>uint64_t</span><span class=p>)(</span><span class=n>major</span> <span class=o>&lt;&lt;</span> <span class=mh>0x14</span><span class=p>),</span> <span class=mi>0</span><span class=p>,</span> <span class=s>&#34;ioctl_dev&#34;</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>            <span class=n>__key</span><span class=mf>.2</span> <span class=o>=</span> <span class=n>rax_3</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>            
-</span></span><span class=line><span class=cl>            <span class=k>if</span> <span class=p>(</span><span class=n>rax_3</span> <span class=o>&lt;=</span> <span class=o>-</span><span class=mh>0x1000</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>                <span class=nf>hide</span><span class=p>();</span>
-</span></span><span class=line><span class=cl>                <span class=nf>_printk</span><span class=p>(</span><span class=mh>0x400326</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>            <span class=p>}</span>
-</span></span><span class=line><span class=cl>        <span class=p>}</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>    
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=nf>__x86_return_thunk</span><span class=p>();</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><p>The <code>device_create()</code> call creates our <code>/dev/ioctl_dev</code> device with:</p><ul><li>Device class: <code>ioctl_class</code></li><li>Device name: <code>ioctl_dev</code></li><li>Major number: dynamically allocated (237 in our case)</li></ul><p>After successful creation, it calls <code>hide()</code> to make the module invisible to <code>lsmod</code>.</p><hr><h2 id=writing-the-exploit>Writing the Exploit</h2><p>Now that we understand the requirements, let&rsquo;s write our exploit code!</p><h3 id=the-exploit>The Exploit</h3><ol><li>Create a 72-byte buffer</li><li>Write <code>0x1337DEAD</code> at offset 0</li><li>Write <code>0xCAFEBABE</code> at offset 4</li><li>Open <code>/dev/ioctl_dev</code></li><li>Call ioctl with command <code>0xc0487213</code></li><li>Read the flag from the returned buffer</li></ol><h3 id=exploitc>exploit.c</h3><div class=highlight><pre tabindex=0 class=chroma><code class=language-c data-lang=c><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;stdio.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;stdlib.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;fcntl.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;unistd.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;sys/ioctl.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;stdint.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl><span class=cp>#include</span> <span class=cpf>&lt;string.h&gt;</span><span class=cp>
-</span></span></span><span class=line><span class=cl>
-</span></span><span class=line><span class=cl><span class=kt>int</span> <span class=nf>main</span><span class=p>()</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>    <span class=kt>int</span> <span class=n>fd</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=kt>char</span> <span class=n>buf</span><span class=p>[</span><span class=mh>0x48</span><span class=p>];</span>
-</span></span><span class=line><span class=cl>    <span class=kt>uint32_t</span> <span class=n>val1</span> <span class=o>=</span> <span class=mh>0x1337DEAD</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=kt>uint32_t</span> <span class=n>val2</span> <span class=o>=</span> <span class=mh>0xCAFEBABE</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    
-</span></span><span class=line><span class=cl>    <span class=nf>memset</span><span class=p>(</span><span class=n>buf</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=k>sizeof</span><span class=p>(</span><span class=n>buf</span><span class=p>));</span>
-</span></span><span class=line><span class=cl>    <span class=o>*</span><span class=p>(</span><span class=kt>uint32_t</span><span class=o>*</span><span class=p>)</span><span class=n>buf</span> <span class=o>=</span> <span class=n>val1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=o>*</span><span class=p>(</span><span class=kt>uint32_t</span><span class=o>*</span><span class=p>)(</span><span class=n>buf</span> <span class=o>+</span> <span class=mi>4</span><span class=p>)</span> <span class=o>=</span> <span class=n>val2</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    
-</span></span><span class=line><span class=cl>    <span class=n>fd</span> <span class=o>=</span> <span class=nf>open</span><span class=p>(</span><span class=s>&#34;/dev/ioctl_dev&#34;</span><span class=p>,</span> <span class=n>O_RDWR</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=n>fd</span> <span class=o>&lt;</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=nf>perror</span><span class=p>(</span><span class=s>&#34;open&#34;</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>    
-</span></span><span class=line><span class=cl>    <span class=k>if</span> <span class=p>(</span><span class=nf>ioctl</span><span class=p>(</span><span class=n>fd</span><span class=p>,</span> <span class=mh>0xc0487213</span><span class=p>,</span> <span class=n>buf</span><span class=p>)</span> <span class=o>&lt;</span> <span class=mi>0</span><span class=p>)</span> <span class=p>{</span>
-</span></span><span class=line><span class=cl>        <span class=nf>perror</span><span class=p>(</span><span class=s>&#34;ioctl&#34;</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>        <span class=nf>close</span><span class=p>(</span><span class=n>fd</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
-</span></span><span class=line><span class=cl>    <span class=p>}</span>
-</span></span><span class=line><span class=cl>    
-</span></span><span class=line><span class=cl>    <span class=nf>printf</span><span class=p>(</span><span class=s>&#34;Flag: %s</span><span class=se>\n</span><span class=s>&#34;</span><span class=p>,</span> <span class=n>buf</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    
-</span></span><span class=line><span class=cl>    <span class=nf>close</span><span class=p>(</span><span class=n>fd</span><span class=p>);</span>
-</span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
-</span></span><span class=line><span class=cl><span class=p>}</span>
-</span></span></code></pre></div><h3 id=compiling-and-running>Compiling and Running</h3><p>Since we&rsquo;re connected via SSH, we can easily copy the code and compile it:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl>root@hunter:~# gcc exploit.c -o exploit
-</span></span><span class=line><span class=cl>root@hunter:~# ./exploit
-</span></span></code></pre></div><p><img src=https://i.imgur.com/uRb9EAY.png alt="Exploit Execution"></p><pre tabindex=0><code>Flag: ROOTKIT{ioctl_secret_unlocked@1337}
-</code></pre><p><strong>Success!</strong> We&rsquo;ve captured the flag!</p><h3 id=why-it-works>Why It Works</h3><p>The exploit works because the kernel module uses the same buffer for both receiving input and sending output. We create a 72-byte buffer (buf[0x48]), write the magic values 0x1337DEAD and 0xCAFEBABE at the beginning using pointer casting (<em>(uint32_t</em>)buf), then open the device and call ioctl() with command 0xc0487213.</p><p>The kernel validates our magic values with _copy_from_user(), and if they match, uses _copy_to_user() with the same pointer to overwrite our buffer with the flag.</p><hr><h2 id=key-lessons-learned>Key Lessons Learned</h2><h3 id=1-check-dmesg-for-kernel-activity>1. Check dmesg for Kernel Activity</h3><p>Kernel messages provided crucial information about module loading and potential issues.</p><h3 id=2-understand-ioctl-communication>2. Understand ioctl Communication</h3><p>The ioctl interface is a powerful way for userspace to communicate with kernel drivers. Understanding the command numbers and data structures is essential.</p><h3 id=3-reversing-skills>3. Reversing Skills</h3><p>Being comfortable with tools like Ghidra, IDA, or Binary Ninja is crucial for kernel module analysis.</p><hr><h2 id=conclusion>Conclusion</h2><p>This challenge was an excellent introduction to Reversing and you can learn:</p><ul><li>Linux kernel modules</li><li>Reverse engineering</li><li>Crafting ioctl requests</li><li>Recognizing rootkit techniques</li></ul><hr><h2 id=our-community>Our Community</h2><p>Join the <strong>Rootkit Researchers</strong> community:<br><a href=https://discord.gg/66N5ZOpqU7>Discord Server</a></p><p><em>Challenge created by Matheuz - Have fun guys!!</em></p><hr><p><strong>Thanks for reading! If you enjoyed this writeup, consider sharing it with others who might find it useful. Happy hacking!</strong></p></div><footer class=art-foot><nav class=navlinks><a class=prev href=/hacking/bypassing-elastic/><span class=label>&lt;&lt; prev</span><br>Evading Elastic Security: Linux Rootkit Detection Bypass</a><a class=next href=/hacking/ebpf-security-tools-hacking/><span class=label>next >></span><br>Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</a></nav></footer></article></main><footer class=foot><span>&copy; 2026 <a href=/>0xMatheuZ</a></span>
-<span>built with <a href=https://gohugo.io/ target=_blank rel=noopener>hugo</a> · handcrafted layouts</span></footer><script>document.querySelectorAll("pre > code").forEach(e=>{const n=e.parentNode,s=n.parentNode,t=document.createElement("button");t.className="copy-code",t.type="button",t.textContent="copy";const i=()=>{t.textContent="copied",setTimeout(()=>t.textContent="copy",1600)};t.addEventListener("click",()=>{navigator.clipboard.writeText(e.textContent).then(i).catch(()=>{})});const o=s.classList.contains("highlight")?s:n;o.style.position="relative",o.appendChild(t)})</script></body></html>
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index, follow">
+
+<title>Ioctl Secrets Writeup · 0xMatheuZ</title>
+<meta name="description" content="Solving an easy reversing challenge from rootkit researchers.">
+<meta name="author" content="0xMatheuZ"><meta name="keywords" content="CTF">
+<link rel="canonical" href="http://localhost:1313/hacking/ioctl-secrets/">
+<meta property="og:title" content="Ioctl Secrets Writeup · 0xMatheuZ">
+<meta property="og:description" content="Solving an easy reversing challenge from rootkit researchers.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="http://localhost:1313/hacking/ioctl-secrets/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@MatheuzSecurity">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css" integrity="sha256-G8Z/&#43;0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI=">
+<link rel="icon" href="/img/0xm-badge.png">
+<meta name="theme-color" content="#06070b">
+</head>
+<body id="top"><header class="site-head">
+  <div class="wrap">
+    <nav class="nav">
+      <span class="prompt"><a href="/">matheuz</a>@0xm:~$</span>
+      <a href="/">Home</a>
+      <a href="/hacking">hacking</a>
+      <a href="/tags">Tags</a>
+      <a href="/search">Search</a>
+    </nav>
+  </div>
+</header>
+<main class="main">
+
+<article class="article">
+  <div class="art-head">
+    <div class="crumbs">
+    <span class="prompt">$ cd</span>
+    <a href="/">~</a><span class="sep">/</span><a href="http://localhost:1313/hacking/">Hacking</a></div>
+
+    <h1 class="art-title">Ioctl Secrets Writeup</h1><p class="art-desc">Solving an easy reversing challenge from rootkit researchers.</p>
+    <div class="art-meta">
+      <span>November 9, 2025</span><span class="sep">·</span><span>5 min read</span>
+      <span class="sep">·</span><span>0xMatheuZ</span><span class="sep">·</span><span>Reversing</span>
+    </div>
+    <div class="art-tags"><a href="/tags/ctf/">CTF</a>
+    </div>
+  </div>
+
+  <hr class="art-sep">
+
+  <div class="content">
+    <p><img src="https://i.imgur.com/ZTjHU7a.jpeg" alt="img"></p>
+<hr>
+<h2 id="challenge-description">Challenge Description</h2>
+<p>In this challenge, we&rsquo;re given access to a Linux virtual machine (VM) running Ubuntu. The objective is to exploit a custom kernel module to retrieve a hidden flag. The challenge involves reverse engineering, kernel internals, and crafting a proper exploit.</p>
+<p><strong>What we have:</strong></p>
+<ul>
+<li>A hidden kernel module loaded at boot</li>
+<li>Character device at <code>/dev/ioctl_dev</code></li>
+<li>Setup script (<code>device.sh</code>) that loads the module and shreds source files</li>
+<li>SSH access enabled (username: <code>root</code>, password: <code>ioctl</code>)</li>
+</ul>
+<p><strong>Important Note:</strong> Many participants had difficulties copy-pasting code directly into the VM console. As stated in the challenge description, <strong>SSH is enabled</strong> for easier interaction! This was a common pain point, so let&rsquo;s start by addressing it.</p>
+<hr>
+<h2 id="getting-started---vm-access--ssh">Getting Started - VM Access &amp; SSH</h2>
+<p>When you boot the VM, you&rsquo;ll see the login screen. The credentials are straightforward:</p>
+<ul>
+<li><strong>Username:</strong> <code>root</code></li>
+<li><strong>Password:</strong> <code>ioctl</code></li>
+</ul>
+<h3 id="setting-up-ssh-access">Setting Up SSH Access</h3>
+<p>After logging in, the first thing you should do is check the VM&rsquo;s IP address to enable SSH access. This makes the challenge much more comfortable as you can:</p>
+<ul>
+<li>Copy and paste code easily</li>
+<li>Use multiple terminal windows</li>
+<li>Access from your preferred terminal emulator</li>
+</ul>
+<p>Run <code>ip a</code> to get the network configuration:</p>
+<p>As we can see, the VM has IP <code>192.168.200.165</code>. Now we can SSH from our host machine:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">ssh root@192.168.200.165
+</span></span></code></pre></div><p><img src="https://i.imgur.com/HjDAVom.png" alt="SSH Connection"></p>
+<hr>
+<h2 id="initial-reconnaissance">Initial Reconnaissance</h2>
+<p>Now that we&rsquo;re comfortably connected via SSH, let&rsquo;s explore what we have on the system.</p>
+<h3 id="checking-for-the-device">Checking for the Device</h3>
+<p>The challenge mentions a device at <code>/dev/ioctl_dev</code>. Let&rsquo;s verify it exists:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">root@hunter:~# ls -lah /dev/ioctl_dev
+</span></span><span class="line"><span class="cl">crw------- <span class="m">1</span> root root 237, <span class="m">0</span> Nov <span class="m">9</span> 16:15 /dev/ioctl_dev
+</span></span></code></pre></div><p><img src="https://i.imgur.com/6NkOMLc.png" alt="Device File"></p>
+<p>Perfect! The device exists with:</p>
+<ul>
+<li><strong>Type:</strong> Character device (<code>c</code>)</li>
+<li><strong>Permissions:</strong> root only</li>
+<li><strong>Major number:</strong> 237</li>
+<li><strong>Minor number:</strong> 0</li>
+</ul>
+<h2 id="reverse-engineering-the-kernel-module">Reverse Engineering the Kernel Module</h2>
+<p>Time to analyze the kernel object (device.ko)! I&rsquo;ll be using binary ninja for this, but Ghidra or IDA work just as well.</p>
+<h3 id="loading-deviceko-into-binary-ninja">Loading device.ko into binary ninja</h3>
+<p>After loading <code>device.ko</code> into binary ninja and letting it analyze, we can see several interesting functions in the symbol:</p>
+<p>Key functions identified:</p>
+<ul>
+<li><code>ioctl_handler</code> - The main function we need to understand</li>
+<li><code>init_module</code> - Module initialization</li>
+<li><code>hide</code> - Module hiding functionality</li>
+<li><code>cleanup_module</code> - Module cleanup</li>
+</ul>
+<h3 id="analyzing-ioctl_handler">Analyzing ioctl_handler()</h3>
+<p>This is where the magic happens! Let&rsquo;s examine the decompiled code:</p>
+<p><img src="https://i.imgur.com/bipyxZi.png" alt="ioctl_handler Code"></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">int64_t</span> <span class="nf">ioctl_handler</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int64_t</span> <span class="n">rdx_2</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int32_t</span> <span class="n">rsi_3</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">rdx_2</span> <span class="o">=</span> <span class="nf">__fentry__</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">void</span><span class="o">*</span> <span class="n">gsbase</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int64_t</span> <span class="n">rax</span> <span class="o">=</span> <span class="o">*</span><span class="p">(</span><span class="kt">uint64_t</span><span class="o">*</span><span class="p">)((</span><span class="kt">char</span><span class="o">*</span><span class="p">)</span><span class="n">gsbase</span> <span class="o">+</span> <span class="mh">0x28</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int32_t</span> <span class="n">var_7c</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int32_t</span> <span class="n">var_78</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">rsi_3</span> <span class="o">==</span> <span class="mh">0xc0487213</span> <span class="o">&amp;&amp;</span> 
+</span></span><span class="line"><span class="cl">        <span class="o">!</span><span class="nf">_copy_from_user</span><span class="p">(</span><span class="o">&amp;</span><span class="n">var_7c</span><span class="p">,</span> <span class="n">rdx_2</span><span class="p">,</span> <span class="mh">0x48</span><span class="p">)</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">var_7c</span> <span class="o">==</span> <span class="mh">0x1337dead</span> <span class="o">&amp;&amp;</span> 
+</span></span><span class="line"><span class="cl">        <span class="n">var_78</span> <span class="o">==</span> <span class="mh">0xcafebabe</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">int64_t</span> <span class="n">var_74</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">__builtin_strncpy</span><span class="p">(</span><span class="o">&amp;</span><span class="n">var_74</span><span class="p">,</span> <span class="s">&#34;ROOTKIT{fake_flag_for_you}&#34;</span><span class="p">,</span> <span class="mh">0x1b</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">_copy_to_user</span><span class="p">(</span><span class="n">rdx_2</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">var_7c</span><span class="p">,</span> <span class="mh">0x48</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">rax</span> <span class="o">==</span> <span class="o">*</span><span class="p">(</span><span class="kt">uint64_t</span><span class="o">*</span><span class="p">)((</span><span class="kt">char</span><span class="o">*</span><span class="p">)</span><span class="n">gsbase</span> <span class="o">+</span> <span class="mh">0x28</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="nf">__x86_return_thunk</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="nf">__stack_chk_fail</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><strong>findings:</strong></p>
+<ol>
+<li>
+<p><strong>ioctl Command Check:</strong> <code>rsi_3 == 0xc0487213</code></p>
+<ul>
+<li>This is the ioctl request number we need to use</li>
+</ul>
+</li>
+<li>
+<p><strong>Buffer Size:</strong> <code>_copy_from_user(&amp;var_7c, rdx_2, 0x48)</code></p>
+<ul>
+<li>Expects exactly <code>0x48</code> bytes (72 bytes)</li>
+</ul>
+</li>
+<li>
+<p><strong>Magic Value #1:</strong> <code>var_7c == 0x1337dead</code></p>
+<ul>
+<li>First 4 bytes must be <code>0x1337DEAD</code></li>
+</ul>
+</li>
+<li>
+<p><strong>Magic Value #2:</strong> <code>var_78 == 0xcafebabe</code></p>
+<ul>
+<li>Next 4 bytes must be <code>0xCAFEBABE</code></li>
+</ul>
+</li>
+</ol>
+<h3 id="understanding-the-init_module">Understanding the init_module()</h3>
+<p>Let&rsquo;s also check how the device gets created:</p>
+<p><img src="https://i.imgur.com/GSLBhPr.png" alt="init_module Code"></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">int64_t</span> <span class="nf">init_module</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">__fentry__</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint32_t</span> <span class="n">rax</span> <span class="o">=</span> <span class="nf">__register_chrdev</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mh">0x100</span><span class="p">,</span> <span class="s">&#34;ioctl_dev&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">fops</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">major</span> <span class="o">=</span> <span class="n">rax</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">rax</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">uint64_t</span> <span class="n">rax_1</span> <span class="o">=</span> <span class="nf">__class_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">__this_module</span><span class="p">,</span> <span class="s">&#34;ioctl_class&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">__key</span><span class="mf">.2</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">ioctl_class</span> <span class="o">=</span> <span class="n">rax_1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">rax_1</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="mh">0x1000</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="kt">uint64_t</span> <span class="n">rax_3</span> <span class="o">=</span> <span class="nf">device_create</span><span class="p">(</span><span class="n">rax_1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="kt">uint64_t</span><span class="p">)(</span><span class="n">major</span> <span class="o">&lt;&lt;</span> <span class="mh">0x14</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#34;ioctl_dev&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="n">__key</span><span class="mf">.2</span> <span class="o">=</span> <span class="n">rax_3</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="n">rax_3</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="mh">0x1000</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nf">hide</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">                <span class="nf">_printk</span><span class="p">(</span><span class="mh">0x400326</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="nf">__x86_return_thunk</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>The <code>device_create()</code> call creates our <code>/dev/ioctl_dev</code> device with:</p>
+<ul>
+<li>Device class: <code>ioctl_class</code></li>
+<li>Device name: <code>ioctl_dev</code></li>
+<li>Major number: dynamically allocated (237 in our case)</li>
+</ul>
+<p>After successful creation, it calls <code>hide()</code> to make the module invisible to <code>lsmod</code>.</p>
+<hr>
+<h2 id="writing-the-exploit">Writing the Exploit</h2>
+<p>Now that we understand the requirements, let&rsquo;s write our exploit code!</p>
+<h3 id="the-exploit">The Exploit</h3>
+<ol>
+<li>Create a 72-byte buffer</li>
+<li>Write <code>0x1337DEAD</code> at offset 0</li>
+<li>Write <code>0xCAFEBABE</code> at offset 4</li>
+<li>Open <code>/dev/ioctl_dev</code></li>
+<li>Call ioctl with command <code>0xc0487213</code></li>
+<li>Read the flag from the returned buffer</li>
+</ol>
+<h3 id="exploitc">exploit.c</h3>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;fcntl.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;unistd.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;sys/ioctl.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdint.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;string.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">fd</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">char</span> <span class="n">buf</span><span class="p">[</span><span class="mh">0x48</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint32_t</span> <span class="n">val1</span> <span class="o">=</span> <span class="mh">0x1337DEAD</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uint32_t</span> <span class="n">val2</span> <span class="o">=</span> <span class="mh">0xCAFEBABE</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="nf">memset</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="o">*</span><span class="p">(</span><span class="kt">uint32_t</span><span class="o">*</span><span class="p">)</span><span class="n">buf</span> <span class="o">=</span> <span class="n">val1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">*</span><span class="p">(</span><span class="kt">uint32_t</span><span class="o">*</span><span class="p">)(</span><span class="n">buf</span> <span class="o">+</span> <span class="mi">4</span><span class="p">)</span> <span class="o">=</span> <span class="n">val2</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="n">fd</span> <span class="o">=</span> <span class="nf">open</span><span class="p">(</span><span class="s">&#34;/dev/ioctl_dev&#34;</span><span class="p">,</span> <span class="n">O_RDWR</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">fd</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">perror</span><span class="p">(</span><span class="s">&#34;open&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">ioctl</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="mh">0xc0487213</span><span class="p">,</span> <span class="n">buf</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">perror</span><span class="p">(</span><span class="s">&#34;ioctl&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;Flag: %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">buf</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="nf">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h3 id="compiling-and-running">Compiling and Running</h3>
+<p>Since we&rsquo;re connected via SSH, we can easily copy the code and compile it:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">root@hunter:~# gcc exploit.c -o exploit
+</span></span><span class="line"><span class="cl">root@hunter:~# ./exploit
+</span></span></code></pre></div><p><img src="https://i.imgur.com/uRb9EAY.png" alt="Exploit Execution"></p>
+<pre tabindex="0"><code>Flag: ROOTKIT{ioctl_secret_unlocked@1337}
+</code></pre><p><strong>Success!</strong> We&rsquo;ve captured the flag!</p>
+<h3 id="why-it-works">Why It Works</h3>
+<p>The exploit works because the kernel module uses the same buffer for both receiving input and sending output. We create a 72-byte buffer (buf[0x48]), write the magic values 0x1337DEAD and 0xCAFEBABE at the beginning using pointer casting (<em>(uint32_t</em>)buf), then open the device and call ioctl() with command 0xc0487213.</p>
+<p>The kernel validates our magic values with _copy_from_user(), and if they match, uses _copy_to_user() with the same pointer to overwrite our buffer with the flag.</p>
+<hr>
+<h2 id="key-lessons-learned">Key Lessons Learned</h2>
+<h3 id="1-check-dmesg-for-kernel-activity">1. Check dmesg for Kernel Activity</h3>
+<p>Kernel messages provided crucial information about module loading and potential issues.</p>
+<h3 id="2-understand-ioctl-communication">2. Understand ioctl Communication</h3>
+<p>The ioctl interface is a powerful way for userspace to communicate with kernel drivers. Understanding the command numbers and data structures is essential.</p>
+<h3 id="3-reversing-skills">3. Reversing Skills</h3>
+<p>Being comfortable with tools like Ghidra, IDA, or Binary Ninja is crucial for kernel module analysis.</p>
+<hr>
+<h2 id="conclusion">Conclusion</h2>
+<p>This challenge was an excellent introduction to Reversing and you can learn:</p>
+<ul>
+<li>Linux kernel modules</li>
+<li>Reverse engineering</li>
+<li>Crafting ioctl requests</li>
+<li>Recognizing rootkit techniques</li>
+</ul>
+<hr>
+<h2 id="our-community">Our Community</h2>
+<p>Join the <strong>Rootkit Researchers</strong> community:<br>
+<a href="https://discord.gg/66N5ZOpqU7">Discord Server</a></p>
+<p><em>Challenge created by Matheuz - Have fun guys!!</em></p>
+<hr>
+<p><strong>Thanks for reading! If you enjoyed this writeup, consider sharing it with others who might find it useful. Happy hacking!</strong></p>
+
+  </div>
+
+  <footer class="art-foot">
+    <nav class="navlinks"><a class="prev" href="/hacking/bypassing-elastic/"><span class="label">&lt;&lt; prev</span><br>Evading Elastic Security: Linux Rootkit Detection Bypass</a><a class="next" href="/hacking/ebpf-security-tools-hacking/"><span class="label">next &gt;&gt;</span><br>Breaking eBPF Security: How Kernel Rootkits Blind Observability Tools</a>
+    </nav>
+  </footer>
+</article>
+    </main><footer class="foot">
+    <span>&copy; 2026 <a href="/">0xMatheuZ</a></span>
+    <span>built with <a href="https://gohugo.io/" target="_blank" rel="noopener">hugo</a> · handcrafted layouts</span>
+</footer>
+<script>
+document.querySelectorAll('pre > code').forEach((code) => {
+    const pre = code.parentNode;
+    const wrap = pre.parentNode;
+    const btn = document.createElement('button');
+    btn.className = 'copy-code';
+    btn.type = 'button';
+    btn.textContent = 'copy';
+    const done = () => { btn.textContent = 'copied'; setTimeout(() => btn.textContent = 'copy', 1600); };
+    btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(code.textContent).then(done).catch(() => {});
+    });
+    const host = wrap.classList.contains('highlight') ? wrap : pre;
+    host.style.position = 'relative';
+    host.appendChild(btn);
+});
+</script>
+</body>
+</html>
