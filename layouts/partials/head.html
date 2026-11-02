@@ -57,3 +57,8 @@
 {{- $searchbundle := slice $fuse $search | resources.Concat "js/search.bundle.js" | resources.Minify | fingerprint }}
 <script defer src="{{ $searchbundle.RelPermalink }}" integrity="{{ $searchbundle.Data.Integrity }}"></script>
 {{- end }}
+
+{{- if .IsHome }}
+{{- $demo := slice (resources.Get "js/demo-art.js") (resources.Get "js/demo-music.js") | resources.Concat "js/demo.js" | resources.Minify | fingerprint }}
+<script defer src="{{ $demo.RelPermalink }}" integrity="{{ $demo.Data.Integrity }}"></script>
+{{- end }}

@@ -83,6 +83,20 @@ hr, .rule {
 }
 .logo-art.ansi-art span { display: inline; }
 
+/* A small canvas cracktro; the original ASCII remains the no-JS fallback. */
+.demo-art { position: relative; }
+.demo-canvas { display: block; width: 100%; height: auto; aspect-ratio: 36 / 13; }
+.demo-canvas[hidden], .demo-toggle[hidden] { display: none; }
+.demo-toggle {
+    position: absolute; right: 0; bottom: 0;
+    border: 1px solid var(--line-2); background: #000;
+    color: var(--dim); padding: 3px 7px; cursor: pointer;
+    font: 10px var(--mono);
+}
+.demo-music { left: 0; right: auto; }
+.demo-toggle:hover { color: var(--green); }
+.demo-toggle:focus-visible { outline: 1px solid var(--green); outline-offset: 3px; }
+
 .masthead-bar {
     margin: 14px 0 0;
     padding: 7px 0;

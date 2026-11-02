@@ -2,6 +2,8 @@
   <div class="wrap">
     {{- if .IsHome }}
     <div class="masthead">
+      <div class="demo-art">
+      <canvas class="demo-canvas" width="1440" height="520" role="img" aria-label="MatheuZ — animated ASCII art with stars and a wireframe landscape" hidden></canvas>
       <pre class="logo-art" role="img" aria-label="MatheuZ">
  _____ ______   ________  _________  ___  ___  _______   ___  ___  ________
 |\   _ \  _   \|\   __  \|\___   ___\\  \|\  \|\  ___ \ |\  \|\  \|\_____  \
@@ -13,6 +15,9 @@
 
 
 </pre>
+      <button class="demo-toggle demo-music" type="button" aria-pressed="false" hidden>music: off</button>
+      <button class="demo-toggle" type="button" aria-pressed="false" hidden>pause animation</button>
+      </div>
       <div class="masthead-bar">
         <span class="hn">MatheuZ</span><span class="sep"> :: </span>offensive security research<span class="sep"> :: </span>linux internals
       </div>

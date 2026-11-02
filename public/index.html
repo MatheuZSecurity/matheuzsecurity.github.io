@@ -18,13 +18,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/main.min.1bc67ffb4441d0e85aecd23bda1eb9c0f69c871ef26d2a8dc539665adbf80152.css" integrity="sha256-G8Z/&#43;0RB0Oha7NI72h65wPachx7ybSqNxTlmWtv4AVI=">
+<link rel="stylesheet" href="/css/main.min.7cd9e4739525ef0372d2a326ef9966a2759fc35dada26c84e9993771f784ace4.css" integrity="sha256-fNnkc5Ul7wNy0qMm75lmonWfw12tomyE6Zk3cfeErOQ=">
 <link rel="icon" href="/img/0xm-badge.png">
 <meta name="theme-color" content="#06070b"><link rel="alternate" type="application/rss&#43;xml" href="http://localhost:1313/index.xml"><link rel="alternate" type="application/json" href="http://localhost:1313/index.json">
+<script defer src="/js/demo.min.292b7a281574b8ceb85291e7e11ffd80722cc655c81fc6d50d42f8da36b98362.js" integrity="sha256-KSt6KBV0uM64UpHn4R/9gHIsxlXIH8bVDUL42ja5g2I="></script>
 </head>
 <body id="top"><header class="site-head">
   <div class="wrap">
     <div class="masthead">
+      <div class="demo-art">
+      <canvas class="demo-canvas" width="1440" height="520" role="img" aria-label="MatheuZ — animated ASCII art with stars and a wireframe landscape" hidden></canvas>
       <pre class="logo-art" role="img" aria-label="MatheuZ">
  _____ ______   ________  _________  ___  ___  _______   ___  ___  ________
 |\   _ \  _   \|\   __  \|\___   ___\\  \|\  \|\  ___ \ |\  \|\  \|\_____  \
@@ -36,6 +39,9 @@
 
 
 </pre>
+      <button class="demo-toggle demo-music" type="button" aria-pressed="false" hidden>music: off</button>
+      <button class="demo-toggle" type="button" aria-pressed="false" hidden>pause animation</button>
+      </div>
       <div class="masthead-bar">
         <span class="hn">MatheuZ</span><span class="sep"> :: </span>offensive security research<span class="sep"> :: </span>linux internals
       </div>
